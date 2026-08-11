@@ -16,7 +16,6 @@ class UserRole(str, enum.Enum):
     user = "user"
     admin = "admin"
 
-
 class WalletType(str, enum.Enum):
     """The five envelopes FlowPay's rule engine splits money into."""
     main = "main"
