@@ -46,6 +46,7 @@ class User(Base):
     full_name = Column(String, nullable=False)
     role = Column(SAEnum(UserRole), default=UserRole.user, nullable=False)
     is_active = Column(Boolean, default=True)
+    bank_account_id = Column(String, nullable=True, unique=True)
 
     # OAuth login — filled in only if the user signs up via Google/GitHub/etc.
     oauth_provider = Column(String, nullable=True)
