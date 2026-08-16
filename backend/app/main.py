@@ -5,6 +5,7 @@ from app.api import auth as auth_router
 
 app = FastAPI(title="AutoWallet")
 
+# add the auth routes to the central fastapi app
 app.include_router(auth_router.router)
 
 
