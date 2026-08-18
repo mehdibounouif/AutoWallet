@@ -26,3 +26,18 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class TransactionCreate(BaseModel):
+    reference: str = Field(min_length=1, max_length=100)
+    amount: float = Field(gt=0)
+
+
+class TransactionOut(BaseModel):
+    id: str
+    reference: str
+    amount: float
+    status: str
+
+    class Config:
+        from_attributes = True
