@@ -28,7 +28,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    
+
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -51,7 +51,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
 
 
-
+# get has no request body
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
