@@ -41,3 +41,29 @@ class TransactionOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class WalletOut(BaseModel):
+    id: str
+    wallet_type: str
+    balance: float
+
+    class Config:
+        from_attributes = True
+
+
+class RuleOut(BaseModel):
+    id: str
+    name: str
+    rule_type: str
+    target_wallet: str
+    priority: int
+    fixed_amount: float | None
+    percentage: float | None
+    condition_field: str | None
+    condition_operator: str | None
+    condition_value: float | None
+    is_active: bool
+
+    class Config:
+        from_attributes = True

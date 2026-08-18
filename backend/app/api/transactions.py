@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.models import Rule, Transaction, TransactionStatus, User, Wallet
 from app.services.rule_engine import RuleInput, apply_rules
+from app.api.schemas import TransactionOut
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -61,3 +62,13 @@ def create_transaction(
     db.refresh(transaction)
 
     return transaction
+
+
+@router.get("/", response_model=list[TransactionOut])
+def list_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return (
+        db.query(Transaction)
+        .filter(Transaction.user_id == current_user.id)
+        .order_by(Transaction.created_at.desc())
+        .all()
+    )
