@@ -9,6 +9,7 @@ from app.core.deps import get_current_user
 from app.models.models import Rule, Transaction, TransactionStatus, User, Wallet
 from app.services.rule_engine import RuleInput, apply_rules
 from app.api.schemas import TransactionOut
+from app.core.redis_client import redis_client
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -19,49 +20,56 @@ def create_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if db.query(Transaction).filter(Transaction.reference == payload.reference).first():
-        raise HTTPException(status_code=400, detail="A transaction with this reference already exists")
+    lock = redis_client.lock(f"lock:user:{current_user.id}", timeout=10, blocking_timeout=5)
+    acquired = lock.acquire(blocking=True)
+    if not acquired:
+        raise HTTPException(status_code=409, detail="Another payment for this account is still being processed, try again")
+    try:
+        if db.query(Transaction).filter(Transaction.reference == payload.reference).first():
+            raise HTTPException(status_code=400, detail="A transaction with this reference already exists")
 
-    transaction = Transaction(
-        user_id=current_user.id,
-        reference=payload.reference,
-        amount=payload.amount,
-        status=TransactionStatus.pending,
-    )
-    db.add(transaction)
-    db.commit()
-    db.refresh(transaction)
-
-    wallets = db.query(Wallet).filter(Wallet.user_id == current_user.id).all()
-    wallet_balances = {f"{w.wallet_type.value}_balance": w.balance for w in wallets}
-    wallets_by_type = {w.wallet_type.value: w for w in wallets}
-
-    rules = (
-        db.query(Rule)
-        .filter(Rule.user_id == current_user.id, Rule.is_active == True)  # noqa: E712
-        .all()
-    )
-    rule_inputs = [
-        RuleInput(
-            name=r.name, rule_type=r.rule_type.value, target_wallet=r.target_wallet.value,
-            priority=r.priority, fixed_amount=r.fixed_amount, percentage=r.percentage,
-            condition_field=r.condition_field, condition_operator=r.condition_operator,
-            condition_value=r.condition_value,
+        transaction = Transaction(
+            user_id=current_user.id,
+            reference=payload.reference,
+            amount=payload.amount,
+            status=TransactionStatus.pending,
         )
-        for r in rules
-    ]
+        db.add(transaction)
+        db.commit()
+        db.refresh(transaction)
 
-    allocations = apply_rules(payload.amount, rule_inputs, wallet_balances)
+        wallets = db.query(Wallet).filter(Wallet.user_id == current_user.id).all()
+        wallet_balances = {f"{w.wallet_type.value}_balance": w.balance for w in wallets}
+        wallets_by_type = {w.wallet_type.value: w for w in wallets}
 
-    for wallet_type, take in allocations.items():
-        wallets_by_type[wallet_type].balance += take
+        rules = (
+            db.query(Rule)
+            .filter(Rule.user_id == current_user.id, Rule.is_active == True)  # noqa: E712
+            .all()
+        )
+        rule_inputs = [
+            RuleInput(
+                name=r.name, rule_type=r.rule_type.value, target_wallet=r.target_wallet.value,
+                priority=r.priority, fixed_amount=r.fixed_amount, percentage=r.percentage,
+                condition_field=r.condition_field, condition_operator=r.condition_operator,
+                condition_value=r.condition_value,
+            )
+            for r in rules
+        ]
 
-    transaction.status = TransactionStatus.processed
-    transaction.processed_at = datetime.utcnow()
-    db.commit()
-    db.refresh(transaction)
+        allocations = apply_rules(payload.amount, rule_inputs, wallet_balances)
 
-    return transaction
+        for wallet_type, take in allocations.items():
+            wallets_by_type[wallet_type].balance += take
+
+        transaction.status = TransactionStatus.processed
+        transaction.processed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(transaction)
+
+        return transaction
+    finally:
+        lock.release()
 
 
 @router.get("/", response_model=list[TransactionOut])

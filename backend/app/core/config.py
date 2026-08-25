@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     """ Pydantic = validates inputs."""
     database_url: str
     secret_key: str
+    redis_url: str
 
     class Config:
         env_file = ".env"
