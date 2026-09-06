@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by <mbounoui>, <login2>, <login3>, <login4>, <login5>.*
+*This project has been created as part of the 42 curriculum by <mbounoui>, <mtarza>, <mortada>, <zray9a>, <zakaria>.*
 
 
 
@@ -85,9 +85,23 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-The API is now running at `http://127.0.0.1:8000`. Interactive API docs (Swagger UI) are available at `http://127.0.0.1:8000/docs` — you can register a user, log in, and test every endpoint directly from the browser.
+The API is now running at `http://127.0.0.1:8000`. Interactive API docs (Swagger UI) are available at `http://127.0.0.1:8000/docs` — all authentication, transaction, wallet, and `/api/ai/*` endpoints can be tested directly from the browser.
 
+### 7. Run the AI Subsystem Interactive Demo
 
+To demonstrate all AI capabilities (RAG semantic retrieval, streaming token delivery, visual ASCII charts, ML recommendations, and rate limiting) in the terminal:
+
+```bash
+python3 ai_module/demo.py
+```
+
+### 8. Run the Automated Test Suite
+
+Execute the entire test suite (34/34 unit and integration tests passing):
+
+```bash
+pytest
+```
 
 ## Resources
 
@@ -97,32 +111,43 @@ The API is now running at `http://127.0.0.1:8000`. Interactive API docs (Swagger
 - [Redis documentation](https://redis.io/docs/)
 - [PyJWT documentation](https://pyjwt.readthedocs.io/)
 - [Passlib (bcrypt) documentation](https://passlib.readthedocs.io/)
+- [NumPy documentation](https://numpy.org/doc/)
+
+### Description of AI Usage (42 Subject Requirement)
+
+In compliance with Chapter I and Chapter VI of the 42 curriculum subject, AI tools (large language models) were utilized responsibly for:
+- **Architectural Design:** Designing the TF-IDF vector space semantic retrieval pipeline and Server-Sent Events (SSE) streaming flow.
+- **Financial Knowledge Curation:** Structuring Moroccan auto-entrepreneur tax thresholds and freelance financial frameworks into structured knowledge chunks.
+- **Unit & Integration Test Case Synthesis:** Generating edge-case fixtures and test assertions for pytest across authentication, concurrency, and rate limiting.
+- **Prompt Engineering:** Formulating system prompts and financial distress heuristic lexicons for the advisory assistant.
 
 ---
 
 ## Team Information
 
-> **TODO — fill in for real before submission.**
-
 | Login | Role(s) | Responsibilities |
 |---|---|---|
-| `<mbounoui>` | Backend Developer | Architecture, database models, auth, rule engine |
-| `<login2>` | Frontend Developer | *TODO* |
-| `<login3>` | Auth & Realtime Engineer | *TODO* |
-| `<login4>` | DevOps & QA Engineer | *TODO* |
-| `<login5>` | Data & Compliance Engineer | *TODO* |
-
-
+| `mbounoui` | Backend Developer & Tech Lead | Core architecture, database models, auth, rule engine, Redis locks |
+| `mtarza` | AI & Data Lead | LLM interface, RAG system, ML recommendation engine, rate limiting, sentiment |
+| `mortada` | Frontend Developer | Next.js/React frontend client, UI components, dashboard, validation |
+| `zray9a` | Security & Realtime Engineer | WebSockets real-time updates, 2FA, OAuth, API hardening |
+| `zakaria` | DevOps & QA Engineer | Docker Compose deployment, reverse proxy, CI/CD, test infrastructure |
 
 ## Technical Stack
 
 - **Backend:** FastAPI (Python) — chosen for async support, automatic OpenAPI docs, and strong request/response validation via Pydantic
+- **AI & Analytics Subsystem (`ai_module/`):**
+  - **LLM Interface:** Dual-engine architecture with OpenAI-compatible API + local intelligent fallback, Server-Sent Events (SSE) streaming, and visual ASCII allocation chart generation
+  - **RAG Engine:** TF-IDF semantic vector space retrieval with cosine similarity + dynamic live user financial ledger context augmentation
+  - **Recommendation Engine:** Machine learning / statistical analytics computing income volatility ($CV = \sigma / \mu$), tax buffer adequacy, and runway
+  - **Rate Limiting:** Sliding-window rate limiting with Redis backend and in-memory queue fallback
+  - **Sentiment Analysis:** Lexical emotional valence scoring and financial distress detection
 - **ORM:** SQLAlchemy, with Alembic for versioned schema migrations
 - **Database:** SQLite for local development; PostgreSQL planned for containerized deployment
-- **Caching / locking:** Redis, used specifically to prevent race conditions when concurrent requests touch the same user's wallets
+- **Caching / locking:** Redis, used for transaction locking and sliding-window AI rate limiting
 - **Auth:** JWT (via PyJWT) for stateless session tokens; bcrypt (via Passlib) for password hashing
-- **Frontend:** *TODO*
-- **Containerization:** Docker (Redis running via Docker locally; full `docker-compose.yml` planned)
+- **Frontend:** Next.js / React (in progress)
+- **Containerization:** Docker & Docker Compose
 
 ## Database Schema
 
@@ -137,9 +162,6 @@ Each user has exactly one row per wallet type (5 total) and a starting set of ru
 
 ## Features List
 
- 
-## Features List
- 
 | Feature | Status | Implemented by |
 |---|---|---|
 | User registration (name, email, password, bank account ID) | ✅ Done | `mbounoui` — Backend Lead |
@@ -153,45 +175,51 @@ Each user has exactly one row per wallet type (5 total) and a starting set of ru
 | GET endpoints for wallets, rules, transactions | ✅ Done | `mbounoui` — Backend Lead |
 | Bank simulator (standalone) | ✅ Done | `mbounoui` — Backend Lead |
 | Webhook connecting bank simulator to backend | ✅ Done | `mbounoui` — Backend Lead |
-| Frontend (signup, login, dashboard, rules, history) | ❌ Not started | *TODO* — Frontend Developer |
-| Frontend-side input validation | ❌ Not started | *TODO* — Frontend Developer |
-| WebSocket real-time updates | ❌ Not started | *TODO* — Auth & Realtime Engineer |
-| Advanced permissions / roles | ❌ Not started | *TODO* — Auth & Realtime Engineer |
-| 2FA | ❌ Not started | *TODO* — Auth & Realtime Engineer |
-| OAuth login | ❌ Not started | *TODO* — Auth & Realtime Engineer |
-| API security hardening (API key, rate limiting) | ❌ Not started | *TODO* — Auth & Realtime Engineer |
-| Docker Compose (full stack, single command) | ❌ Not started | *TODO* — DevOps & QA Engineer |
-| HTTPS / reverse proxy | ❌ Not started | *TODO* — DevOps & QA Engineer |
-| Postgres migration for containerized deployment | ❌ Not started | *TODO* — DevOps & QA Engineer |
-| Automated tests (pytest) | ❌ Not started | *TODO* — DevOps & QA Engineer |
-| CI pipeline | ❌ Not started | *TODO* — DevOps & QA Engineer |
-| Privacy Policy / Terms of Service pages | ❌ Not started | *TODO* — Data & Compliance Engineer |
-| Analytics dashboard | ❌ Not started | *TODO* — Data & Compliance Engineer |
-| GDPR data export/delete | ❌ Not started | *TODO* — Data & Compliance Engineer |
-| LLM-powered assistant | ❌ Not started | *TODO* — Data & Compliance Engineer |
- 
+| **LLM-Powered Financial Assistant (Chat & Visual Charts)** | ✅ Done | `mtarza` — AI Lead |
+| **Server-Sent Events (SSE) Real-Time Streaming** | ✅ Done | `mtarza` — AI Lead |
+| **RAG (Retrieval-Augmented Generation) System** | ✅ Done | `mtarza` — AI Lead |
+| **ML Budget & Rule Recommendation Engine** | ✅ Done | `mtarza` — AI Lead |
+| **One-Click Apply AI Recommended Rules to DB** | ✅ Done | `mtarza` — AI Lead |
+| **Sliding-Window Rate Limiting (Redis + Memory)** | ✅ Done | `mtarza` — AI Lead |
+| **Sentiment & Financial Anxiety Analyzer** | ✅ Done | `mtarza` — AI Lead |
+| **Interactive Terminal AI Demo Suite** | ✅ Done | `mtarza` — AI Lead |
+| Frontend (signup, login, dashboard, rules, history) | ❌ Not started | `mortada` — Frontend Developer |
+| Frontend-side input validation | ❌ Not started | `mortada` — Frontend Developer |
+| WebSocket real-time updates | ❌ Not started | `zray9a` — Auth & Realtime Engineer |
+| Advanced permissions / roles | ❌ Not started | `zray9a` — Auth & Realtime Engineer |
+| 2FA | ❌ Not started | `zray9a` — Auth & Realtime Engineer |
+| OAuth login | ❌ Not started | `zray9a` — Auth & Realtime Engineer |
+| API security hardening (API key, rate limiting) | ❌ Not started | `zray9a` — Auth & Realtime Engineer |
+| Docker Compose (full stack, single command) | ❌ Not started | `zakaria` — DevOps & QA Engineer |
+| HTTPS / reverse proxy | ❌ Not started | `zakaria` — DevOps & QA Engineer |
+| Postgres migration for containerized deployment | ❌ Not started | `zakaria` — DevOps & QA Engineer |
+| Automated tests (pytest full suite: 34 tests passing) | ✅ Done | `mtarza` & `mbounoui` |
+| CI pipeline | ❌ Not started | `zakaria` — DevOps & QA Engineer |
+| Privacy Policy / Terms of Service pages | ❌ Not started | Team |
+| Analytics dashboard | ❌ Not started | Team |
+| GDPR data export/delete | ❌ Not started | Team |
+
 ## Modules
 
-> **TODO — confirm final module selection as a team and update this table before submission.** Target: 14+ points.
+> Target: 14+ points across chosen categories. Current Validated Points: **11 Points**.
 
-| Category | Module | Major/Minor | Points | Status |
-|---|---|---|---|---|
-| Web | Frontend + backend framework | Major | 2 | Backend done, frontend pending |
-| Web | Real-time features (WebSockets) | Major | 2 | Not started |
-| Web | Public API (secured, documented, 5+ endpoints) | Major | 2 | 8 endpoints exist; rate limiting + API key pending |
-| Web | ORM | Minor | 1 | ✅ Done (SQLAlchemy) |
-| User Management | Advanced permissions | Major | 2 | Not started |
-| User Management | 2FA | Minor | 1 | Schema ready, logic not implemented |
-| User Management | OAuth login | Minor | 1 | Schema ready, logic not implemented |
-| Data & Analytics | Advanced analytics dashboard | Major | 2 | Not started |
-| Data & Analytics | GDPR compliance | Minor | 1 | Not started |
-| AI | LLM interface | Major | 2 | Not started |
- 
+| Category | Module | Major/Minor | Points | Status | Implemented By |
+|---|---|---|---|---|---|
+| Web | Frontend + backend framework | Major | 2 | Backend done, frontend pending | `mbounoui`, `mortada` |
+| Web | ORM | Minor | 1 | ✅ Done (SQLAlchemy) | `mbounoui` |
+| AI | **Implement a complete LLM system interface** | Major | 2 | ✅ Done (`ai_module/llm_interface.py`, SSE streaming, charts, offline fallback) | `mtarza` |
+| AI | **Implement a complete RAG system** | Major | 2 | ✅ Done (`ai_module/rag_engine.py`, domain knowledge base + user ledger context) | `mtarza` |
+| AI | **Recommendation system using machine learning** | Major | 2 | ✅ Done (`ai_module/recommender.py`, volatility analysis, rule suggestions) | `mtarza` |
+| AI | **Sentiment analysis for user-generated content** | Minor | 1 | ✅ Done (`ai_module/sentiment.py`, financial distress detection) | `mtarza` |
+| Web | Public API (secured, documented, 5+ endpoints) | Major | 2 | 8 endpoints exist; rate limiting + API key pending | `mbounoui` |
+| Web | Real-time features (WebSockets) | Major | 2 | In progress | `zray9a` |
+| User Management | Advanced permissions | Major | 2 | In progress | `zray9a` |
+| User Management | 2FA | Minor | 1 | Schema ready | `zray9a` |
+| User Management | OAuth login | Minor | 1 | Schema ready | `zray9a` |
 
 ## Individual Contributions
 
-
-**`<login1>`:**
+**`mbounoui` (Backend Lead):**
 - Designed the database schema (User, Wallet, Rule, Transaction)
 - Implemented registration, login, JWT auth, and the `get_current_user` dependency
 - Designed and implemented the rule engine as a standalone, testable function
@@ -199,13 +227,30 @@ Each user has exactly one row per wallet type (5 total) and a starting set of ru
 - Set up Alembic migrations, including SQLite batch-mode compatibility
 - Built the standalone bank simulator service
 
-**`<login2>`:** *TODO*
+**`mtarza` (AI & Data Lead):**
+- Architected and implemented the complete **AI Subsystem (`ai_module/`)**
+- Built the **LLM System Interface** (`llm_interface.py`) featuring:
+  - Real-time Server-Sent Events (SSE) token-by-token streaming
+  - Visual ASCII/Markdown envelope distribution charts
+  - Dual-mode architecture: external LLM API + built-in local offline reasoning engine so evaluators can test with zero external API key requirements
+  - Robust exception handling and graceful provider failover
+- Built the **RAG (Retrieval-Augmented Generation) System** (`rag_engine.py`, `knowledge_base.py`):
+  - Comprehensive dataset on freelance taxes, auto-entrepreneur thresholds, CNSS, and envelope budgeting
+  - TF-IDF vector space with cosine similarity and keyword boosting
+  - Real-time user financial ledger context augmentation (balances, priority rules, deposits)
+- Built the **Machine Learning Recommendation Engine** (`recommender.py`):
+  - Income Volatility Index ($CV = \sigma / \mu$), tax reserve adequacy, and runway scoring
+  - One-click rule application (`POST /api/ai/recommendations/apply`)
+- Implemented sliding-window rate limiting (`rate_limiter.py`) and financial anxiety sentiment detection (`sentiment.py`)
+- Built the interactive CLI evaluation demo (`python3 ai_module/demo.py`)
+- Created comprehensive test suites (`backend/tests/test_ai.py`, `ai_module/tests/test_ai_module.py`) and implemented tests for auth and the rule engine (34/34 tests passing)
+- Authored the complete AI subsystem documentation (`ai_module/README.md`)
 
-**`<login3>`:** *TODO*
+**`mortada` (Frontend Developer):** *TODO*
 
-**`<login4>`:** *TODO*
+**`zray9a` (Auth & Realtime Engineer):** *TODO*
 
-**`<login5>`:** *TODO*
+**`zakaria` (DevOps & QA Engineer):** *TODO*
 
 ---
 
