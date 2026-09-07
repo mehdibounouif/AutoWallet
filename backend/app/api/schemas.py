@@ -11,6 +11,7 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    totp_code: str | None = None
 
 # respond to registreation
 class UserOut(BaseModel):
@@ -67,3 +68,12 @@ class RuleOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TwoFactorSetupOut(BaseModel):
+    secret: str
+    provisioning_uri: str
+
+
+class TwoFactorVerify(BaseModel):
+    code: str = Field(min_length=6, max_length=6)

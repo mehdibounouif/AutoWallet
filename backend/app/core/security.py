@@ -30,3 +30,20 @@ def decode_token(token: str) -> str | None:
         return payload.get("sub")
     except jwt.PyJWTError:
         return None
+
+
+import pyotp
+
+# Generate a random secret
+def generate_totp_secret() -> str:
+    return pyotp.random_base32()
+
+# Create a provisioning URI
+def get_totp_uri(secret: str, email: str) -> str:
+    return pyotp.totp.TOTP(secret).provisioning_uri(
+        name=email, # Associate this TOTP account with this email address.
+        issuer_name="AutoWallet" # the service/application that owns the account.
+        )
+# Check if this 6-digit code correct for this user's secret and the current time?
+def verify_totp_code(secret: str, code: str) -> bool:
+    return pyotp.TOTP(secret).verify(code, valid_window=1)
