@@ -30,3 +30,6 @@ uvicorn==0.51.0
 uvloop==0.22.1
 watchfiles==1.2.0
 websockets==16.1.1
+pytest==8.4.2
+httpx==0.28.1
+fakeredis[lua]==2.30.0
