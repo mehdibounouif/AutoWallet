@@ -60,5 +60,7 @@ def apply_rules(amount: float, rules: list[RuleInput], wallet_balances: dict[str
 
         allocations[rule.target_wallet] = allocations.get(rule.target_wallet, 0.0) + take
         pool -= take
+    if pool > 0:
+        allocations["main"] = allocations.get("main", 0.0) + pool
 
     return allocations
