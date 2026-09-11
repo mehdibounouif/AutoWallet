@@ -13,7 +13,7 @@ class UserLogin(BaseModel):
     password: str
     totp_code: str | None = None
 
-# respond to registreation
+# respond for registreation
 class UserOut(BaseModel):
     id: str
     full_name: str
@@ -23,17 +23,17 @@ class UserOut(BaseModel):
     class Config:
         from_attributes = True
 
-# respond to login
+# respond for login
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-
+# create transaction
 class TransactionCreate(BaseModel):
     reference: str = Field(min_length=1, max_length=100)
     amount: float = Field(gt=0)
 
-
+# respond for trasaction creation
 class TransactionOut(BaseModel):
     id: str
     reference: str
@@ -43,7 +43,7 @@ class TransactionOut(BaseModel):
     class Config:
         from_attributes = True
 
-
+# respond for wallets
 class WalletOut(BaseModel):
     id: str
     wallet_type: str
@@ -52,7 +52,7 @@ class WalletOut(BaseModel):
     class Config:
         from_attributes = True
 
-
+# respond for rulles
 class RuleOut(BaseModel):
     id: str
     name: str
@@ -70,10 +70,11 @@ class RuleOut(BaseModel):
         from_attributes = True
 
 
+# respond for 2FA
 class TwoFactorSetupOut(BaseModel):
     secret: str
     provisioning_uri: str
 
-
+# request from 2FA
 class TwoFactorVerify(BaseModel):
     code: str = Field(min_length=6, max_length=6)

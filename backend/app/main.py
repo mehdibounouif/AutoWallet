@@ -5,6 +5,7 @@ from app.api import auth as auth_router
 from app.api import transactions as transactions_router
 from app.api import wallets as wallets_router
 from app.api import rules as rules_router
+from app.workers.poller import scheduler
 
 app = FastAPI(title="AutoWallet")
 
@@ -17,6 +18,10 @@ app.include_router(rules_router.router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@app.on_event("startup")
+def start_scheduler():
+    scheduler.start()
 
 # Now:
 """
