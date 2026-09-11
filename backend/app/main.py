@@ -21,7 +21,8 @@ def health_check():
 
 @app.on_event("startup")
 def start_scheduler():
-    scheduler.start()
+     if not scheduler.running:
+          scheduler.start()
 
 # Now:
 """
