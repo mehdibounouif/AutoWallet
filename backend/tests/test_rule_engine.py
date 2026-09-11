@@ -191,7 +191,7 @@ def test_rules_targeting_same_wallet_accumulate():
         make_rule("Rent part 1", "lock_fixed", "rent", 1, fixed_amount=1000),
         make_rule("Rent part 2", "lock_fixed", "rent", 2, fixed_amount=1000),
     ]
-    assert apply_rules(5000, rules, {}) == pytest.approx({"rent": 2000})
+    assert apply_rules(5000, rules, {}) == pytest.approx({"rent": 2000, "main": 3000})
 
 
 # --- Silent-failure documentation (QA warnings) ------------------------------
