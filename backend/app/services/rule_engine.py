@@ -30,7 +30,6 @@ def _condition_met(rule: RuleInput, wallet_balances: dict[str, float]) -> bool:
         return True  # no condition means always run
 
     current_value = wallet_balances.get(rule.condition_field)
-    print(current_value)
     if current_value is None:
         return False  # can't check a condition we have no data for - skip to be safe
 

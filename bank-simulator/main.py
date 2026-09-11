@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 app = FastAPI(title="AutoWallet Bank Simulator")
 
-# In-memory only - resets every restart. That's fine, it's a fake bank.
+# In-memorydd only - resets every restart. That's fine, it's a fake bank.
 accounts: dict[str, dict] = {}
 
 
