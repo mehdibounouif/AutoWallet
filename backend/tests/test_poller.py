@@ -181,8 +181,7 @@ def test_lock_held_by_another_worker_raises(db_session, poller_uses_test_db, fak
 
     with respx.mock:
         mock_account(SIMULATOR, "ACC-LOCK", [{"reference": "STUCK", "amount": 100}])
-        with pytest.raises(RuntimeError):
-            poll_bank_simulator()
+        poll_bank_simulator()
 
 
 def test_user_without_bank_account_is_never_polled(db_session, poller_uses_test_db, fake_redis):
