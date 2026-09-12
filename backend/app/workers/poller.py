@@ -21,7 +21,11 @@ def poll_bank_simulator():
                     continue  # account doesn't exist yet in the simulator - nothing to do
 
                 for tx in response.json()["transactions"]:
-                    process_payment(user, tx["reference"], tx["amount"], db)
+                    try:
+                        process_payment(user, tx["reference"], tx["amount"], db)
+                    except (RuntimeError, KeyError, TypeError) as e:
+                        print("skipped tx %s for %s: %r", tx.get("reference"), user.id, e)
+                        continue
             except httpx.RequestError:
                 continue  # simulator unreachable this cycle - just try again next time
     finally:
@@ -29,4 +33,4 @@ def poll_bank_simulator():
 
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(poll_bank_simulator, "interval", seconds=60)
+scheduler.add_job(poll_bank_simulator, "interval", seconds=settings.poll_interval_seconds)
