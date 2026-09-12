@@ -68,6 +68,37 @@ def fake_redis(monkeypatch):
     yield fake
 
 
+@pytest.fixture(autouse=True)
+def no_background_scheduler(monkeypatch):
+    """Keep the REAL 60-second poller scheduler out of the test process.
+
+    app/main.py starts a BackgroundScheduler on app startup that polls the
+    bank simulator against the REAL database. In tests that would mean
+    background writes and real HTTP calls racing the tests. start() is
+    patched to a no-op, plus a defensive shutdown either side.
+    """
+    from app.workers.poller import scheduler
+
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+    monkeypatch.setattr(scheduler, "start", lambda: None)
+    yield
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+
+
+@pytest.fixture
+def poller_uses_test_db(db_session, monkeypatch):
+    """Point the poller's SessionLocal at THIS test's session.
+
+    poll_bank_simulator() creates its own DB session via SessionLocal().
+    Left alone it would write to the real database file; patched here it
+    joins the throwaway in-memory database, so tests control and observe
+    everything it writes.
+    """
+    monkeypatch.setattr("app.workers.poller.SessionLocal", lambda: db_session)
+
+
 @pytest.fixture
 def client(db_session):
     """A test client that calls the API using the throwaway database
