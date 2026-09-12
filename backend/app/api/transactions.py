@@ -21,7 +21,13 @@ def create_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    transaction = process_payment(current_user, payload.reference, payload.amount, db)
+    try:
+        transaction = process_payment(current_user, payload.reference, payload.amount, db)
+    except RuntimeError:
+        raise HTTPException(
+            status_code=409,
+            detail="Another payment for this account is still being processed, try again shortly",
+        )
     if transaction is None:
         raise HTTPException(status_code=400, detail="A transaction with this reference already exists")
     return transaction

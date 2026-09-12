@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     secret_key: str
     redis_url: str
     bank_simulator_url: str
+    poll_interval_seconds: int = 60
 
     class Config:
         env_file = ".env"
