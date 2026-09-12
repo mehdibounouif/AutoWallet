@@ -1,3 +1,4 @@
+APScheduler==3.11.0
 alembic==1.18.5
 annotated-doc==0.0.4
 annotated-types==0.8.0
@@ -33,3 +34,4 @@ websockets==16.1.1
 pytest==8.4.2
 httpx==0.28.1
 fakeredis[lua]==2.30.0
+respx==0.23.1
