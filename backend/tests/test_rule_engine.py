@@ -234,19 +234,15 @@ def test_malformed_rule_values_take_nothing_without_crashing():
     assert allocations == pytest.approx({"rent": 0.0, "free": 1000.0})
 
 
-# --- Known design gap --------------------------------------------------------
+# --- Remainder handling (was the xfail-tracked design gap) --------------------
 
-@pytest.mark.xfail(
-    reason="Known design gap: without a 100% catch-all rule, leftover money "
-           "is silently dropped by apply_rules() (QA report item #1). "
-           "This xfail turns into a real passing test the day the engine "
-           "starts returning the remainder (e.g. to the main wallet).",
-    strict=False,
-)
-def test_unallocated_remainder_should_not_vanish():
-    """Money not covered by any rule should end up somewhere — not disappear.
-    Today: 1,000 with only a 15% tax rule allocates 150 and DROPS the other 850."""
+def test_unallocated_remainder_goes_to_main_wallet():
+    """Money not covered by any rule must end up somewhere — not disappear.
+    Tracked as an xfail until PR #7 (fix/rule_engine) landed the main-wallet
+    remainder fix; the marker is removed now the fix is in. Leftover 850
+    from a 15% tax rule on 1,000 now lands in main."""
     rules = [make_rule("Tax", "percentage_remainder", "tax", 1, percentage=15)]
     allocations = apply_rules(1000, rules, {})
 
+    assert allocations["main"] == pytest.approx(850)
     assert sum(allocations.values()) == pytest.approx(1000)
