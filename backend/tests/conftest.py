@@ -53,17 +53,18 @@ def db_session():
 
 @pytest.fixture(autouse=True)
 def fake_redis(monkeypatch):
-    """Swap the Redis client used by the transactions endpoint for an
-    in-memory fake, so tests (and CI) need no running Redis server.
-    The REAL lock code still executes against the fake.
+    """Swap every Redis client the app uses for an in-memory fake, so tests
+    (and CI) need no running Redis server. The REAL lock code still executes
+    against the fake.
 
-    Patched at app.api.transactions.redis_client — the place where the
-    module under test holds its imported reference. (Patching the
-    original in app.core.redis_client would not affect it: `from X
-    import Y` copies the reference at import time.)
+    Patched in EACH module that holds its own imported reference — because
+    `from X import Y` copies the reference at import time, patching only
+    the original in app.core.redis_client changes nothing for importers.
+    New modules importing redis_client must be added here.
     """
     fake = fakeredis.FakeStrictRedis()
     monkeypatch.setattr("app.api.transactions.redis_client", fake)
+    monkeypatch.setattr("app.services.payment_processor.redis_client", fake)
     yield fake
 
 
