@@ -153,35 +153,74 @@ def test_reference_collision_manual_and_polled(db_session, poller_uses_test_db, 
 
 
 def test_malformed_simulator_response_crashes_cycle(db_session, poller_uses_test_db, fake_redis):
-    """HARD CASE (documented failure): simulator answers 200 but without a
-    'transactions' key — KeyError escapes the inner try/except (which only
-    catches httpx.RequestError) and the cycle dies mid-users.
-    Pins current behavior; QA finding #5 for the team."""
+    """ACCEPTANCE TESTS for QA finding #5 — blocks merge until fixed.
+
+    Two malformed shapes, both verified live (2026-09-13) to kill the
+    poll cycle on main:
+      1. 200 response missing the "transactions" key → KeyError
+      2. 200 response with an invalid JSON body → JSONDecodeError
+    Neither is caught by the outer `except httpx.RequestError`, so every
+    user ordered after the bad account is starved of payments until a
+    human intervenes — while /health stays green.
+
+    Expected once fixed: the outer except also catches ValueError (or
+    response.json()["transactions"] becomes .get("transactions", []))
+    — the cycle survives AND the victim user after the bad account
+    still gets processed."""
     make_user(db_session, "poller-bad@autowallet.dev", "ACC-BAD")
-    victim = make_user(db_session, "poller-victim@autowallet.dev", "ACC-VICTIM")
+    victim_id = make_user(db_session, "poller-victim@autowallet.dev", "ACC-VICTIM")
+
+    # shape 1: missing "transactions" key
     with respx.mock:
         respx.get(f"{SIMULATOR}/simulator/accounts/ACC-BAD").respond(json={"oops": "no key"})
-        mock_account(SIMULATOR, "ACC-VICTIM", [{"reference": "NEVER", "amount": 100}])
-        with pytest.raises(KeyError):
-            poll_bank_simulator()
+        mock_account(SIMULATOR, "ACC-VICTIM", [{"reference": "AFTER-BAD-1", "amount": 100}])
+        poll_bank_simulator()  # must NOT raise
 
-    never = db_session.query(Transaction).filter(Transaction.reference == "NEVER").first()
-    assert never is None, "users after the malformed response were processed — cycle survived (unexpected)"
+    processed = db_session.query(Transaction).filter(
+        Transaction.reference == "AFTER-BAD-1").first()
+    assert processed is not None, \
+        "finding #5 NOT fixed (missing-key case): cycle died, users after the malformed response were never paid"
+
+    # shape 2: invalid JSON body
+    with respx.mock:
+        respx.get(f"{SIMULATOR}/simulator/accounts/ACC-BAD").respond(
+            content="<<<not json>>>", status_code=200)
+        mock_account(SIMULATOR, "ACC-VICTIM", [{"reference": "AFTER-BAD-2", "amount": 100}])
+        poll_bank_simulator()  # must NOT raise
+
+    processed = db_session.query(Transaction).filter(
+        Transaction.reference == "AFTER-BAD-2").first()
+    assert processed is not None, \
+        "finding #5 NOT fixed (invalid-JSON case): cycle died, users after the bad response were never paid"
 
 
-def test_lock_held_by_another_worker_raises(db_session, poller_uses_test_db, fake_redis):
-    """HARD CASE (documented failure): another worker holds the user's Redis
-    lock for longer than blocking_timeout=5s — acquire() raises RuntimeError,
-    which is NOT caught by the cycle, killing it mid-users.
-    QA finding #6: process_payment lock contention should be handled by the poller."""
-    user_id = make_user(db_session, "poller-lock@autowallet.dev", "ACC-LOCK")
-    # a lock held forever (10s timeout, never released) — same key as process_payment uses
-    held = fake_redis.lock(f"lock:user:{user_id}", timeout=10)
+def test_lock_held_by_another_worker_cycle_continues(db_session, poller_uses_test_db, fake_redis):
+    """ACCEPTANCE TEST for QA finding #6 (poller half) — blocks merge until fixed.
+
+    The manual endpoint half of #6 is fixed (409 — verified), but the
+    POLLER half is not: when another worker holds the user's Redis lock
+    beyond blocking_timeout=5s, process_payment raises RuntimeError and
+    the per-transaction except in poller.py... catches it — BUT the
+    cycle must also demonstrably continue to the NEXT user. This test
+    pins the full requirement, not just the catch.
+
+    Setup: user LOCK has their lock held forever (never released);
+    user AFTER-LOCK comes after them and must still get paid."""
+    locked_id = make_user(db_session, "poller-lock@autowallet.dev", "ACC-LOCK")
+    after_id = make_user(db_session, "poller-afterlock@autowallet.dev", "ACC-AFTERLOCK")
+
+    held = fake_redis.lock(f"lock:user:{locked_id}", timeout=10)
     assert held.acquire(blocking=True)
 
     with respx.mock:
         mock_account(SIMULATOR, "ACC-LOCK", [{"reference": "STUCK", "amount": 100}])
-        poll_bank_simulator()
+        mock_account(SIMULATOR, "ACC-AFTERLOCK", [{"reference": "FREED", "amount": 100}])
+        poll_bank_simulator()  # must NOT raise, and must not stop
+
+    freed = db_session.query(Transaction).filter(
+        Transaction.reference == "FREED").first()
+    assert freed is not None, \
+        "finding #6 NOT fixed (poller half): cycle stopped at the locked user; the next user was never paid"
 
 
 def test_user_without_bank_account_is_never_polled(db_session, poller_uses_test_db, fake_redis):
