@@ -104,7 +104,7 @@ def test_negative_and_zero_amounts_currently_accepted():
     import main
     main.accounts = {}
     with TestClient(main.app) as client:
-        assert inject(client, reference="NEG", amount=-500).status_code == 200
-        assert inject(client, reference="ZERO", amount=0).status_code == 200
-        assert get_account(client).json()["balance"] == -500.0
+        assert inject(client, reference="NEG", amount=-500).status_code == 422
+        assert inject(client, reference="ZERO", amount=0).status_code == 422
+        assert get_account(client).status_code == 404 
     main.accounts = {}
