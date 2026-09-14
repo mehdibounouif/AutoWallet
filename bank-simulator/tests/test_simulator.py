@@ -95,12 +95,18 @@ def test_missing_fields_rejected(client):
     assert client.post("/simulator/inject", json={}).status_code == 422
 
 
-def test_negative_and_zero_amounts_currently_accepted():
-    """QA WARNING: the InjectPayment schema has no amount validation, so
-    negative and zero deposits are accepted and can drive balances down.
-    The backend schema (TransactionCreate) rejects these with 422 — the
-    simulator is more permissive than the system it feeds. Documented as
-    current behavior; flagged to the team (finding #4)."""
+def test_negative_and_zero_amounts_rejected():
+    """ACCEPTANCE TEST for QA finding #4 — blocks merge until fixed.
+
+    The simulator feeds the backend via the polling path, which performs
+    no validation of its own. A negative or zero "deposit" accepted here
+    becomes a real processed transaction with a negative amount on the
+    backend (pinned and verified live 2026-09-13). The manual endpoint
+    (TransactionCreate, Field(gt=0)) already rejects these — the fake
+    bank must not be more permissive than the system it feeds.
+
+    Expected once fixed: InjectPayment.amount gains Field(gt=0) and
+    these injects return 422 like TransactionCreate does."""
     import main
     main.accounts = {}
     with TestClient(main.app) as client:
