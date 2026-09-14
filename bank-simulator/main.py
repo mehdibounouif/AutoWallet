@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 app = FastAPI(title="AutoWallet Bank Simulator")
 
@@ -10,7 +10,7 @@ accounts: dict[str, dict] = {}
 class InjectPayment(BaseModel):
     account_id: str
     reference: str
-    amount: float
+    amount: float = Field(gt=0)
 
 
 @app.post("/simulator/inject")
