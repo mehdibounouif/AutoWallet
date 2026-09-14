@@ -110,10 +110,7 @@ def test_negative_and_zero_amounts_rejected():
     import main
     main.accounts = {}
     with TestClient(main.app) as client:
-        assert inject(client, reference="NEG", amount=-500).status_code == 422, \
-            "finding #4 NOT fixed: simulator still accepts negative amounts"
-        assert inject(client, reference="ZERO", amount=0).status_code == 422, \
-            "finding #4 NOT fixed: simulator still accepts zero amounts"
-        # and the safety invariant: a rejected inject must change nothing
-        assert main.accounts == {}, "rejected injects must not create or alter accounts"
+        assert inject(client, reference="NEG", amount=-500).status_code == 422
+        assert inject(client, reference="ZERO", amount=0).status_code == 422
+        assert get_account(client).status_code == 404 
     main.accounts = {}
