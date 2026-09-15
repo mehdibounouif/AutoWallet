@@ -19,14 +19,14 @@ def poll_bank_simulator():
                 )
                 if response.status_code != 200:
                     continue  # account doesn't exist yet in the simulator - nothing to do
-
-                for tx in response.json()["transactions"]:
+                for tx in response.json().get("transactions", []):
                     try:
                         process_payment(user, tx["reference"], tx["amount"], db)
                     except (RuntimeError, KeyError, TypeError) as e:
-                        print("skipped tx %s for %s: %r", tx.get("reference"), user.id, e)
+                        print(f"skipped tx {tx.get("reference")} for {user.id}: {e!r}")
                         continue
-            except httpx.RequestError:
+            except (httpx.RequestError, ValueError) as e:
+                print(f"poll failed for user {user.id}: {e}")
                 continue  # simulator unreachable this cycle - just try again next time
     finally:
         db.close()
