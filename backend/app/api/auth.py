@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.services.provisioning import create_default_rules, create_default_wallets
 
-from app.api.schemas import Token, UserLogin, UserOut, UserRegister
+from app.api.schemas import Token, UserLogin, UserOut, UserRegister, LinkBankAccount
 from app.core.database import get_db
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.models import User
@@ -82,3 +82,20 @@ def verify_2fa(payload: TwoFactorVerify, db: Session = Depends(get_db), current_
     current_user.two_factor_enabled = True
     db.commit()
     return {"message": "2FA enabled"}
+
+@router.post("/link-bank-account", response_model=UserOut)
+def link_bank_account(
+    payload: LinkBankAccount,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.bank_account_id is not None:
+        raise HTTPException(status_code=400, detail="A bank account is already linked")
+
+    if db.query(User).filter(User.bank_account_id == payload.bank_account_id).first():
+        raise HTTPException(status_code=400, detail="This bank account is already linked to another user")
+
+    current_user.bank_account_id = payload.bank_account_id
+    db.commit()
+    db.refresh(current_user)
+    return current_user

@@ -21,3 +21,8 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="User no longer exists")
 
     return user
+
+def require_linked_account(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.bank_account_id is None:
+        raise HTTPException(status_code=403, detail="Please link a bank account before continuing")
+    return current_user
