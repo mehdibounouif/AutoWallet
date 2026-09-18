@@ -18,7 +18,7 @@ class UserOut(BaseModel):
     id: str
     full_name: str
     email: EmailStr
-    bank_account_id: str
+    bank_account_id: str | None
 
     class Config:
         from_attributes = True
@@ -78,3 +78,6 @@ class TwoFactorSetupOut(BaseModel):
 # request from 2FA
 class TwoFactorVerify(BaseModel):
     code: str = Field(min_length=6, max_length=6)
+
+class LinkBankAccount(BaseModel):
+    bank_account_id: str = Field(min_length=3, max_length=50)

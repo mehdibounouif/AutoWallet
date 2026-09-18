@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     redis_url: str
     bank_simulator_url: str
     poll_interval_seconds: int = 60
+    google_client_id: str
+    google_client_secret: str
+    google_redirect_uri: str
 
     class Config:
         env_file = ".env"
