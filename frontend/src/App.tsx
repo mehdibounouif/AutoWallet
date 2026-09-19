@@ -1,281 +1,434 @@
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, AlertCircle, Menu, X } from 'lucide-react'
+import { GoogleIcon, GitHubIcon } from './icons'
 
-// AutoWallet Logo Monogram Icon
-function AutoWalletLogo() {
-  const navigate = useNavigate()
-  return (
-    <div
-      onClick={() => navigate('/')}
-      className="flex items-center gap-2.5 cursor-pointer select-none"
-    >
-      <svg className="w-9 h-9" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M6 10L14 30L19 18L24 30L34 10"
-          stroke="#2fa599"
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M10 21H30"
-          stroke="#38b2ac"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-      </svg>
-      <span className="font-bold text-slate-800 text-2xl tracking-tight">AutoWallet</span>
-    </div>
-  )
-}
-
-// Google 4-Color Brand Icon
-function GoogleIcon() {
-  return (
-    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-      <path
-        fill="#4285F4"
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-      />
-    </svg>
-  )
-}
-
-// GitHub Mark Icon
-function GitHubIcon() {
-  return (
-    <svg className="w-5 h-5 shrink-0 fill-slate-900" viewBox="0 0 24 24">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-      />
-    </svg>
-  )
-}
-
-// Page 1: AutoWallet Login Page
+// Page 1: AutoWallet Modern Authentication Page (Inspired by uploaded layout & UI Kit)
 function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
+  const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login')
+  const [email, setEmail] = useState('yourmail@company.com')
+  const [password, setPassword] = useState('password123')
+  const [fullName, setFullName] = useState('')
+  const [bankAccountId, setBankAccountId] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
+  const [agreeTerms, setAgreeTerms] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMessage(null)
+
+    if (activeTab === 'signup') {
+      if (fullName.trim().length < 2) {
+        setErrorMessage('Full name must be at least 2 characters.')
+        return
+      }
+      if (bankAccountId.trim().length < 3) {
+        setErrorMessage('Bank account ID must be at least 3 characters.')
+        return
+      }
+      if (password.length < 8) {
+        setErrorMessage('Password must be at least 8 characters.')
+        return
+      }
+      if (password !== confirmPassword) {
+        setErrorMessage('Passwords do not match.')
+        return
+      }
+      if (!agreeTerms) {
+        setErrorMessage('Please accept the Terms & Conditions.')
+        return
+      }
+    }
+
     navigate('/maintenance')
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f7fa] text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen w-full bg-gradient-to-br from-[#f2f7fc] via-[#edf4fa] to-[#e4eef7] relative flex flex-col font-sans overflow-x-hidden select-none">
+      
+      {/* Background Decorative Layer - Strictly behind all interactive UI (z-0, pointer-events-none) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        {/* Responsive Concentric Layered Organic Curved Arcs (Scales down gracefully on smaller windows / mobile) */}
+        <div className="absolute -right-20 -top-20 sm:-right-32 sm:-top-32 w-[240px] sm:w-[380px] lg:w-[520px] h-[240px] sm:h-[380px] lg:h-[520px] rounded-full border-[18px] sm:border-[28px] lg:border-[40px] border-[#A2D0EF]/20" />
+        <div className="absolute -left-12 sm:left-0 top-1/3 sm:top-1/2 -translate-y-1/2 w-[320px] sm:w-[500px] md:w-[620px] lg:w-[720px] xl:w-[860px] h-[320px] sm:h-[500px] md:h-[620px] lg:h-[720px] xl:h-[860px] rounded-full border-[22px] sm:border-[36px] lg:border-[55px] border-[#A2D0EF]/25" />
+        <div className="absolute left-2 sm:left-6 lg:left-12 top-1/3 sm:top-1/2 -translate-y-1/2 w-[260px] sm:w-[400px] md:w-[500px] lg:w-[580px] xl:w-[690px] h-[260px] sm:h-[400px] md:h-[500px] lg:h-[580px] xl:h-[690px] rounded-full border-[18px] sm:border-[30px] lg:border-[45px] border-[#8A95D2]/20" />
+        <div className="absolute left-6 sm:left-12 lg:left-24 top-1/3 sm:top-1/2 -translate-y-1/2 w-[180px] sm:w-[300px] md:w-[380px] lg:w-[440px] xl:w-[520px] h-[180px] sm:h-[300px] md:h-[380px] lg:h-[440px] xl:h-[520px] rounded-full bg-gradient-to-br from-[#A2D0EF]/35 to-[#8A95D2]/30 blur-xs" />
+        <div className="absolute -bottom-16 -left-16 sm:-bottom-24 sm:-left-24 w-[200px] sm:w-[300px] lg:w-[420px] h-[200px] sm:h-[300px] lg:h-[420px] rounded-full border-[16px] sm:border-[24px] lg:border-[35px] border-[#A2D0EF]/20" />
+      </div>
 
-      {/* Top Navigation Header */}
-      <header className="w-full max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
-        {/* Left: Logo & Nav Links */}
-        <div className="flex items-center gap-12">
-          <AutoWalletLogo />
-          <nav className="hidden md:flex items-center gap-8 text-base font-medium text-slate-500">
+      {/* TOP NAVIGATION - Responsive for Mobile & Desktop */}
+      <header className="w-full px-4 sm:px-8 lg:px-16 py-3.5 sm:py-5 lg:py-6 flex items-center justify-between relative z-30">
+        
+        {/* Logo: AW + AutoWallet */}
+        <div
+          className="flex items-center gap-2 cursor-pointer group select-none"
+          onClick={() => navigate('/')}
+        >
+          <img
+            src="/AW.svg"
+            alt="AutoWallet Logo"
+            className="h-7 sm:h-8 lg:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+          />
+          <span className="text-lg sm:text-xl lg:text-2xl font-bold text-[#3B495D] tracking-tight leading-none">
+            AutoWallet
+          </span>
+        </div>
+
+        {/* Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-8 text-xs sm:text-sm font-semibold text-[#7B8B9E]">
+          <button
+            type="button"
+            onClick={() => navigate('/maintenance')}
+            className="hover:text-[#3B495D] transition cursor-pointer"
+          >
+            How it Works
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/maintenance')}
+            className="hover:text-[#3B495D] transition cursor-pointer"
+          >
+            Features
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/maintenance')}
+            className="hover:text-[#3B495D] transition cursor-pointer"
+          >
+            FAQ
+          </button>
+        </nav>
+
+        {/* Mobile Right: Hamburger Menu Button */}
+        <div className="flex items-center md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-1.5 rounded-xl text-[#3B495D] hover:bg-white/60 active:scale-95 transition cursor-pointer"
+            aria-label="Toggle Navigation Menu"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Mobile Dropdown Drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden absolute top-full left-4 right-4 mt-2 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl p-4 shadow-xl flex flex-col gap-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
             <button
               type="button"
-              onClick={() => navigate('/maintenance')}
-              className="hover:text-slate-800 transition cursor-pointer"
+              onClick={() => {
+                setMobileMenuOpen(false)
+                navigate('/maintenance')
+              }}
+              className="text-left px-3 py-2 text-sm font-semibold text-[#3B495D] hover:bg-[#F0F4F8] rounded-xl transition cursor-pointer"
             >
-              How It Works
+              How it Works
             </button>
             <button
               type="button"
-              onClick={() => navigate('/maintenance')}
-              className="hover:text-slate-800 transition cursor-pointer"
+              onClick={() => {
+                setMobileMenuOpen(false)
+                navigate('/maintenance')
+              }}
+              className="text-left px-3 py-2 text-sm font-semibold text-[#3B495D] hover:bg-[#F0F4F8] rounded-xl transition cursor-pointer"
             >
               Features
             </button>
             <button
               type="button"
-              onClick={() => navigate('/maintenance')}
-              className="hover:text-slate-800 transition cursor-pointer"
+              onClick={() => {
+                setMobileMenuOpen(false)
+                navigate('/maintenance')
+              }}
+              className="text-left px-3 py-2 text-sm font-semibold text-[#3B495D] hover:bg-[#F0F4F8] rounded-xl transition cursor-pointer"
             >
               FAQ
             </button>
-          </nav>
-        </div>
-
-        {/* Right: Sign Up Button */}
-        <div>
-          <button
-            type="button"
-            onClick={() => navigate('/maintenance')}
-            className="bg-[#3f6560] hover:bg-[#345450] text-white text-sm font-semibold px-6 py-2.5 rounded-xl shadow-sm transition cursor-pointer"
-          >
-            Sign Up
-          </button>
-        </div>
+          </div>
+        )}
       </header>
 
-      {/* Main Content Area: Centered Card */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-10">
-        <div className="w-full max-w-5xl bg-white rounded-[2rem] shadow-2xl shadow-slate-300/50 border border-slate-100/80 overflow-hidden flex flex-col md:flex-row min-h-[580px]">
+      {/* MAIN BODY: RESPONSIVE SPLIT VIEW (Illustration on top on mobile, left on desktop) */}
+      <div className="flex-1 w-full flex flex-col lg:flex-row items-center lg:items-stretch justify-center relative z-10">
+        
+        {/* HERO ARTWORK COLUMN (Top on Mobile, Left on Desktop) */}
+        <div className="w-full lg:w-[50%] xl:w-[52%] relative flex items-center justify-center px-4 py-3 sm:py-6 lg:py-16 overflow-hidden bg-transparent shrink-0">
           
-          {/* Left Panel: 38ddfff3 SVG Illustration & Welcome (Matches #E0EFEF background) */}
-          <div className="w-full md:w-[48%] bg-[#E0EFEF] p-8 sm:p-12 flex flex-col justify-between">
-            <div>
-              <h1 className="text-3xl sm:text-4xl lg:text-[2.6rem] font-bold tracking-tight text-slate-900 leading-tight">
-                Welcome Back
-              </h1>
-              <p className="text-sm sm:text-base text-slate-600 mt-3 font-normal leading-relaxed">
-                Log in to access your envelopes and transactions.
-              </p>
-            </div>
-
-            {/* Illustration: 38ddfff3-fe1c-44bf-a233-3c4e6ee3e529.svg */}
-            <div className="flex items-end justify-center pt-8 pb-2">
-              <img
-                src="/38ddfff3-fe1c-44bf-a233-3c4e6ee3e529.svg"
-                alt="AutoWallet Illustration"
-                className="w-full max-h-[380px] object-contain drop-shadow-sm transition-transform duration-300 hover:scale-[1.02]"
-              />
-            </div>
+          {/* Centered Isometric Desk Artwork */}
+          <div className="relative z-10 w-full max-w-[210px] sm:max-w-[270px] md:max-w-xs lg:max-w-md xl:max-w-xl transition-transform duration-500 hover:scale-[1.03]">
+            <img
+              src="/login-desk-hero.png"
+              alt="AutoWallet Budgeting Workstation"
+              className="w-full h-auto object-contain drop-shadow-xl"
+            />
           </div>
 
-          {/* Right Panel: Enlarged Form Elements */}
-          <div className="w-full md:w-[52%] bg-white p-8 sm:p-12 flex flex-col justify-center">
-            <form onSubmit={handleLogin} className="space-y-5">
-              {/* Email Address */}
+        </div>
+
+        {/* AUTHENTICATION FORM COLUMN (Below Hero on Mobile, Right on Desktop) */}
+        <div className="w-full lg:w-[50%] xl:w-[48%] flex items-center justify-center px-4 sm:px-8 lg:px-12 xl:px-16 py-4 sm:py-6 lg:py-12 relative z-10">
+          <div className="w-full max-w-sm sm:max-w-md relative z-10">
+            
+            {/* Login / Sign up Tab Switcher - Styled like UI Kit "Tabs" component */}
+            <div className="flex justify-center mb-7">
+              <div className="inline-flex p-1.5 rounded-full bg-[#F0F4F8] border border-slate-200/60 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('login')
+                    setErrorMessage(null)
+                  }}
+                  className={`px-7 sm:px-8 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                    activeTab === 'login'
+                      ? 'bg-[#8A95D2] text-white shadow-xs shadow-[#8A95D2]/30'
+                      : 'text-[#7B8B9E] hover:text-[#3B495D]'
+                  }`}
+                >
+                  Login
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('signup')
+                    setErrorMessage(null)
+                  }}
+                  className={`px-7 sm:px-8 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                    activeTab === 'signup'
+                      ? 'bg-[#8A95D2] text-white shadow-xs shadow-[#8A95D2]/30'
+                      : 'text-[#7B8B9E] hover:text-[#3B495D]'
+                  }`}
+                >
+                  Sign up
+                </button>
+              </div>
+            </div>
+
+            {/* ERROR BANNER - UI Kit Input Error Style */}
+            {errorMessage && (
+              <div className="mb-5 p-3 sm:p-3.5 rounded-2xl bg-[#FFF5F5] border border-[#FFA5A5] text-[#D9383A] text-xs font-medium flex items-center gap-2.5 shadow-2xs">
+                <AlertCircle className="w-4 h-4 shrink-0 text-[#D9383A]" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* FORM */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              
+              {/* Full Name (Sign Up only) */}
+              {activeTab === 'signup' && (
+                <div>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Full Name"
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    className="w-full bg-[#F0F4F8] hover:bg-[#eaf1f7] focus:bg-white border border-transparent focus:border-[#8A95D2] focus:ring-2 focus:ring-[#8A95D2]/25 rounded-full px-5 py-3.5 text-xs sm:text-sm font-medium text-[#3B495D] placeholder-[#8F9CAE] focus:outline-none transition shadow-2xs"
+                  />
+                </div>
+              )}
+
+              {/* Email Address Input */}
               <div>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email Address"
-                  className="w-full px-4 py-3.5 rounded-xl border border-slate-300 text-base text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#4a7c76] focus:ring-2 focus:ring-[#4a7c76]/20 transition shadow-xs"
+                  required
+                  className="w-full bg-[#F0F4F8] hover:bg-[#eaf1f7] focus:bg-white border border-transparent focus:border-[#8A95D2] focus:ring-2 focus:ring-[#8A95D2]/25 rounded-full px-5 py-3.5 text-xs sm:text-sm font-medium text-[#3B495D] placeholder-[#8F9CAE] focus:outline-none transition shadow-2xs"
                 />
               </div>
 
-              {/* Password */}
-              <div>
+              {/* Bank Account ID / IBAN (Sign Up only - Required by Backend) */}
+              {activeTab === 'signup' && (
+                <div>
+                  <input
+                    type="text"
+                    value={bankAccountId}
+                    onChange={(e) => setBankAccountId(e.target.value)}
+                    placeholder="Bank Account ID / IBAN"
+                    required
+                    minLength={3}
+                    maxLength={50}
+                    className="w-full bg-[#F0F4F8] hover:bg-[#eaf1f7] focus:bg-white border border-transparent focus:border-[#8A95D2] focus:ring-2 focus:ring-[#8A95D2]/25 rounded-full px-5 py-3.5 text-xs sm:text-sm font-medium text-[#3B495D] placeholder-[#8F9CAE] focus:outline-none transition shadow-2xs tracking-wide"
+                  />
+                  <p className="px-5 pt-1.5 text-[11px] text-[#8F9CAE]">
+                    Connect your income account for automated envelope splitting
+                  </p>
+                </div>
+              )}
+
+              {/* Password Input */}
+              <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full px-4 py-3.5 rounded-xl border border-slate-300 text-base text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#4a7c76] focus:ring-2 focus:ring-[#4a7c76]/20 transition shadow-xs"
+                  required
+                  minLength={activeTab === 'signup' ? 8 : 1}
+                  className="w-full bg-[#F0F4F8] hover:bg-[#eaf1f7] focus:bg-white border border-transparent focus:border-[#8A95D2] focus:ring-2 focus:ring-[#8A95D2]/25 rounded-full px-5 py-3.5 pr-12 text-xs sm:text-sm font-medium text-[#3B495D] placeholder-[#8F9CAE] focus:outline-none transition shadow-2xs"
                 />
-              </div>
-
-              {/* Options Row: Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4.5 h-4.5 rounded border-slate-300 text-[#4a7c76] focus:ring-[#4a7c76] cursor-pointer"
-                  />
-                  <span className="text-sm text-slate-600 font-medium">Remember Me</span>
-                </label>
-
                 <button
                   type="button"
-                  onClick={() => navigate('/maintenance')}
-                  className="text-sm font-medium text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8F9CAE] hover:text-[#3B495D] transition cursor-pointer p-1"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  Forgot Password?
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
 
-              {/* Log In Button */}
-              <button
-                type="submit"
-                className="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-[#447670] to-[#558d86] hover:from-[#3a6862] hover:to-[#4a7d77] text-white font-semibold text-base shadow-md shadow-teal-900/15 active:scale-[0.99] transition cursor-pointer tracking-wide"
-              >
-                Log In
-              </button>
+              {/* Confirm Password (Sign Up only) */}
+              {activeTab === 'signup' && (
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm Password"
+                    required
+                    minLength={8}
+                    className="w-full bg-[#F0F4F8] hover:bg-[#eaf1f7] focus:bg-white border border-transparent focus:border-[#8A95D2] focus:ring-2 focus:ring-[#8A95D2]/25 rounded-full px-5 py-3.5 pr-12 text-xs sm:text-sm font-medium text-[#3B495D] placeholder-[#8F9CAE] focus:outline-none transition shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8F9CAE] hover:text-[#3B495D] transition cursor-pointer p-1"
+                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              )}
 
-              {/* Divider: or log in with */}
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="bg-white px-4 text-slate-400 font-normal">
-                    or log in with:
-                  </span>
-                </div>
+              {/* Options Row: Remember Me & Forgot Password / Terms */}
+              <div className="flex items-center justify-between px-2 pt-1">
+                {activeTab === 'login' ? (
+                  <>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-[#8A95D2] focus:ring-[#8A95D2] accent-[#8A95D2] cursor-pointer"
+                      />
+                      <span className="text-xs sm:text-sm text-[#7B8B9E] font-medium">Remember Me</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/maintenance')}
+                      className="text-xs sm:text-sm font-medium text-[#8A95D2] hover:text-[#7A85C2] hover:underline transition cursor-pointer"
+                    >
+                      Forgot Password?
+                    </button>
+                  </>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-[#8A95D2] focus:ring-[#8A95D2] accent-[#8A95D2] cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm text-[#7B8B9E] font-medium">
+                      I agree to Terms & Conditions
+                    </span>
+                  </label>
+                )}
               </div>
 
-              {/* OAuth Social Buttons */}
-              <div className="grid grid-cols-2 gap-3.5">
+              {/* Main Full-Width Action Button - UI Kit Pill Button (#8A95D2) */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full py-3.5 px-6 rounded-full bg-[#8A95D2] hover:bg-[#7A85C2] text-white font-semibold text-sm sm:text-base shadow-md shadow-[#8A95D2]/30 active:scale-[0.99] transition cursor-pointer"
+                >
+                  {activeTab === 'login' ? 'Log In' : 'Sign Up'}
+                </button>
+              </div>
+
+              {/* Divider: "or log in with:" / "or sign up with:" */}
+              <div className="flex items-center my-4 sm:my-5">
+                <div className="flex-1 border-t border-slate-200" />
+                <span className="px-3.5 text-xs text-[#8F9CAE] font-medium whitespace-nowrap">
+                  {activeTab === 'login' ? 'or log in with:' : 'or sign up with:'}
+                </span>
+                <div className="flex-1 border-t border-slate-200" />
+              </div>
+
+              {/* Social Login: Google and GitHub side by side */}
+              <div className="grid grid-cols-2 gap-3.5 sm:gap-4">
                 <button
                   type="button"
                   onClick={() => navigate('/maintenance')}
-                  className="flex items-center justify-center gap-3 py-3 px-4 border border-slate-200 rounded-xl hover:bg-slate-50 text-sm font-semibold text-slate-700 transition cursor-pointer shadow-xs"
+                  className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-white border border-slate-200/80 hover:border-[#8A95D2]/50 hover:bg-[#F8FAFC] shadow-xs active:scale-[0.98] transition cursor-pointer text-xs sm:text-sm font-semibold text-[#3B495D]"
                 >
-                  <GoogleIcon />
+                  <GoogleIcon className="w-5 h-5 shrink-0" />
                   <span>Google</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => navigate('/maintenance')}
-                  className="flex items-center justify-center gap-3 py-3 px-4 border border-slate-200 rounded-xl hover:bg-slate-50 text-sm font-semibold text-slate-700 transition cursor-pointer shadow-xs"
+                  className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-white border border-slate-200/80 hover:border-[#8A95D2]/50 hover:bg-[#F8FAFC] shadow-xs active:scale-[0.98] transition cursor-pointer text-xs sm:text-sm font-semibold text-[#3B495D]"
                 >
-                  <GitHubIcon />
+                  <GitHubIcon className="w-5 h-5 shrink-0 fill-current text-[#3B495D]" />
                   <span>GitHub</span>
                 </button>
               </div>
 
-              {/* Don't have an account prompt */}
-              <div className="text-center pt-3">
-                <p className="text-sm text-slate-500">
-                  Don't have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/maintenance')}
-                    className="text-[#3ea89f] font-semibold hover:underline cursor-pointer"
-                  >
-                    Sign Up
-                  </button>
-                </p>
-              </div>
             </form>
-          </div>
 
+          </div>
         </div>
-      </main>
+
+
+
+      </div>
+
     </div>
   )
 }
 
-// Page 2: The Under Maintenance Page
+// Page 2: The Under Maintenance Page (Updated to match UI Kit)
 function MaintenancePage() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[#f3f7fa] text-slate-800 flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-10 shadow-xl text-center space-y-6">
-        <div className="w-16 h-16 bg-teal-50 border border-teal-200 text-teal-600 rounded-2xl flex items-center justify-center mx-auto text-3xl font-bold">
-          🛠️
+    <div className="min-h-screen bg-[#eaf1f8] text-[#3B495D] flex items-center justify-center p-4 font-sans relative overflow-hidden">
+      
+      {/* Ambient background curves */}
+      <div className="absolute -left-32 -top-32 w-[500px] h-[500px] rounded-full bg-[#A2D0EF]/30 blur-3xl pointer-events-none" />
+      <div className="absolute -right-32 -bottom-32 w-[500px] h-[500px] rounded-full bg-[#8A95D2]/20 blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-md bg-white border border-slate-100 rounded-3xl p-10 shadow-xl text-center space-y-6">
+        <div className="flex justify-center">
+          <img
+            src="/AW.svg"
+            alt="AutoWallet Logo"
+            className="h-14 w-auto object-contain drop-shadow-md"
+          />
         </div>
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Under Maintenance</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#3B495D] tracking-tight">Under Maintenance</h1>
+          <p className="text-xs sm:text-sm text-[#7B8B9E]">
             This module is currently being connected to the AutoWallet backend.
           </p>
         </div>
         <button
           onClick={() => navigate('/')}
-          className="w-full bg-[#3f6560] hover:bg-[#345450] text-white font-medium py-3.5 px-4 rounded-xl transition shadow-md shadow-teal-900/10 cursor-pointer"
+          className="w-full bg-[#8A95D2] hover:bg-[#7A85C2] text-white font-semibold py-3 px-4 rounded-full transition shadow-md shadow-[#8A95D2]/25 active:scale-95 cursor-pointer text-sm"
         >
           ← Go Back to Login
         </button>
