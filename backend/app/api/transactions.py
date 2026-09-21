@@ -11,8 +11,9 @@ from app.services.rule_engine import RuleInput, apply_rules
 from app.api.schemas import TransactionOut
 from app.core.redis_client import redis_client
 from app.services.payment_processor import process_payment
+from app.core.auth_client import require_client
 
-router = APIRouter(prefix="/api/transactions", tags=["transactions"])
+router = APIRouter(prefix="/api/transactions", tags=["transactions"], dependencies=[Depends(require_client)])
 
 
 @router.post("/", response_model=TransactionOut, status_code=status.HTTP_201_CREATED)
