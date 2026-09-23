@@ -6,7 +6,10 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_linked_account
 from app.models.models import Rule, User
 
-router = APIRouter(prefix="/api/rules", tags=["rules"])
+# from app.core.auth_client import require_client
+
+# , dependencies=[Depends(require_client)
+router = APIRouter(prefix="/api/rules", tags=["rules"]) 
 
 
 @router.get("/", response_model=list[RuleOut])
