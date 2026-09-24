@@ -1,5 +1,5 @@
 import express from "express";
-import authorizationRouter from "./routes/authorization.routes";
+import authorizationRouter from "./routes/authorization.routes.js";
 
 const app = express();
 
