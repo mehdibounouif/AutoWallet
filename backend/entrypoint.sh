@@ -4,8 +4,8 @@ set -e
 
 echo "[entrypoint] starting AutoWallet backend..."
 
-DB_HOST="${POSTGRES_HOST:-postgres}"
-DB_PORT="${POSTGRES_PORT:-5432}"
+DB_HOST="${POSTGRES_HOST}"
+DB_PORT="${POSTGRES_PORT}"
 
 if [[ "$DATABASE_URL" == postgresql* ]]; then
     python - <<'EOF'
@@ -20,8 +20,9 @@ while True:
     try:
         psycopg2.connect(
             host=host, port=port,
-            user=os.environ.get("POSTGRES_USER", "autowallet"),
-            password=os.environ.get("POSTGRES_PASSWORD", "autowallet"),
+            dbname=os.environ.get("POSTGRES_DB"),
+            user=os.environ.get("POSTGRES_USER"),
+            password=os.environ.get("POSTGRES_PASSWORD"),
             connect_timeout=2,
         ).close()
         print(f"[entrypoint] postgres is up at {host}:{port}")
