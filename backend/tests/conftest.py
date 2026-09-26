@@ -6,11 +6,15 @@ is ever touched.
 """
 import pytest
 import fakeredis
+import httpx
+import respx
+import jwt as pyjwt
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.security import create_access_token, hash_password
 from app.main import app
@@ -138,3 +142,94 @@ def auth_headers(test_user):
     """A valid JWT in a header, so tests can call protected endpoints."""
     token = create_access_token(user_id=test_user.id)
     return {"Authorization": f"Bearer {token}"}
+
+
+# ---------------------------------------------------------------------------
+# The authorization-service seam
+#
+# require_client (app/core/auth_client.py) POSTs every guarded request to
+# http://authorization:3000/api/authorize — a hostname that only exists
+# inside the docker network. Without interception every guarded test dies
+# with 503. Like the fakeredis patch above, the REAL middleware code keeps
+# running; only the network hop is replaced, by respx at the httpx
+# transport layer (the same HTTP client the middleware uses).
+#
+# Default answer is 200 "allowed": the ~50 business-logic tests merely need
+# the guard to open the door. The guard's own decision matrix (what status
+# in → what status out) is exercised in tests/test_auth_client.py.
+# ---------------------------------------------------------------------------
+
+AUTHORIZATION_URL = "http://authorization:3000/api/authorize"
+
+
+def _realish_authorize(request: httpx.Request) -> httpx.Response:
+    """Answer the way the REAL service would (authorization/src:
+    authenticate.ts decodes the JWT with the shared secret and requires a
+    `role` claim; authorize.ts then checks rolePermissions)."""
+    token = request.headers.get("Authorization", "").removeprefix("Bearer ")
+    try:
+        payload = pyjwt.decode(token, settings.secret_key, algorithms=["HS256"])
+    except pyjwt.PyJWTError:
+        return httpx.Response(401, json={"error": "Invalid Token"})
+
+    role = payload.get("role")
+    if not role:
+        return httpx.Response(403, json={"error": "Insufficient permissions"})
+    return httpx.Response(
+        200,
+        json={"allowed": True, "user_id": payload.get("sub"), "role": role},
+    )
+
+
+class AuthorizationServiceStub:
+    """Per-test controller: choose what the fake service answers."""
+
+    def __init__(self):
+        self._status = 200
+        self._json = {"allowed": True, "user_id": None, "role": "user"}
+        self._error: Exception | None = None
+        self._realish = False
+        self.calls: list[httpx.Request] = []
+
+    def _handle(self, request: httpx.Request) -> httpx.Response:
+        self.calls.append(request)
+        if self._realish:
+            return _realish_authorize(request)
+        if self._error is not None:
+            raise self._error
+        return httpx.Response(self._status, json=self._json)
+
+    def respond(self, status_code: int, json: dict | None = None) -> None:
+        """Script a fixed status from the service (e.g. 401, 403, 404, 500)."""
+        self._status = status_code
+        self._json = json if json is not None else {"allowed": status_code == 200}
+        self._error = None
+        self._realish = False
+
+    def refuse(self) -> None:
+        """Simulate an outage: nothing listening at authorization:3000."""
+        self._error = httpx.ConnectError("[Errno 111] Connection refused")
+
+    def timeout(self) -> None:
+        """Simulate the service hanging past the middleware's 3s timeout."""
+        self._error = httpx.ReadTimeout("Timed out")
+
+    def realish(self) -> None:
+        """Decode the JWT and enforce the role claim like the real service."""
+        self._realish = True
+        self._error = None
+
+
+@pytest.fixture(autouse=True)
+def authorization_service():
+    """Intercept the middleware's call to the authorization service.
+
+    autouse = every test gets it without asking, so no guarded test can
+    ever leak a real network call. assert_all_called=False because many
+    tests exercise unguarded endpoints and never trigger the route.
+    """
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post(AUTHORIZATION_URL)
+        stub = AuthorizationServiceStub()
+        route.side_effect = stub._handle
+        yield stub

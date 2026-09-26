@@ -1,25 +1,38 @@
 """Tests for the transaction endpoints: creating payments, wallet updates,
-duplicate protection, and the Redis lock under true concurrency."""
-from concurrent.futures import ThreadPoolExecutor
+duplicate protection, access control, and rule conditions live through the
+API.
 
+(The concurrency races live in test_concurrency.py.)
+
+Sections:
+    1. Payment processing   (the money actually lands where the rules say)
+    2. Data integrity       (records, duplicates, validation, auth)
+    3. Access control       (IDOR: lists scoped to the owner)
+    4. Rule conditions      (savings cap enforced through the API)
+"""
 from fastapi.testclient import TestClient
 
+from app.core.security import create_access_token
 from app.models.models import Transaction, User, Wallet
+from tests.helpers import wallet_balances
 
 
-def wallet_balances(db_session, user_id):
-    """Read the user's wallet balances straight from the database."""
-    wallets = db_session.query(Wallet).filter(Wallet.user_id == user_id).all()
-    return {w.wallet_type.value: w.balance for w in wallets}
+# ---------------------------------------------------------------------------
+# 1. PAYMENT PROCESSING — the board's envelope example, verified in the DB
+# ---------------------------------------------------------------------------
 
 
 def test_transaction_updates_wallets(client: TestClient, auth_headers, test_user, db_session):
-    """The board's 8,500 example, verified in the DATABASE, not just the response."""
+    """SCENARIO:   the board's canonical 8,500 MAD deposit.
+    EXPECTED:   201 "processed", and the DATABASE (not just the response)
+                shows the exact envelope split:
+                rent 3500 + tax 750 + savings 637.50 + free 3612.50."""
     response = client.post(
         "/api/transactions/",
         headers=auth_headers,
         json={"reference": "DEP-001", "amount": 8500},
     )
+
     assert response.status_code == 201
     assert response.json()["status"] == "processed"
 
@@ -31,7 +44,15 @@ def test_transaction_updates_wallets(client: TestClient, auth_headers, test_user
     assert balances["main"] == 0.0
 
 
+# ---------------------------------------------------------------------------
+# 2. DATA INTEGRITY — records, duplicates, validation, auth
+# ---------------------------------------------------------------------------
+
+
 def test_transaction_recorded_with_status_and_timestamps(client, auth_headers, db_session):
+    """SCENARIO:   a valid payment.
+    EXPECTED:   a Transaction row exists with status "processed", a
+                processed_at timestamp, and the paid amount."""
     client.post("/api/transactions/", headers=auth_headers,
                 json={"reference": "DEP-002", "amount": 1000})
 
@@ -42,7 +63,13 @@ def test_transaction_recorded_with_status_and_timestamps(client, auth_headers, d
     assert tx.amount == 1000
 
 
-def test_duplicate_reference_rejected_and_balances_unchanged(client, auth_headers, test_user, db_session):
+def test_duplicate_reference_rejected_and_balances_unchanged(
+    client, auth_headers, test_user, db_session
+):
+    """SCENARIO:   the same payment reference submitted twice with different
+                amounts.
+    EXPECTED:   first 201, second 400 "already exists" — and the money-safety
+                guarantee: the rejected payment changed NOTHING in the DB."""
     first = client.post("/api/transactions/", headers=auth_headers,
                         json={"reference": "DUP-REF", "amount": 5000})
     assert first.status_code == 201
@@ -54,25 +81,41 @@ def test_duplicate_reference_rejected_and_balances_unchanged(client, auth_header
     assert second.status_code == 400
     assert "already exists" in second.json()["detail"]
 
-    # the money-safety guarantee: the rejected payment changed NOTHING
     after = wallet_balances(db_session, test_user.id)
     assert before == after
 
 
 def test_non_positive_amounts_rejected(client, auth_headers):
-    assert client.post("/api/transactions/", headers=auth_headers,
-                       json={"reference": "ZERO-1", "amount": 0}).status_code == 422
-    assert client.post("/api/transactions/", headers=auth_headers,
-                       json={"reference": "NEG-1", "amount": -50}).status_code == 422
+    """SCENARIO:   payments of 0 and of -50.
+    EXPECTED:   both 422 (amount validation rejects non-positive money)."""
+    zero = client.post("/api/transactions/", headers=auth_headers,
+                       json={"reference": "ZERO-1", "amount": 0})
+    negative = client.post("/api/transactions/", headers=auth_headers,
+                           json={"reference": "NEG-1", "amount": -50})
+
+    assert zero.status_code == 422
+    assert negative.status_code == 422
 
 
 def test_transactions_require_auth(client: TestClient):
-    assert client.post("/api/transactions/",
-                       json={"reference": "NOAUTH", "amount": 100}).status_code == 401
+    """SCENARIO:   payment attempt with no Authorization header.
+    EXPECTED:   401 (the endpoint is not reachable anonymously)."""
+    response = client.post("/api/transactions/",
+                           json={"reference": "NOAUTH", "amount": 100})
+
+    assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# 3. ACCESS CONTROL — IDOR: lists are scoped to the owner
+# ---------------------------------------------------------------------------
 
 
 def test_transactions_scoped_to_owner(client, auth_headers, db_session):
-    """IDOR protection: user A's list must never contain user B's payments."""
+    """SCENARIO:   user A pays; user B (a second registered user) lists
+                THEIR OWN transactions.
+    EXPECTED:   user B's list never contains user A's payment, while user
+                A's list does (IDOR protection on the listing endpoint)."""
     client.post("/api/transactions/", headers=auth_headers,
                 json={"reference": "MINE-1", "amount": 100})
 
@@ -80,45 +123,27 @@ def test_transactions_scoped_to_owner(client, auth_headers, db_session):
                  hashed_password="x", bank_account_id="MA64000100008888")
     db_session.add(other)
     db_session.commit()
-    other_headers = {"Authorization": "Bearer " + __import__("app.core.security", fromlist=["create_access_token"]).create_access_token(user_id=other.id)}
+    other_headers = {"Authorization": "Bearer " + create_access_token(user_id=other.id)}
 
-    other_list = client.get("/api/transactions/", headers=other_headers).json()
-    other_refs = [t["reference"] for t in other_list]
+    other_refs = [t["reference"] for t in
+                  client.get("/api/transactions/", headers=other_headers).json()]
     assert "MINE-1" not in other_refs
 
-    mine = client.get("/api/transactions/", headers=auth_headers).json()
-    mine_refs = [t["reference"] for t in mine]
+    mine_refs = [t["reference"] for t in
+                 client.get("/api/transactions/", headers=auth_headers).json()]
     assert "MINE-1" in mine_refs
 
 
-def test_concurrent_payments_same_user_both_processed(client, auth_headers, test_user, db_session):
-    """The real concurrency test — the reason the Redis lock exists (PR #2).
-
-    Two payments for the same user fired at the SAME instant from two
-    threads. Both must be processed, no 500s, and no money lost: the
-    total across wallets must equal the total paid in.
-    """
-    def pay(reference, amount):
-        return client.post("/api/transactions/", headers=auth_headers,
-                           json={"reference": reference, "amount": amount})
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(
-            lambda args: pay(*args),
-            [("RACE-1", 3000), ("RACE-2", 2000)],
-        ))
-
-    statuses = [r.status_code for r in results]
-    assert statuses == [201, 201], f"one or both concurrent payments failed: {statuses}"
-
-    balances = wallet_balances(db_session, test_user.id)
-    total_in_wallets = sum(balances.values())
-    assert total_in_wallets == 5000.0, "money lost or duplicated during concurrent processing"
+# ---------------------------------------------------------------------------
+# 4. RULE CONDITIONS — savings cap enforced through the API
+# ---------------------------------------------------------------------------
 
 
 def test_conditional_rules_apply_live_through_api(client, auth_headers, test_user, db_session):
-    """Savings cap enforced through the API: with savings already at the cap,
-    the savings rule must skip and the money flows to free instead."""
+    """SCENARIO:   savings already AT its 10,000 cap, then an 8,500 payment.
+    EXPECTED:   the savings rule's condition skips it (stays 10,000), rent
+                and tax still take their shares, and the 15% that savings
+                would have taken flows to free instead (4,250)."""
     db_session.query(Wallet).filter(
         Wallet.user_id == test_user.id, Wallet.wallet_type == "savings"
     ).first().balance = 10000.0  # at the cap
@@ -128,9 +153,8 @@ def test_conditional_rules_apply_live_through_api(client, auth_headers, test_use
                 json={"reference": "CAPPED-1", "amount": 8500})
 
     balances = wallet_balances(db_session, test_user.id)
-    assert balances["savings"] == 10000.0  # unchanged: cap condition skipped the rule
+    assert balances["savings"] == 10000.0   # unchanged: cap condition skipped the rule
     assert balances["rent"] == 3500.0
     assert balances["tax"] == 750.0
-    # the 15% savings would have taken flows to free instead:
-    assert balances["free"] == 4250.0
-    assert sum(balances.values()) == 18500.0  # 10000 pre-existing + 8500 payment
+    assert balances["free"] == 4250.0       # savings' 15% went to free instead
+    assert sum(balances.values()) == 18500.0  # 10,000 pre-existing + 8,500 payment
