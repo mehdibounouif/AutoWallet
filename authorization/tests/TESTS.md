@@ -10,34 +10,16 @@ Companion doc for the backend suite: `backend/tests/TESTS.md`.
 
 ```bash
 cd authorization
-npm test                # the PIN half (tests/auth-service.test.ts) — MUST be green
-npm run test:findings   # the DEMAND half (tests/findings.test.ts) — RED by design
-npm run test:report     # BOTH halves, one colored line per test (the readable board)
-npm run test:all        # everything raw
+npm test               # the whole suite (16 pins) — the CI gate, must be green
+npm run test:report    # colored one-line board over the same suite
 ```
 
 - No server, no docker, no network needed — the express app runs
   in-process (supertest starts an ephemeral listener per request).
-- Baseline: `npm test` → **2 passed**; `npm run test:report` →
-  **2 pins passed + 13 demands held red + 1 skipped**.
-- The suite is split BY KIND on purpose:
-  - `auth-service.test.ts` = pins (behavior that works today). This is
-    the CI gate — a red pin is a regression, always.
-  - `findings.test.ts` = demands (desired behavior blocked by a reported
-    finding). These run RED on purpose — **red here is the findings
-    board, not a broken build**. Read them with `npm run test:report`,
-    which prints one colored line per test (`✗ DEMAND ... (finding open)`)
-    and flags in bold the moment a demand starts passing (fix landed).
-- Exit codes: `npm test` 0 while pins are green; `test:report` /
-  `test:findings` exit non-zero while findings are open — they are
-  informational, the CI gate is `npm test`.
-
-### Seeing the real failure behind a demand
-
-`npm run test:findings` IS the red view — each failing demand prints its
-full vitest assertion (e.g. `AssertionError: expected 404 to be 200` for
-finding #13), plus the SCENARIO/EXPECTED/TODAY/FIX/OWNER comment block
-right above it in the source. No temporary edits needed.
+- Expected baseline: **16 passed.** The suite went through a demand
+  phase: 14 tests were first written as RED demands for open findings,
+  the fixes landed (`ce8c316`), and the tests were promoted into this
+  pin file (§4). New findings start that cycle again (§4 cycle).
 
 ---
 
@@ -45,13 +27,10 @@ right above it in the source. No temporary edits needed.
 
 Every test drives the real `app` from `src/app.ts` — same middleware
 chain, same token verification — through supertest. What is faked is
-nothing; the only setup is the JWT secret (one line in `beforeAll`):
+nothing; the only setup is the JWT secret (one line in `beforeAll`,
+secret shared via `tests/setup.ts`).
 
-```ts
-beforeAll(() => { process.env.JWT_SECRET = SECRET; });
-```
-
-One helper keeps every test readable — it models exactly what the
+Two helpers keep every test readable — they model exactly what the
 backend's `require_client` middleware sends:
 
 ```ts
@@ -64,59 +43,56 @@ If you add a test, reuse these: each test should read as
 
 ---
 
-## 3. Test inventory
+## 3. Test inventory (16 pins)
 
-| # | Test | Kind | Scenario → Expected |
-|---|---|---|---|
-| 1 | `GET /api/health` 200 + shape | PIN | health probe → `{"service":"authorization","status":"ok"}` (compose healthcheck + CI depend on this) |
-| 2 | USER + `client:access` → 200 allowed | DEMAND #13 | the backend's real call → `{"allowed":true,"user_id":"user-1","role":"USER"}` — **404 today** (route missing leading slash) |
-| 3 | no Authorization header → 401 | DEMAND | guard rejects before any permission logic |
-| 4 | garbage token → 401 'Invalid Token' | DEMAND | catch-block fallback branch — **also demands #16b** (fires 500 after #13 lands) |
-| 5 | expired token → 401 'Token expired' | DEMAND | the dedicated expiry branch — **also demands #16b** |
-| 6 | wrong-secret token → 401 | DEMAND | forged signature refused |
-| 7 | bare `Bearer ` (empty token) → 401 | DEMAND | empty-string verify → catch → 401 |
-| 8 | non-Bearer scheme (`Basic …`) → 401 | DEMAND | only the Bearer scheme is accepted |
-| 9 | missing permission field → 400 | DEMAND | `{}` → 400 'Permission is required' (also documents the missing-`return` bug — see §5) |
-| 10 | numeric permission → 400 | DEMAND | `{"permission":123}` → 400 |
-| 11 | no body at all → 400 | DEMAND | valid token, no body → 400, never a permission decision |
-| 12 | USER + `admin:access` → 403 | DEMAND | role outside its permission → `{"allowed":false,"error":"Permission denied"}` |
-| 13 | unknown role → 403 | DEMAND | role matching no `rolePermissions` key gets nothing |
-| 14 | ADMIN + `client:access` → 200 | DEMAND #14 | admins pass the wallet guard too — **403 today** once #13 lands |
-| 15 | service survives malformed burst | PIN | empty body + garbage token + numeric permission, then health → still 200 'ok' |
-| 16 | lower-case role claim | SKIP (tripwire) | the open casing contract — un-skip and pin after the decision (§4 casing row) |
+| # | Test | Scenario → Expected |
+|---|---|---|
+| 1 | `GET /api/health` 200 + shape | health probe → `{"service":"authorization","status":"ok"}` (compose healthcheck + CI depend on this) |
+| 2 | USER + `client:access` → 200 allowed | the backend's real call → `{"allowed":true,"user_id":"user-1","role":"USER"}` |
+| 3 | no Authorization header → 401 | guard rejects before any permission logic |
+| 4 | garbage token → 401 'Invalid Token' | catch-block fallback branch |
+| 5 | expired token → 401 'Token expired' | the dedicated expiry branch (not the generic fallback) |
+| 6 | wrong-secret token → 401 | forged signature refused |
+| 7 | bare `Bearer ` (empty token) → 401 | empty-string verify → catch → 401 |
+| 8 | non-Bearer scheme (`Basic …`) → 401 | only the Bearer scheme is accepted |
+| 9 | missing permission field → 400 | `{}` → 400 'Permission is required', no double response |
+| 10 | numeric permission → 400 | `{"permission":123}` → 400 |
+| 11 | no body at all → 400 | valid token, no body → 400, never a permission decision |
+| 12 | USER + `admin:access` → 403 | role outside its permission → `{"allowed":false,"error":"Permission denied"}` |
+| 13 | unknown role → 403 | role matching no `rolePermissions` key gets nothing |
+| 14 | ADMIN + `client:access` → 200 | admins pass the wallet guard too |
+| 15 | lower-case role claim → 200 | the casing contract: the service normalizes role casing before the permission lookup |
+| 16 | service survives malformed burst | empty body + garbage token + numeric permission, then health → still 200 'ok' |
 
 The 401-family (tests 3-8) is deliberately separated from the
-permission-family (9-14): if the whole guard collapses you'll see it in
-one block, and if only the permission matrix is wrong you'll see it in
-the other.
+validation-family (9-11) and permission-family (12-14): a collapsed
+guard, bad input handling, and wrong permissions show up as three
+distinct failure clusters.
 
 ---
 
-## 4. Findings tracked by the DEMAND tests — and the exact fixes
+## 4. The findings cycle — how findings are tracked (and what happened)
 
-| Finding | Test(s) | Owner | Fix | Today → after fix |
-|---|---|---|---|---|
-| **#13** — route registered without leading slash (`routes/authorization.routes.ts:14`) | 2-14 | ZRAY9A | `router.post("authorize",…)` → `router.post("/authorize",…)` | 404 → the endpoint lives |
-| **#16b** — `TokenExpiredError` used at `authenticate.ts:26` but dropped from the imports by fix `0a6a25a` | 4, 5 | ZRAY9A | restore the value import: `import jwt, { TokenExpiredError } from "jsonwebtoken";` (JwtPayload stays type-only) | masked by #13 now; ReferenceError→500 the moment #13 lands |
-| **#14** — ADMIN lacks `client:access` (`services/authorization.service.ts`) | 14 | ZRAY9A | add `"client:access"` to the ADMIN list (design call) | 403 → 200 |
-| **casing** — `rolePermissions` keys UPPER-case vs backend enum lower-case; `hasPermission` is case-sensitive | 15 (skipped) | ZRAY9A + HOMIE (decision) | either backend emits "USER"/"ADMIN", or the service upper-cases its input | after #12: everyone 403 if skipped |
-| missing `return` after the 400 (routes, permission validation) | documented in test 9 | ZRAY9A | add `return` when sending the 400 | double-response error in server logs |
+**The cycle** (report-only discipline — the owners hold the fixes):
 
-### The flip convention (RED = open, GREEN = fix landed)
+1. A finding is reported with live evidence and an exact fix.
+2. A DEMAND test is written for it in a `findings.test.ts` — a plain
+   test asserting the DESIRED behavior; it runs RED on purpose
+   (`npm run test:findings` was the red board while findings were open).
+3. When the owner's fix lands and the demand turns green, the test is
+   PROMOTED: renamed to a PIN with its history kept in the comment
+   block, and moved into `auth-service.test.ts`.
 
-- Every demand is a plain test in `findings.test.ts` asserting the
-  DESIRED behavior. While the finding is open it fails — red, with its
-  full assertion and the SCENARIO/EXPECTED/TODAY/FIX/OWNER comment above
-  it. That red is information, not a broken build.
-- When the owner's fix lands, the demand **turns green** in
-  `npm run test:report` (printed in bold as `⚠ FLIPPED — the fix landed,
-  verify & promote`). Then: verify the fix live, and move the test into
-  the PIN file (`auth-service.test.ts`) so it guards the behavior
-  forever.
-- Tests 4 and 5 (garbage/expired token) fail for TWO stacked reasons
-  (#13 then #16b) — they stay red through the first fix and only turn
-  green after both land. That is intentional: they are the tripwire for
-  the masked bug.
+**This cycle ran to completion for the first generation of findings:**
+
+| Finding | Fix (verified live, `ce8c316`) | Test now |
+|---|---|---|
+| #13 — authorize route registered without leading slash; Express 5 → live 404; every backend guarded endpoint 503 | `router.post("/authorize", …)` | test 2 |
+| #16b — fix `0a6a25a` dropped `TokenExpiredError` from the imports while `authenticate.ts:26` still used it (masked by #13; would be ReferenceError/500 on every bad token) | value import restored (`import { TokenExpiredError } from "jsonwebtoken"`) | tests 4, 5 |
+| missing `return` after the 400 (authorize middleware kept running against an undefined permission) | `return` added | test 9 |
+| #14 — ADMIN had only `admin:access`, no `client:access` (design call) | ADMIN granted `client:access` | test 14 |
+| casing — `rolePermissions` keys UPPER-case vs backend enum lower-case; `hasPermission` case-sensitive; would 403 everyone once #12's `role` claim landed | service-side normalization (`normalizeRole`) | test 15 |
+| `server.ts:2` — `"./app"` extensionless broke `npm run build` (tsc, nodenext) | **NOT yet fixed** — only affects the tsc path, not the tsx container | — (would be a demand for the build script) |
 
 ---
 
@@ -124,26 +100,27 @@ the other.
 
 | Symptom | Most likely cause | Where |
 |---|---|---|
-| ALL authorize-path tests red (not "expected fail") | the health pin or route path changed / app fails to import | `src/app.ts`, route paths |
-| a demand becomes "unexpected pass" | the owner's fix landed — un-mark it (§4) | the specific test |
-| token tests fail with 500 in the log + `ReferenceError` | #16b — `TokenExpiredError` not imported | `authenticate.ts:2,26` |
-| validation tests return 404 instead of 400 | #13 not fixed yet | `routes/authorization.routes.ts:14` |
-| everything 403 after HOMIE's role claim lands | the casing contract (§4 casing row) | `authorization.service.ts` + backend claim value |
-| ERR_HTTP_HEADERS_SENT in server logs during validation tests | the missing `return` after the 400 | `routes/authorization.routes.ts` permission check |
+| health pin (1) fails | service identity/shape changed | `src/app.ts`, `/api/health` handler |
+| guard pins (3-8) fail | authentication middleware changed | `src/middleware/authenticate.ts` |
+| validation pins (9-11) fail | permission check / its `return` removed | `src/routes/authorization.routes.ts` |
+| permission pins (12-14) fail | `rolePermissions` changed | `src/services/authorization.service.ts` |
+| casing pin (15) fails | someone removed `normalizeRole` — the decided contract broke | `src/services/authorization.service.ts` |
+| survival pin (16) fails | a request shape can crash the app | error handling in routes/middleware |
+| all tests error at import | app fails to load (tsconfig/type errors) | `src/`, `tsconfig.json` |
 
 ---
 
 ## 6. Conventions for new tests
 
-1. Name states the kind first: `PIN:` or `DEMAND #n:` — a reviewer reads
-   intent from the name alone.
-2. One scenario per test; body = SCENARIO / EXPECTED (+ TODAY / FIX /
-   OWNER for demands), in that order.
-3. Demands live in `findings.test.ts` as plain tests (the red board);
-   pins live in `auth-service.test.ts`. A fixed finding is verified,
-   then its demand is PROMOTED to the pin file.
+1. Name states the kind first: `PIN:` — a reviewer reads intent from
+   the name alone.
+2. One scenario per test; body = SCENARIO / EXPECTED (+ HISTORY when a
+   test was promoted from a demand).
+3. New findings start a demand file (`findings.test.ts`) again — plain
+   tests, run via `npm run test:findings` (red board); remove the
+   script entry once empty and promote the tests.
 4. Reuse `authorizeRequest()` / `userToken()`; shared constants live in
    `tests/setup.ts` (deliberately a non-test module — importing a test
    file from another test file re-registers its tests).
 5. Run `npm test` before proposing a PR: the documented baseline is
-   **2 passed** for the pin file — a red pin is not a reviewable PR.
+   **16 passed** — a red suite is not a reviewable PR.
