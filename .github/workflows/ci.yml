@@ -55,6 +55,13 @@ jobs:
         working-directory: bank-simulator
         run: pytest -q
 
+  # ── Job 3: the authorization service contract suite ──────────────────
+  # The full suite (16 pins) gates here. It was built through the demand
+  # phase — 14 findings were first written as RED demand tests, the fixes
+  # landed (ce8c316), and the tests were promoted into the single pin
+  # file (see authorization/tests/TESTS.md §4 for the findings cycle).
+  # New findings repeat that cycle in a findings file and are NOT gated
+  # until fixed.
   authorization-tests:
     runs-on: ubuntu-latest
     steps:
@@ -72,9 +79,9 @@ jobs:
         working-directory: authorization
         run: npm ci
 
-      - name: Run authorization service tests (pins)
+      - name: Run authorization service tests
         working-directory: authorization
-        run: npm run test --if-present
+        run: npm test
 
   docker-build:
     runs-on: ubuntu-latest
