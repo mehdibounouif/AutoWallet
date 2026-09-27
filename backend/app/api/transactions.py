@@ -35,7 +35,7 @@ def create_transaction(
 
 
 @router.get("/", response_model=list[TransactionOut])
-def list_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_transactions(db: Session = Depends(get_db), current_user: User = Depends(require_linked_account)):
     return (
         db.query(Transaction)
         .filter(Transaction.user_id == current_user.id)

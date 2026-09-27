@@ -123,7 +123,7 @@ def test_transactions_scoped_to_owner(client, auth_headers, db_session):
                  hashed_password="x", bank_account_id="MA64000100008888")
     db_session.add(other)
     db_session.commit()
-    other_headers = {"Authorization": "Bearer " + create_access_token(user_id=other.id)}
+    other_headers = {"Authorization": "Bearer " + create_access_token(user_id=other.id, role=other.role.value)}
 
     other_refs = [t["reference"] for t in
                   client.get("/api/transactions/", headers=other_headers).json()]

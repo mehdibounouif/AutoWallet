@@ -54,7 +54,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
             raise HTTPException(status_code=401, detail="2FA code required")
         if not verify_totp_code(user.two_factor_secret, payload.totp_code):
             raise HTTPException(status_code=401, detail="Invalid 2FA code")
-    return Token(access_token=create_access_token(user_id=user.id))
+    return Token(access_token=create_access_token(user_id=user.id, role=user.role.value))
 
 
 
