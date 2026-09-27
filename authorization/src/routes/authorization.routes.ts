@@ -11,13 +11,11 @@ router.get("/health", (_req, res) => {
   });
 });
 
-router.post("authorize", authenticate, (req, res, next) => {
-  const permission = req.body.permission;
+router.post("/authorize", authenticate, (req, res, next) => {
+  const permission = req.body?.permission;
 
   if (!permission || typeof permission !== "string") {
-    res.status(400).json({
-      error: "Permission is required",
-    })
+    return res.status(400).json({error: "Permission is required"});
   }
 
   authorize(permission)(req, res, next);

@@ -4,15 +4,13 @@ const rolePermissions: Record<string, string[]> = {
   ],
 
   ADMIN: [
-    "admin:access",
+    "admin:access","client:access"
   ],
 };
 
-export function hasPermission(
-  role: string,
-  permission: string,
-): boolean {
-  const permissions = rolePermissions[role];
+export function hasPermission(role: string, permission: string): boolean {
+  const normalizeRole = role.toUpperCase();
+  const permissions = rolePermissions[normalizeRole];
 
   if (!permissions) {
     return false;
