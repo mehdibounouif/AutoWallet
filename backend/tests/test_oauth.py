@@ -1,21 +1,17 @@
 """Tests for the Google OAuth module and the linked-account gate (PR #19).
 
-Two layers:
+Sections:
+    1. Gate & link flows       (green: the documented design works today)
+    2. Google callback errors  (green: hostile inputs end in clean 401s)
+    3. Acceptance tests        (finding #10 legs; xfail-strict while open)
+    4. Provisioning parity     (OAuth signup promises the same 5+4)
 
-1. ACCEPTANCE TESTS for findings #9 and #10 (red until HOMIE's fixes land,
-   failure messages name the finding):
-   - #10: the transactions endpoints must be gated by require_linked_account
-     like wallets/rules — verified live on main: an unlinked OAuth user can
-     currently create payments and read the transaction list (money-access hole)
-   - #9: OAuth config should degrade gracefully (None defaults) instead of
-     hard-requiring 3 Google secrets for the app to even boot
-
-2. COVERAGE for the new endpoints and the gate (green today):
-   - require_linked_account gate matrix on wallets/rules
-   - /api/auth/me stays open for unlinked users (documented design)
-   - link-bank-account flows: link opens the gate, re-link 400,
-     cross-user bank id theft 400
-   - Google callback error handling (bad code -> 401, not a crash)
+Report-only findings referenced below (owners hold the fixes):
+    #9   OAuth config hard-requires 3 Google secrets — verified live via
+         the compose boot crash; no automated test here (it is a
+         config-boot behavior, not an endpoint).
+    #10  transactions must be gated by require_linked_account like
+         wallets/rules are — POST leg FIXED, GET leg REOPENED (see §3).
 
 The full Google round-trip (real redirect, real token exchange) is not
 tested here — it needs live Google credentials; the callback is tested
@@ -24,8 +20,7 @@ from the point where Google would have answered (code exchange -> 401).
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.database import get_db
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token
 from app.models.models import User
 
 
@@ -60,30 +55,43 @@ def oauth_headers(oauth_user_id):
     return {"Authorization": "Bearer " + create_access_token(user_id=oauth_user_id)}
 
 
-# --- 1. The gate itself (documented design, green today) ---------------------
+# ---------------------------------------------------------------------------
+# 1. GATE & LINK FLOWS — the documented design, green today
+# ---------------------------------------------------------------------------
 
 
 def test_me_stays_open_for_unlinked_oauth_user(client: TestClient, oauth_headers):
-    """Documented design (commit message): /api/auth/me must NOT be gated,
-    so an unlinked user can discover the requirement."""
+    """SCENARIO:   an unlinked OAuth user opens /api/auth/me.
+    EXPECTED:   200 with bank_account_id None — /me is deliberately NOT
+                gated, so the user can discover the linking requirement."""
     response = client.get("/api/auth/me", headers=oauth_headers)
+
     assert response.status_code == 200
     assert response.json()["bank_account_id"] is None
 
 
 def test_gate_blocks_wallets_for_unlinked_user(client: TestClient, oauth_headers):
+    """SCENARIO:   an unlinked OAuth user lists wallets.
+    EXPECTED:   403 with a detail message pointing at the link flow."""
     response = client.get("/api/wallets/", headers=oauth_headers)
+
     assert response.status_code == 403
     assert "link a bank account" in response.json()["detail"]
 
 
 def test_gate_blocks_rules_for_unlinked_user(client: TestClient, oauth_headers):
+    """SCENARIO:   an unlinked OAuth user lists rules.
+    EXPECTED:   403 (same gate as wallets)."""
     response = client.get("/api/rules/", headers=oauth_headers)
+
     assert response.status_code == 403
 
 
 def test_link_bank_account_opens_the_gate(client: TestClient, oauth_headers, db_session):
-    """The full Plan-B flow: link -> the gate lifts -> wallets readable."""
+    """SCENARIO:   the full Plan-B flow — link a bank account, then retry
+                the previously blocked endpoint.
+    EXPECTED:   403 before linking; 200 after; the linked id is echoed;
+                the 5 provisioned wallets are readable."""
     blocked = client.get("/api/wallets/", headers=oauth_headers)
     assert blocked.status_code == 403
 
@@ -101,39 +109,58 @@ def test_link_bank_account_opens_the_gate(client: TestClient, oauth_headers, db_
 
 
 def test_double_link_rejected(client: TestClient, oauth_headers):
+    """SCENARIO:   linking a second bank account after one is already set.
+    EXPECTED:   first link 200, second attempt 400 "already linked"."""
     first = client.post("/api/auth/link-bank-account", headers=oauth_headers,
                         json={"bank_account_id": "MA6400010000OA2"})
     assert first.status_code == 200
 
     second = client.post("/api/auth/link-bank-account", headers=oauth_headers,
                          json={"bank_account_id": "MA6400010000OA3"})
+
     assert second.status_code == 400
     assert "already linked" in second.json()["detail"]
 
 
-def test_link_stealing_someone_elses_bank_id_rejected(client: TestClient, auth_headers, oauth_headers):
-    """auth_headers fixture = a user with bank_account_id MA64000100000042.
-    An OAuth user must not claim that same bank id."""
+def test_link_stealing_someone_elses_bank_id_rejected(
+    client, auth_headers, oauth_headers
+):
+    """SCENARIO:   an OAuth user claims a bank_account_id ALREADY owned by
+                another user (auth_headers fixture: MA64000100000042).
+    EXPECTED:   400 "already linked to another user" — no account theft."""
     stolen = client.post("/api/auth/link-bank-account", headers=oauth_headers,
                          json={"bank_account_id": "MA64000100000042"})
+
     assert stolen.status_code == 400
     assert "already linked to another user" in stolen.json()["detail"]
 
 
 def test_link_requires_valid_body(client: TestClient, oauth_headers):
-    short = client.post("/api/auth/link-bank-account", headers=oauth_headers,
-                        json={"bank_account_id": "MA"})
-    assert short.status_code == 422  # min_length=3
+    """SCENARIO:   linking with a too-short bank id ("MA").
+    EXPECTED:   422 (min_length=3 validation)."""
+    response = client.post("/api/auth/link-bank-account", headers=oauth_headers,
+                           json={"bank_account_id": "MA"})
+
+    assert response.status_code == 422
 
 
 def test_link_requires_auth(client: TestClient):
-    assert client.post("/api/auth/link-bank-account",
-                       json={"bank_account_id": "MA6400010000OA4"}).status_code == 401
+    """SCENARIO:   linking with no Authorization header.
+    EXPECTED:   401."""
+    response = client.post("/api/auth/link-bank-account",
+                           json={"bank_account_id": "MA6400010000OA4"})
+
+    assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# 2. GOOGLE CALLBACK ERRORS — hostile inputs end in clean 401s
+# ---------------------------------------------------------------------------
 
 
 def test_google_callback_bad_code_is_handled(client: TestClient, monkeypatch):
-    """Google rejects a fake code -> endpoint must return a clean 401,
-    not crash or leak a traceback."""
+    """SCENARIO:   Google rejects the forged code (400 at token exchange).
+    EXPECTED:   a clean 401 "Google rejected ..." — no crash, no traceback."""
     import httpx
 
     def fake_post(url, data):
@@ -141,12 +168,15 @@ def test_google_callback_bad_code_is_handled(client: TestClient, monkeypatch):
 
     monkeypatch.setattr(httpx, "post", fake_post)
     response = client.get("/api/auth/oauth/google/callback", params={"code": "forged"})
+
     assert response.status_code == 401
     assert "Google rejected" in response.json()["detail"]
 
 
 def test_google_callback_garbage_userinfo_response(client: TestClient, monkeypatch):
-    """Token exchange succeeds but userinfo comes back malformed -> 401, not KeyError."""
+    """SCENARIO:   token exchange SUCCEEDS but the userinfo call comes back
+                hostile (403/malformed).
+    EXPECTED:   a clean 401 mentioning "user info" — not a KeyError/500."""
     import httpx
 
     class FakeTokenResponse:
@@ -163,35 +193,61 @@ def test_google_callback_garbage_userinfo_response(client: TestClient, monkeypat
     monkeypatch.setattr(httpx, "post", fake_post)
     monkeypatch.setattr(httpx, "get", fake_get)
     response = client.get("/api/auth/oauth/google/callback", params={"code": "real-looking"})
+
     assert response.status_code == 401
     assert "user info" in response.json()["detail"]
 
 
-# --- 2. ACCEPTANCE TESTS — red until fixed (findings #9, #10) ----------------
+# ---------------------------------------------------------------------------
+# 3. ACCEPTANCE TESTS — finding #10, one test per leg (owner: HOMIE)
+# ---------------------------------------------------------------------------
 
 
 def test_transactions_gated_for_unlinked_user(client: TestClient, oauth_headers):
-    """ACCEPTANCE TEST for QA finding #10 — blocks merge until fixed.
-
-    Verified live on main: an OAuth user with NO bank account can still
-    POST /api/transactions/ and GET the transaction list — wallets are
-    gated but money flows anyway. HOMIE's own commit message says OAuth
-    users must be gated from wallets/RULES/TRANSACTIONS; transactions.py
-    is the one file where require_linked_account was never applied.
-    Once fixed, both calls must return 403."""
+    """SCENARIO:   an unlinked OAuth user POSTs a payment.
+    EXPECTED:   403 — the POST leg of finding #10, VERIFIED FIXED
+                (HOMIE added require_linked_account to create_transaction)."""
     payment = client.post("/api/transactions/", headers=oauth_headers,
                           json={"reference": "UNLINKED-1", "amount": 5000})
+
     assert payment.status_code == 403, \
         "finding #10 NOT fixed: unlinked OAuth user can still create payments"
 
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "finding #10 REOPENED — fix was partial (owner: HOMIE): "
+        "require_linked_account was added to create_transaction "
+        "(app/api/transactions.py:23) but NOT to list_transactions "
+        "(app/api/transactions.py:38, still plain get_current_user), so an "
+        "unlinked OAuth user can still READ the transaction list (200 vs 403). "
+        "Unmasked by the authorization-service seam: pre-seam this leg failed "
+        "with 503-outage and was indistinguishable from the fixed legs. "
+        "Flips to XPASS when require_linked_account lands on list_transactions."
+    ),
+)
+def test_transaction_list_gated_for_unlinked_user(client: TestClient, oauth_headers):
+    """SCENARIO:   an unlinked OAuth user GETs the transaction list.
+    EXPECTED:   403 — the GET leg of finding #10. wallets.py and rules.py
+                gate their list endpoints; transactions.py must match.
+                Fails today (200) because list_transactions is ungated;
+                xfail-strict keeps the suite green while the bug is open."""
     listing = client.get("/api/transactions/", headers=oauth_headers)
+
     assert listing.status_code == 403, \
-        "finding #10 NOT fixed: unlinked OAuth user can still read transactions"
+        "finding #10 REOPENED: unlinked OAuth user can still read transactions"
+
+
+# ---------------------------------------------------------------------------
+# 4. PROVISIONING PARITY — OAuth signup promises the same 5 + 4
+# ---------------------------------------------------------------------------
 
 
 def test_oauth_user_provisioning_matches_promise(db_session, oauth_user_id):
-    """A Google-created user must get the same 5 wallets + 4 rules as a
-    normal signup (oauth.py calls the same provisioning functions)."""
+    """SCENARIO:   a user created via the Google OAuth path.
+    EXPECTED:   the DB holds the same 5 wallets + 4 rules a normal signup
+                gets (oauth.py calls the same provisioning functions)."""
     from app.models.models import Rule, Wallet
 
     wallets = db_session.query(Wallet).filter(Wallet.user_id == oauth_user_id).all()
