@@ -8,9 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "vitest run tests/auth-service.test.ts",
-    "test:report": "node tests/report-demands.mjs",
-    "test:findings": "vitest run tests/findings.test.ts",
-    "test:all": "vitest run"
+    "test:report": "node tests/report-demands.mjs"
   },
   "keywords": [],
   "author": "",
