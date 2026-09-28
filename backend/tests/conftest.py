@@ -140,7 +140,7 @@ def test_user(db_session):
 @pytest.fixture
 def auth_headers(test_user):
     """A valid JWT in a header, so tests can call protected endpoints."""
-    token = create_access_token(user_id=test_user.id)
+    token = create_access_token(user_id=test_user.id, role=test_user.role.value)
     return {"Authorization": f"Bearer {token}"}
 
 

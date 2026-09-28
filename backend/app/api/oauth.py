@@ -85,4 +85,4 @@ def google_callback(code: str, db: Session = Depends(get_db)):
             create_default_rules(user, db)
             db.commit()
 
-    return {"access_token": create_access_token(user_id=user.id), "token_type": "bearer"}
+    return {"access_token": create_access_token(user_id=user.id, role=user.role.value), "token_type": "bearer"}

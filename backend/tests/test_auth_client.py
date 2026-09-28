@@ -198,18 +198,18 @@ def test_real_service_grants_token_with_role_claim(
     assert resp.status_code == 200
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "finding #12 (owner: HOMIE): backend JWTs carry only sub+exp "
-        "(app/core/security.py create_access_token) — no `role` claim. "
-        "The real authorization service (authenticate.ts) requires "
-        "payload.role, so every genuine backend token is rejected 403 "
-        "and NO guarded endpoint is reachable in production today. "
-        "xfails NOW (endpoint returns 403); flips to XPASS — and must be "
-        "un-marked — when create_access_token adds the role claim."
-    ),
-)
+#@pytest.mark.xfail(
+#    strict=True,
+#    reason=(
+#        "finding #12 (owner: HOMIE): backend JWTs carry only sub+exp "
+#        "(app/core/security.py create_access_token) — no `role` claim. "
+#        "The real authorization service (authenticate.ts) requires "
+#        "payload.role, so every genuine backend token is rejected 403 "
+#        "and NO guarded endpoint is reachable in production today. "
+#        "xfails NOW (endpoint returns 403); flips to XPASS — and must be "
+#        "un-marked — when create_access_token adds the role claim."
+#    ),
+#)
 def test_real_service_accepts_backend_token_once_role_claim_exists(
     client, auth_headers, authorization_service
 ):

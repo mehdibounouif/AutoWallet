@@ -22,6 +22,8 @@ from fastapi.testclient import TestClient
 
 from app.core.security import create_access_token
 from app.models.models import User
+from app.models.models import UserRole
+
 
 
 @pytest.fixture
@@ -52,7 +54,11 @@ def oauth_user_id(db_session):
 
 @pytest.fixture
 def oauth_headers(oauth_user_id):
-    return {"Authorization": "Bearer " + create_access_token(user_id=oauth_user_id)}
+    token = create_access_token(
+        user_id=oauth_user_id,
+        role=UserRole.user.value,
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 # ---------------------------------------------------------------------------
@@ -214,19 +220,19 @@ def test_transactions_gated_for_unlinked_user(client: TestClient, oauth_headers)
         "finding #10 NOT fixed: unlinked OAuth user can still create payments"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "finding #10 REOPENED — fix was partial (owner: HOMIE): "
-        "require_linked_account was added to create_transaction "
-        "(app/api/transactions.py:23) but NOT to list_transactions "
-        "(app/api/transactions.py:38, still plain get_current_user), so an "
-        "unlinked OAuth user can still READ the transaction list (200 vs 403). "
-        "Unmasked by the authorization-service seam: pre-seam this leg failed "
-        "with 503-outage and was indistinguishable from the fixed legs. "
-        "Flips to XPASS when require_linked_account lands on list_transactions."
-    ),
-)
+# @pytest.mark.xfail(
+#     strict=True,
+#     reason=(
+#         "finding #10 REOPENED — fix was partial (owner: HOMIE): "
+#         "require_linked_account was added to create_transaction "
+#         "(app/api/transactions.py:23) but NOT to list_transactions "
+#         "(app/api/transactions.py:38, still plain get_current_user), so an "
+#         "unlinked OAuth user can still READ the transaction list (200 vs 403). "
+#         "Unmasked by the authorization-service seam: pre-seam this leg failed "
+#         "with 503-outage and was indistinguishable from the fixed legs. "
+#         "Flips to XPASS when require_linked_account lands on list_transactions."
+#     ),
+# )
 def test_transaction_list_gated_for_unlinked_user(client: TestClient, oauth_headers):
     """SCENARIO:   an unlinked OAuth user GETs the transaction list.
     EXPECTED:   403 — the GET leg of finding #10. wallets.py and rules.py
