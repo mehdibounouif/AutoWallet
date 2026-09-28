@@ -1,7 +1,6 @@
 import type {Request, Response, NextFunction  } from "express";
 import jwt from "jsonwebtoken";
 import type { JwtPayload } from "jsonwebtoken";
-import { TokenExpiredError } from "jsonwebtoken";
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -24,7 +23,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
   }
   catch (error) {
-    if (error instanceof TokenExpiredError) {
+    if (error instanceof jwt.TokenExpiredError) {
       return res.status(401).json({
         error: "Token expired",
       });
