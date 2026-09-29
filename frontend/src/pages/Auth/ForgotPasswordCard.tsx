@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useCountdown } from '../../hooks/useCountdown'
+import { LegalFooter } from '../../components/common/LegalFooter'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { KeyRound, MailCheck, ArrowLeft, Loader2 } from 'lucide-react'
@@ -16,49 +18,44 @@ export function ForgotPasswordCard({ currentLang }: ForgotPasswordCardProps) {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [countdown, setCountdown] = useState(0)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { countdown, startCountdown } = useCountdown()
 
-  // Countdown timer for resend link per Figma Note #116:904 (60s cooldown)
-  useEffect(() => {
-    if (countdown <= 0) return
-    const timer = setInterval(() => {
-      setCountdown((prev) => Math.max(0, prev - 1))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [countdown])
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const sendResetLink = async () => {
     if (!email.trim() || loading) return
 
     setLoading(true)
-
-    // Planned API: POST /api/auth/password/forgot per Note #116:864
+    setErrorMessage(null)
     try {
-      await fetch('/api/auth/password/forgot', {
+      const response = await fetch('/api/auth/password/forgot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
-      }).catch(() => {
-        // Safe silent handling per design: same message whether account exists or not
       })
+      if (!response.ok) throw new Error('Reset request failed')
+      setSubmitted(true)
+      startCountdown(60)
+    } catch {
+      setErrorMessage(t.serviceUnavailable)
     } finally {
       setLoading(false)
-      setSubmitted(true)
-      setCountdown(60)
     }
   }
 
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    void sendResetLink()
+  }
+
   const handleResend = () => {
-    if (countdown > 0) return
-    setCountdown(60)
-    // Resend trigger
+    if (countdown === 0) void sendResetLink()
   }
 
   return (
     <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10 animate-in fade-in duration-200">
       {/* 440px Centered Card per Figma #116:816 & #116:868 */}
       <div className="w-full max-w-[440px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-9 shadow-[0_8px_24px_-4px_rgba(27,36,50,0.08),0_2px_6px_-1px_rgba(27,36,50,0.04)] transition-all">
+        {errorMessage && <p role="alert" className="mb-4 text-sm text-[#C62F31]">{errorMessage}</p>}
         {submitted ? (
           /* Screen 2: Link sent / Check your inbox (#116:868) */
           <div className="flex flex-col items-center text-center space-y-5">
@@ -89,17 +86,6 @@ export function ForgotPasswordCard({ currentLang }: ForgotPasswordCardProps) {
               </button>
             </div>
 
-            {/* Test shortcut link to reset password view in preview */}
-            <div className="text-xs text-[#8C9BAE]">
-              Preview mode:{' '}
-              <button
-                type="button"
-                onClick={() => navigate('/reset-password?token=demo-reset-token')}
-                className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
-              >
-                simulate opening reset link
-              </button>
-            </div>
 
             {/* Back to log in link */}
             <div className="pt-2">
@@ -179,23 +165,7 @@ export function ForgotPasswordCard({ currentLang }: ForgotPasswordCardProps) {
       </div>
 
       {/* Legal Footer */}
-      <footer className="mt-6 text-center text-xs text-[#5E6B7E] flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Privacy Policy: Your financial split rules are computed locally/securely.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.privacy}
-        </button>
-        <span>·</span>
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Terms of Service: Ledger budgeting simulation.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.terms}
-        </button>
-      </footer>
+      <LegalFooter t={t} />
     </main>
   )
 }

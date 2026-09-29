@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
 import type { Language } from '../../i18n'
@@ -10,6 +10,11 @@ interface GoogleCallbackPageProps {
   onSelectLang: (lang: Language) => void
 }
 
+interface ExchangeResult {
+  ok: boolean
+  data: { access_token?: unknown; detail?: unknown }
+}
+
 export function GoogleCallbackPage({
   currentLang,
   onSelectLang,
@@ -18,6 +23,7 @@ export function GoogleCallbackPage({
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const exchangeRef = useRef<{ code: string; promise: Promise<ExchangeResult> } | null>(null)
 
   useEffect(() => {
     const code = searchParams.get('code')
@@ -46,23 +52,30 @@ export function GoogleCallbackPage({
 
     let isMounted = true
 
-    // Exchange Google authorization code with AutoWallet backend
+    // Reuse the one-time code exchange when Strict Mode reruns this effect.
+    if (exchangeRef.current?.code !== code) {
+      exchangeRef.current = {
+        code,
+        promise: fetch(`/api/auth/oauth/google/callback?code=${encodeURIComponent(code)}`)
+          .then(async (res) => ({ ok: res.ok, data: await res.json().catch(() => ({})) })),
+      }
+    }
+    const exchangePromise = exchangeRef.current.promise
+
     const exchangeCode = async () => {
       try {
-        const res = await fetch(`/api/auth/oauth/google/callback?code=${encodeURIComponent(code)}`)
+        const result = await exchangePromise
 
         if (!isMounted) return
 
-        if (res.ok) {
-          const data = await res.json()
-          if (data.access_token) {
-            localStorage.setItem('autowallet_token', data.access_token)
-          }
-          // Per AutoWallet flow: new or returning OAuth user goes to onboarding or dashboard
-          navigate('/welcome/about', { replace: true })
+        if (result.ok) {
+          if (typeof result.data.access_token !== 'string') throw new Error('Missing access token')
+          localStorage.setItem('autowallet_token', result.data.access_token)
+          navigate('/maintenance', { replace: true })
         } else {
-          const errData = await res.json().catch(() => ({}))
-          const detail = (errData.detail || '').toLowerCase()
+          const detail = typeof result.data.detail === 'string'
+            ? result.data.detail.toLowerCase()
+            : ''
 
           if (detail.includes('already has a password') || detail.includes('existing')) {
             const emailQuery = email ? `&email=${encodeURIComponent(email)}` : ''
@@ -73,7 +86,6 @@ export function GoogleCallbackPage({
         }
       } catch {
         if (!isMounted) return
-        // In local preview without backend active, provide clear feedback and test options
         setErrorMessage(t.serviceUnavailable)
       }
     }
@@ -101,16 +113,6 @@ export function GoogleCallbackPage({
                 <div className="flex-1 leading-snug">{errorMessage}</div>
               </div>
               <div className="flex flex-col gap-2.5 w-full">
-                <button
-                  type="button"
-                  onClick={() => {
-                    localStorage.setItem('autowallet_token', 'demo-google-oauth-token')
-                    navigate('/welcome/about')
-                  }}
-                  className="w-full h-11 px-4 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] text-white font-medium text-sm transition cursor-pointer"
-                >
-                  Continue with Demo Account
-                </button>
                 <button
                   type="button"
                   onClick={() => navigate('/login?google_status=cancelled')}

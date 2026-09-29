@@ -1,3 +1,5 @@
+import { LegalFooter } from '../../components/common/LegalFooter'
+import { PasswordStrength } from '../../components/common/PasswordStrength'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -7,8 +9,6 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
-  Check,
-  Minus,
   Loader2,
 } from 'lucide-react'
 import { getTranslations } from '../../i18n'
@@ -23,43 +23,13 @@ export function ResetPasswordCard({ currentLang }: ResetPasswordCardProps) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const isExpiredParam = searchParams.get('status') === 'expired'
+  const isExpired = searchParams.get('status') === 'expired' || !searchParams.get('token')
 
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [isExpired] = useState(isExpiredParam)
-
-  // Password strength calculation matching Signup & A6
-  const calculatePasswordStrength = (pwd: string): number => {
-    if (!pwd) return 0
-    let score = 0
-    if (pwd.length >= 8) score += 1
-    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score += 1
-    if (/\d/.test(pwd)) score += 1
-    if (/[^A-Za-z0-9]/.test(pwd) || pwd.length >= 12) score += 1
-    return score
-  }
-
-  const pwStrength = calculatePasswordStrength(password)
-
-  const getStrengthMeta = () => {
-    switch (pwStrength) {
-      case 2:
-        return { label: t.pwStrengthFair, color: 'bg-[#EB6834]', text: 'text-[#EB6834]' }
-      case 3:
-        return { label: t.pwStrengthGood, color: 'bg-[#EDA100]', text: 'text-[#EDA100]' }
-      case 4:
-        return { label: t.pwStrengthStrong, color: 'bg-[#1BAF7A]', text: 'text-[#1BAF7A]' }
-      case 1:
-        return { label: t.pwStrengthWeak, color: 'bg-[#C62F31]', text: 'text-[#C62F31]' }
-      default:
-        return { label: '', color: 'bg-[#DDE3EA]', text: 'text-[#5E6B7E]' }
-    }
-  }
-
-  const strengthMeta = getStrengthMeta()
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -67,18 +37,19 @@ export function ResetPasswordCard({ currentLang }: ResetPasswordCardProps) {
 
     setLoading(true)
 
-    // Planned API: POST /api/auth/password/reset
+    setErrorMessage(null)
     try {
-      await fetch('/api/auth/password/reset', {
+      const response = await fetch('/api/auth/password/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      }).catch(() => {
-        // Fallback for preview/mock testing
+        body: JSON.stringify({ password, token: searchParams.get('token') }),
       })
+      if (!response.ok) throw new Error('Password reset failed')
+      setIsSuccess(true)
+    } catch {
+      setErrorMessage(t.serviceUnavailable)
     } finally {
       setLoading(false)
-      setIsSuccess(true)
     }
   }
 
@@ -150,6 +121,7 @@ export function ResetPasswordCard({ currentLang }: ResetPasswordCardProps) {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {errorMessage && <p role="alert" className="text-sm text-[#C62F31]">{errorMessage}</p>}
               <div className="space-y-1.5">
                 <label htmlFor="new-password-input" className="block text-sm font-medium text-[#1A2330]">
                   {t.newPasswordLabel}
@@ -177,36 +149,7 @@ export function ResetPasswordCard({ currentLang }: ResetPasswordCardProps) {
                 </div>
 
                 {/* 4-segment strength meter (matching A2 Sign up & A6) */}
-                <div className="pt-2 space-y-2">
-                  <div className="grid grid-cols-4 gap-1.5 h-1 w-full" aria-hidden="true">
-                    {[1, 2, 3, 4].map((step) => (
-                      <div
-                        key={step}
-                        className={`h-full rounded-full transition-colors duration-200 ${
-                          pwStrength >= step ? strengthMeta.color : 'bg-[#DDE3EA]'
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-[#5E6B7E]">
-                    <div className="flex items-center gap-1.5">
-                      {password.length >= 8 ? (
-                        <Check className="w-3.5 h-3.5 text-[#1BAF7A]" />
-                      ) : (
-                        <Minus className="w-3.5 h-3.5 text-[#5E6B7E]" />
-                      )}
-                      <span className={password.length >= 8 ? 'text-[#1A2330] font-medium' : 'text-[#5E6B7E]'}>
-                        {t.pwRequirement}
-                      </span>
-                    </div>
-                    {password.length > 0 && (
-                      <span className={`font-semibold ${strengthMeta.text}`}>
-                        {strengthMeta.label}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                <PasswordStrength password={password} t={t} className="pt-2" />
               </div>
 
               <div className="pt-2">
@@ -231,23 +174,7 @@ export function ResetPasswordCard({ currentLang }: ResetPasswordCardProps) {
       </div>
 
       {/* Legal Footer */}
-      <footer className="mt-6 text-center text-xs text-[#5E6B7E] flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Privacy Policy: Your financial split rules are computed locally/securely.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.privacy}
-        </button>
-        <span>·</span>
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Terms of Service: Ledger budgeting simulation.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.terms}
-        </button>
-      </footer>
+      <LegalFooter t={t} />
     </main>
   )
 }

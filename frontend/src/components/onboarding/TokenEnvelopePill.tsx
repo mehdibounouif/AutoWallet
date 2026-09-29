@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react'
-import { ChevronDown } from 'lucide-react'
 
 interface TokenEnvelopePillProps {
   name: string
@@ -23,7 +22,6 @@ export function TokenEnvelopePill({
         <Icon className="w-3.5 h-3.5" />
       </span>
       <span>{name}</span>
-      <ChevronDown className="w-3.5 h-3.5 text-[#8C9BAE] shrink-0" />
     </span>
   )
 }

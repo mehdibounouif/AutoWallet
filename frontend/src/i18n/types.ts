@@ -36,9 +36,6 @@ export interface Translations {
   pwStrengthStrong: string
   wrongCredentials: string
   serviceUnavailable: string
-  totpRequired: string
-  totpLabel: string
-  verifyTotp: string
   twoFactorTitle: string
   twoFactorSubtitle: string
   twoFactorCodeLabel: string
@@ -84,7 +81,6 @@ export interface Translations {
   bankAccountInvalid: string
   bankAccountExists: string
   changeBankAccount: string
-  stepXOf5: string
 
   // A7 Onboarding Stepper & Screens
   stepAboutYou: string
@@ -95,9 +91,7 @@ export interface Translations {
   aboutYouTitle: string
   aboutYouSubtitle: string
   firstNameLabel: string
-  firstNamePlaceholder: string
   lastNameLabel: string
-  lastNamePlaceholder: string
   languageLabel: string
   continueButton: string
   linkAccountTitle: string
@@ -135,8 +129,7 @@ export interface Translations {
   rule1Title: string
   rule1Lock: string
   rule1Into: string
-  rule1OnlyWhile: string
-  rule1IsBelow: string
+  ruleValueInvalid: string
   rule2Title: string
   rule2Put: string
   rule2OfWhatLeftInto: string
@@ -163,10 +156,14 @@ export interface Translations {
   fixedAmountType: string
   percentOfLeftType: string
   ranStatusBadge: string
+  skippedStatusBadge: string
   leftText: string
   leftoverToMainLabel: string
   totalLabel: string
   checksOutBadge: string
   skipToHomeButton: string
   goToHomeButton: string
+  dashboardPreviewTitle: string
+  dashboardPreviewBody: string
+  backToAuthScreen: string
 }

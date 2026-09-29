@@ -1,6 +1,6 @@
 import { Home, Landmark, PiggyBank, Wallet, Info } from 'lucide-react'
 import type { Translations } from '../../../i18n'
-import { TokenPill } from '../../../components/onboarding/TokenPill'
+import { RuleValueInput } from '../../../components/onboarding/RuleValueInput'
 import { TokenEnvelopePill } from '../../../components/onboarding/TokenEnvelopePill'
 
 interface Step4RulesProps {
@@ -47,23 +47,15 @@ export function Step4Rules({
           </h2>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm sm:text-base text-[#1A2330] leading-relaxed">
             <span>{t.rule1Lock}</span>
-            <TokenPill
+            <RuleValueInput
               value={rentAmount}
               onChange={setRentAmount}
-              options={['2,500.00 MAD', '3,000.00 MAD', '3,500.00 MAD', '4,000.00 MAD', '5,000.00 MAD']}
               id="rule1-token-amount-1"
+              label={t.rule1Title}
+              unit="MAD"
             />
             <span>{t.rule1Into}</span>
             <TokenEnvelopePill name={t.rentName} icon={Home} color="#2270D8" bgColor="#EAF2FC" />
-            <span>{t.rule1OnlyWhile}</span>
-            <TokenEnvelopePill name={t.rentName} icon={Home} color="#2270D8" bgColor="#EAF2FC" />
-            <span>{t.rule1IsBelow}</span>
-            <TokenPill
-              value={rentAmount}
-              onChange={setRentAmount}
-              options={['2,500.00 MAD', '3,000.00 MAD', '3,500.00 MAD', '4,000.00 MAD', '5,000.00 MAD']}
-              id="rule1-token-amount-2"
-            />
           </div>
         </div>
 
@@ -74,11 +66,12 @@ export function Step4Rules({
           </h2>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm sm:text-base text-[#1A2330] leading-relaxed">
             <span>{t.rule2Put}</span>
-            <TokenPill
+            <RuleValueInput
               value={taxPercent}
               onChange={setTaxPercent}
-              options={['10%', '15%', '20%', '25%', '30%']}
               id="rule2-token-tax"
+              label={t.rule2Title}
+              unit="%"
             />
             <span>{t.rule2OfWhatLeftInto}</span>
             <TokenEnvelopePill name={t.taxName} icon={Landmark} color="#EB6834" bgColor="#FDEEE8" />
@@ -92,22 +85,24 @@ export function Step4Rules({
           </h2>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm sm:text-base text-[#1A2330] leading-relaxed">
             <span>{t.rule3Put}</span>
-            <TokenPill
+            <RuleValueInput
               value={savingsPercent}
               onChange={setSavingsPercent}
-              options={['10%', '15%', '20%', '25%']}
               id="rule3-token-percent"
+              label={t.rule3Title}
+              unit="%"
             />
             <span>{t.rule3OfWhatLeftInto}</span>
             <TokenEnvelopePill name={t.savingsName} icon={PiggyBank} color="#1BAF7A" bgColor="#E3F5EE" />
             <span>{t.rule3OnlyWhile}</span>
             <TokenEnvelopePill name={t.savingsName} icon={PiggyBank} color="#1BAF7A" bgColor="#E3F5EE" />
             <span>{t.rule3IsBelow}</span>
-            <TokenPill
+            <RuleValueInput
               value={savingsCap}
               onChange={setSavingsCap}
-              options={['5,000.00 MAD', '10,000.00 MAD', '15,000.00 MAD', '20,000.00 MAD']}
               id="rule3-token-cap"
+              label={`${t.savingsName} ${t.rule3IsBelow}`}
+              unit="MAD"
             />
           </div>
         </div>

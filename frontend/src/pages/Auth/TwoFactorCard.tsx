@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { LegalFooter } from '../../components/common/LegalFooter'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ShieldCheck, AlertCircle, Loader2, KeyRound } from 'lucide-react'
@@ -25,6 +26,10 @@ export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
     }
   })()
 
+  useEffect(() => {
+    if (!pendingData.email || !pendingData.password) navigate('/login', { replace: true })
+  }, [navigate, pendingData.email, pendingData.password])
+
   const [code, setCode] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [wrongCode, setWrongCode] = useState(false)
@@ -39,7 +44,7 @@ export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
   // Handle TOTP verification
   const handleVerify = async (codeToVerify?: string) => {
     const finalCode = (codeToVerify || code).replace(/\s/g, '')
-    if (finalCode.length !== 6 || verifying) return
+    if (finalCode.length !== 6 || verifying || !pendingData.email || !pendingData.password) return
 
     setVerifying(true)
     setWrongCode(false)
@@ -61,9 +66,8 @@ export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
 
       if (res.ok) {
         const data = await res.json()
-        if (data.access_token) {
-          localStorage.setItem('autowallet_token', data.access_token)
-        }
+        if (typeof data.access_token !== 'string') throw new Error('Missing access token')
+        localStorage.setItem('autowallet_token', data.access_token)
         sessionStorage.removeItem('autowallet_2fa_pending')
         navigate('/maintenance')
       } else if (res.status === 401) {
@@ -74,7 +78,6 @@ export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
         setWrongCode(true)
       }
     } catch {
-      // If backend is offline in preview mode, allow testing both error and success
       setServiceError(t.serviceUnavailable)
     } finally {
       setVerifying(false)
@@ -94,15 +97,11 @@ export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
   const handleBackupSubmit = (e: FormEvent) => {
     e.preventDefault()
     const cleanBackup = backupCode.trim().replace(/-/g, '')
-    if (cleanBackup.length >= 8) {
-      // Valid backup code simulation
-      localStorage.setItem('autowallet_token', 'backup-session-token')
-      sessionStorage.removeItem('autowallet_2fa_pending')
-      navigate('/maintenance')
-    } else {
-      setBackupError(true)
-    }
+    setBackupError(cleanBackup.length < 8)
+    if (cleanBackup.length >= 8) setServiceError(t.serviceUnavailable)
   }
+
+  if (!pendingData.email || !pendingData.password) return null
 
   return (
     <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10">
@@ -132,20 +131,6 @@ export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
             <AlertCircle className="w-5 h-5 shrink-0 text-[#C62F31] mt-0.5" />
             <div className="flex-1 leading-snug">
               <span>{serviceError}</span>
-              <div className="mt-1 text-xs text-[#5E6B7E]">
-                Preview mode:{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    localStorage.setItem('autowallet_token', 'demo-2fa-token')
-                    navigate('/maintenance')
-                  }}
-                  className="underline text-[#5A64B4] font-medium cursor-pointer"
-                >
-                  continue to dashboard preview
-                </button>
-                .
-              </div>
             </div>
           </div>
         )}
@@ -241,6 +226,7 @@ export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
 
             <form onSubmit={handleBackupSubmit} className="space-y-4 pt-2">
               <div className="space-y-1.5">
+                {serviceError && <p role="alert" className="text-xs text-[#C62F31]">{serviceError}</p>}
                 <input
                   type="text"
                   autoFocus
@@ -286,23 +272,7 @@ export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
       )}
 
       {/* Legal Footer (Figma EL-0b7a78e5) */}
-      <footer className="mt-6 text-center text-xs text-[#5E6B7E] flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Privacy Policy: Your financial split rules are computed locally/securely.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.privacy}
-        </button>
-        <span>·</span>
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Terms of Service: Ledger budgeting simulation.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.terms}
-        </button>
-      </footer>
+      <LegalFooter t={t} />
     </main>
   )
 }

@@ -1,3 +1,4 @@
+import { LegalFooter } from '../../components/common/LegalFooter'
 import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Clock } from 'lucide-react'
@@ -21,7 +22,9 @@ export function SessionEndedCard({
 
   // Set document title per Figma A5 A11y requirement
   useEffect(() => {
+    const previousTitle = document.title
     document.title = `${t.sessionEndedTitle} · AutoWallet`
+    return () => { document.title = previousTitle }
   }, [t.sessionEndedTitle])
 
   const handleAction = () => {
@@ -63,23 +66,7 @@ export function SessionEndedCard({
       </div>
 
       {/* Legal Footer (Figma EL-0b7a78e5) */}
-      <footer className="mt-6 text-center text-xs text-[#5E6B7E] flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Privacy Policy: Your financial split rules are computed locally/securely.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.privacy}
-        </button>
-        <span>·</span>
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Terms of Service: Ledger budgeting simulation.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.terms}
-        </button>
-      </footer>
+      <LegalFooter t={t} />
     </main>
   )
 }

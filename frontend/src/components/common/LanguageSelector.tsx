@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 import { LanguagesIcon } from '../icons'
+import { getTranslations } from '../../i18n'
 import type { Language } from '../../i18n'
 
 interface LanguageSelectorProps {
@@ -15,15 +16,36 @@ export function LanguageSelector({
   className = '',
 }: LanguageSelectorProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const closeWhenOutside = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setDropdownOpen(false)
+    }
+    document.addEventListener('pointerdown', closeWhenOutside)
+    return () => document.removeEventListener('pointerdown', closeWhenOutside)
+  }, [dropdownOpen])
 
   return (
-    <div className={`relative ${className}`}>
+    <div
+      ref={containerRef}
+      className={`relative ${className}`}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          setDropdownOpen(false)
+          buttonRef.current?.focus()
+        }
+      }}
+    >
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setDropdownOpen(!dropdownOpen)}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer shadow-xs"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer shadow-xs focus-visible:outline-2 focus-visible:outline-[#5A64B4]"
         aria-expanded={dropdownOpen}
-        aria-haspopup="true"
+        aria-label={getTranslations(currentLang).languageLabel}
       >
         <LanguagesIcon className="w-4 h-4 text-[#3B495D]" />
         <span>{currentLang}</span>
@@ -33,7 +55,6 @@ export function LanguageSelector({
       {dropdownOpen && (
         <div
           className="absolute right-0 rtl:right-auto rtl:left-0 mt-1.5 w-32 bg-white border border-[#DDE3EA] rounded-xl shadow-lg py-1 z-30 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
-          role="menu"
         >
           {(['EN', 'FR', 'AR'] as Language[]).map((lang) => (
             <button
@@ -48,7 +69,6 @@ export function LanguageSelector({
                   ? 'bg-[#ECEEFA] text-[#5A64B4] font-semibold'
                   : 'text-[#3B495D] hover:bg-[#F3F6FA]'
               }`}
-              role="menuitem"
             >
               <span>
                 {lang === 'EN' && 'English'}

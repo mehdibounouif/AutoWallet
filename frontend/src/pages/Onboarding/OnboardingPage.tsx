@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
@@ -11,24 +11,22 @@ import { Step2Account } from './steps/Step2Account'
 import { Step3Envelopes } from './steps/Step3Envelopes'
 import { Step4Rules } from './steps/Step4Rules'
 import { Step5TryPayment } from './steps/Step5TryPayment'
+import { onboardingPaths } from './routes'
 
 interface OnboardingPageProps {
-  initialStep?: 1 | 2 | 3 | 4 | 5
   currentLang: Language
   onSelectLang: (lang: Language) => void
 }
 
-function getStepFromPath(pathname: string, fallback: 1 | 2 | 3 | 4 | 5): 1 | 2 | 3 | 4 | 5 {
-  if (pathname === '/welcome/try') return 5
-  if (pathname === '/welcome/rules') return 4
-  if (pathname === '/welcome/envelopes') return 3
-  if (pathname === '/welcome/account') return 2
-  if (pathname === '/welcome/about') return 1
-  return fallback
+const normalizeRuleValue = (value: string | undefined, fallback: string) =>
+  value ? value.replace(/[^\d.-]/g, '') || fallback : fallback
+
+const isValidRuleValue = (value: string, maximum = Infinity) => {
+  const numericValue = Number(value)
+  return value.trim() !== '' && Number.isFinite(numericValue) && numericValue >= 0 && numericValue <= maximum
 }
 
 export function OnboardingPage({
-  initialStep = 1,
   currentLang,
   onSelectLang,
 }: OnboardingPageProps) {
@@ -37,39 +35,33 @@ export function OnboardingPage({
   const location = useLocation()
 
   // Derive step directly from URL route
-  const step = getStepFromPath(location.pathname, initialStep)
+  const step = onboardingPaths.indexOf(location.pathname as typeof onboardingPaths[number]) + 1
 
-  // Retrieve draft registration credentials from navigation state or sessionStorage
-  const [draftEmail] = useState<string>(() => {
+  const [draft] = useState(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}')
-      return location.state?.email || saved.email || 'yasmine.alami@example.com'
+      return { ...saved, ...location.state } as Record<string, string>
     } catch {
-      return 'yasmine.alami@example.com'
+      return (location.state || {}) as Record<string, string>
     }
   })
+  const draftEmail = draft.email || ''
+  const draftPassword = draft.password || ''
 
-  const [draftPassword] = useState<string>(() => {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}')
-      return location.state?.password || saved.password || 'AutoWallet2026!'
-    } catch {
-      return 'AutoWallet2026!'
-    }
-  })
+  useEffect(() => {
+    if (!draftEmail || !draftPassword) navigate('/signup', { replace: true })
+  }, [draftEmail, draftPassword, navigate])
 
-  // Step 1 Fields (About you) - matching Figma placeholders
-  const [firstName, setFirstName] = useState('Yasmine')
-  const [lastName, setLastName] = useState('El Amrani')
-
-  // Step 2 Fields (Link account) - matching Figma placeholders
-  const [bankAccount, setBankAccount] = useState('ACC-2026-001')
+  const hasLegacySampleName = draft.firstName === 'Yasmine' && draft.lastName === 'El Amrani'
+  const [firstName, setFirstName] = useState(hasLegacySampleName ? '' : draft.firstName || '')
+  const [lastName, setLastName] = useState(hasLegacySampleName ? '' : draft.lastName || '')
+  const [bankAccount, setBankAccount] = useState(draft.bankAccount || '')
 
   // Step 4 Rule customization states (Figma #118:1359)
-  const [rentAmount, setRentAmount] = useState('3,500.00 MAD')
-  const [taxPercent, setTaxPercent] = useState('15%')
-  const [savingsPercent, setSavingsPercent] = useState('15%')
-  const [savingsCap, setSavingsCap] = useState('10,000.00 MAD')
+  const [rentAmount, setRentAmount] = useState(normalizeRuleValue(draft.rentAmount, '3500'))
+  const [taxPercent, setTaxPercent] = useState(normalizeRuleValue(draft.taxPercent, '15'))
+  const [savingsPercent, setSavingsPercent] = useState(normalizeRuleValue(draft.savingsPercent, '15'))
+  const [savingsCap, setSavingsCap] = useState(normalizeRuleValue(draft.savingsCap, '10000'))
 
   // Step 5 Simulation states (Figma #119:1613)
   const [simulatedAmount, setSimulatedAmount] = useState('8,500.00')
@@ -87,7 +79,6 @@ export function OnboardingPage({
   // Submission & Validation States
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [serviceDown] = useState(false)
   const [firstNameError, setFirstNameError] = useState<string | null>(null)
   const [lastNameError, setLastNameError] = useState<string | null>(null)
   const [bankAccountError, setBankAccountError] = useState<string | null>(null)
@@ -143,7 +134,7 @@ export function OnboardingPage({
 
     setErrorMessage(null)
     persistDraft({ firstName: firstName.trim(), lastName: lastName.trim() })
-    navigate('/welcome/account', { state: { email: draftEmail, password: draftPassword } })
+    navigate('/welcome/account')
   }
 
   const handleStep2Continue = (skip = false) => {
@@ -151,8 +142,9 @@ export function OnboardingPage({
     setBankAccountError(null)
 
     if (skip) {
+      setBankAccount('')
       persistDraft({ bankAccount: '', skippedBank: true })
-      navigate('/welcome/envelopes', { state: { email: draftEmail, password: draftPassword } })
+      navigate('/welcome/envelopes')
       return
     }
 
@@ -170,61 +162,62 @@ export function OnboardingPage({
     }
 
     persistDraft({ bankAccount: cleanAcc, skippedBank: false })
-    navigate('/welcome/envelopes', { state: { email: draftEmail, password: draftPassword } })
+    navigate('/welcome/envelopes')
   }
 
   const handleStep3Continue = () => {
     setErrorMessage(null)
     persistDraft()
-    navigate('/welcome/rules', { state: { email: draftEmail, password: draftPassword } })
+    navigate('/welcome/rules')
   }
 
   const handleStep4Continue = () => {
     setErrorMessage(null)
+    const invalidInput = [
+      { id: 'rule1-token-amount-1', value: rentAmount, max: Infinity },
+      { id: 'rule2-token-tax', value: taxPercent, max: 100 },
+      { id: 'rule3-token-percent', value: savingsPercent, max: 100 },
+      { id: 'rule3-token-cap', value: savingsCap, max: Infinity },
+    ].find(({ value, max }) => !isValidRuleValue(value, max))
+
+    if (invalidInput) {
+      setErrorMessage(t.ruleValueInvalid)
+      document.getElementById(invalidInput.id)?.focus()
+      return
+    }
     persistDraft()
-    navigate('/welcome/try', { state: { email: draftEmail, password: draftPassword } })
+    navigate('/welcome/try')
   }
 
   const handleBack = () => {
     setErrorMessage(null)
-    if (step === 5) {
-      navigate('/welcome/rules', { state: { email: draftEmail, password: draftPassword } })
-    } else if (step === 4) {
-      navigate('/welcome/envelopes', { state: { email: draftEmail, password: draftPassword } })
-    } else if (step === 3) {
-      navigate('/welcome/account', { state: { email: draftEmail, password: draftPassword } })
-    } else if (step === 2) {
-      navigate('/welcome/about', { state: { email: draftEmail, password: draftPassword } })
-    }
+    persistDraft()
+    if (step > 1) navigate(onboardingPaths[step - 2])
   }
 
   const handleStepClick = (targetStep: number) => {
     setErrorMessage(null)
     persistDraft()
-    if (targetStep === 1) {
-      navigate('/welcome/about', { state: { email: draftEmail, password: draftPassword } })
-    } else if (targetStep === 2) {
-      navigate('/welcome/account', { state: { email: draftEmail, password: draftPassword } })
-    } else if (targetStep === 3) {
-      navigate('/welcome/envelopes', { state: { email: draftEmail, password: draftPassword } })
-    } else if (targetStep === 4) {
-      navigate('/welcome/rules', { state: { email: draftEmail, password: draftPassword } })
-    } else if (targetStep === 5) {
-      navigate('/welcome/try', { state: { email: draftEmail, password: draftPassword } })
-    }
+    const path = onboardingPaths[targetStep - 1]
+    if (path) navigate(path)
   }
 
-  // Handle final registration submission to backend POST /api/auth/register
-  const handleComplete = async (skipBank = false) => {
+  const handleComplete = async () => {
+    if (loading) return
     setErrorMessage(null)
-    setLoading(true)
 
-    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim() || 'Yasmine El Amrani'
-    const emailToUse = draftEmail.trim() || 'yasmine.alami@example.com'
-    const passwordToUse = draftPassword || 'AutoWallet2026!'
-    const bankAccountIdToUse = skipBank
-      ? `TEMP-${Math.floor(1000 + Math.random() * 9000)}`
-      : (bankAccount.trim() || 'ACC-2026-001')
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim()
+    const email = draftEmail.trim()
+    const password = draftPassword
+    const bankAccountId = bankAccount.trim() || `TEMP-${crypto.randomUUID()}`
+
+    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
+      persistDraft()
+      navigate('/welcome/about')
+      return
+    }
+
+    setLoading(true)
 
     try {
       const regRes = await fetch('/api/auth/register', {
@@ -232,68 +225,52 @@ export function OnboardingPage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           full_name: fullName,
-          email: emailToUse,
-          password: passwordToUse,
-          bank_account_id: bankAccountIdToUse,
+          email,
+          password,
+          bank_account_id: bankAccountId,
         }),
       })
 
-      if (regRes.status === 201 || regRes.ok) {
-        // Automatically log in
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: emailToUse, password: passwordToUse }),
-        }).catch(() => null)
-
-        if (loginRes && loginRes.ok) {
-          const tokenData = await loginRes.json()
-          if (tokenData.access_token) {
-            localStorage.setItem('autowallet_token', tokenData.access_token)
-          }
-        }
-        try {
-          sessionStorage.removeItem('autowallet_signup_draft')
-        } catch {
-          // ignore
-        }
-        navigate('/maintenance')
-      } else {
+      if (!regRes.ok) {
         const errData = await regRes.json().catch(() => ({}))
-        const detailMsg = typeof errData.detail === 'string' ? errData.detail : ''
-        if (detailMsg.toLowerCase().includes('email')) {
-          setErrorMessage(t.emailExists)
-          return
-        }
-        if (detailMsg.toLowerCase().includes('bank account')) {
-          setErrorMessage(t.bankAccountExists)
-          return
-        }
-        // Fallback for simulation / preview
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: emailToUse, password: passwordToUse }),
-        }).catch(() => null)
-        if (loginRes && loginRes.ok) {
-          const tokenData = await loginRes.json()
-          if (tokenData.access_token) {
-            localStorage.setItem('autowallet_token', tokenData.access_token)
-          }
-        }
-        navigate('/maintenance')
+        const detail = typeof errData.detail === 'string' ? errData.detail.toLowerCase() : ''
+        if (detail.includes('email')) setErrorMessage(t.emailExists)
+        else if (detail.includes('bank account')) setErrorMessage(t.bankAccountExists)
+        else setErrorMessage(t.serviceUnavailable)
+        return
       }
-    } catch {
+
       try {
         sessionStorage.removeItem('autowallet_signup_draft')
       } catch {
-        // ignore
+        // Registration has already succeeded, even if storage is unavailable.
       }
-      navigate('/maintenance')
+      try {
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        if (loginRes.ok) {
+          const tokenData = await loginRes.json()
+          if (typeof tokenData.access_token === 'string') {
+            localStorage.setItem('autowallet_token', tokenData.access_token)
+            navigate('/maintenance', { replace: true })
+            return
+          }
+        }
+      } catch {
+        // Registration is complete; login can be retried from the login page.
+      }
+      navigate('/login', { replace: true })
+    } catch {
+      setErrorMessage(t.serviceUnavailable)
     } finally {
       setLoading(false)
     }
   }
+
+  if (!draftEmail || !draftPassword) return null
 
   return (
     <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col justify-between">
@@ -344,19 +321,6 @@ export function OnboardingPage({
                   >
                     {t.changeBankAccount}
                   </button>
-                </div>
-              )}
-              {serviceDown && (
-                <div className="mt-1 text-xs text-[#5E6B7E]">
-                  You can test inputs or click{' '}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/maintenance')}
-                    className="underline text-[#5A64B4] font-medium cursor-pointer"
-                  >
-                    continue to preview
-                  </button>
-                  .
                 </div>
               )}
             </div>
@@ -420,7 +384,11 @@ export function OnboardingPage({
         {step === 5 && (
           <Step5TryPayment
             simulatedAmount={simulatedAmount}
-            setSimulatedAmount={setSimulatedAmount}
+            setSimulatedAmount={(value) => { setSimulatedAmount(value); setHasSimulated(false) }}
+            rentAmount={rentAmount}
+            taxPercent={taxPercent}
+            savingsPercent={savingsPercent}
+            savingsCap={savingsCap}
             hasSimulated={hasSimulated}
             isSimulating={isSimulating}
             onSimulate={handleSimulate}
@@ -543,7 +511,7 @@ export function OnboardingPage({
                 <button
                   type="button"
                   id="onboarding-skip-to-home-step5"
-                  onClick={() => handleComplete(true)}
+                  onClick={handleComplete}
                   disabled={loading || isSimulating}
                   className="h-11 px-6 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
                 >
@@ -554,7 +522,7 @@ export function OnboardingPage({
                 <button
                   type="button"
                   id="onboarding-go-to-home-step5"
-                  onClick={() => handleComplete(false)}
+                  onClick={handleComplete}
                   disabled={loading || isSimulating}
                   className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
                 >
