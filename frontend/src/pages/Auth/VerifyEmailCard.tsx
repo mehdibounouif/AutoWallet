@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useCountdown } from '../../hooks/useCountdown'
+import { LegalFooter } from '../../components/common/LegalFooter'
+
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Mail } from 'lucide-react'
 import { getTranslations } from '../../i18n'
@@ -22,20 +24,12 @@ export function VerifyEmailCard({ currentLang }: VerifyEmailCardProps) {
     }
   })()
 
-  const [countdown, setCountdown] = useState(0)
+  const { countdown, startCountdown } = useCountdown()
 
-  // 60s cooldown for resend link
-  useEffect(() => {
-    if (countdown <= 0) return
-    const timer = setInterval(() => {
-      setCountdown((prev) => Math.max(0, prev - 1))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [countdown])
 
   const handleResend = () => {
     if (countdown > 0) return
-    setCountdown(60)
+    startCountdown(60)
   }
 
   return (
@@ -80,23 +74,7 @@ export function VerifyEmailCard({ currentLang }: VerifyEmailCardProps) {
       </div>
 
       {/* Legal Footer */}
-      <footer className="mt-6 text-center text-xs text-[#5E6B7E] flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Privacy Policy: Your financial split rules are computed locally/securely.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.privacy}
-        </button>
-        <span>·</span>
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Terms of Service: Ledger budgeting simulation.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.terms}
-        </button>
-      </footer>
+      <LegalFooter t={t} />
     </main>
   )
 }

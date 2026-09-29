@@ -1,3 +1,5 @@
+import { LegalFooter } from '../../components/common/LegalFooter'
+import { PasswordStrength } from '../../components/common/PasswordStrength'
 import { useState, useEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -7,13 +9,9 @@ import {
   Info,
   Eye,
   EyeOff,
-  ShieldCheck,
-  Check,
-  Minus,
   Loader2,
 } from 'lucide-react'
 import { GoogleIcon } from '../../components/icons'
-import { OTPInput } from '../../components/common/OTPInput'
 import { SessionEndedCard } from './SessionEndedCard'
 import { getTranslations } from '../../i18n'
 import type { Language } from '../../i18n'
@@ -21,13 +19,24 @@ import type { Language } from '../../i18n'
 interface AuthCardProps {
   mode: 'login' | 'signup'
   currentLang: Language
-  onSwitchMode?: (nextMode: 'login' | 'signup') => void
+}
+
+function safeReturnPath(requestedPath: string | null): string {
+  if (!requestedPath?.startsWith('/') || requestedPath.startsWith('//') || requestedPath.includes('\\')) {
+    return '/maintenance'
+  }
+  try {
+    const url = new URL(requestedPath, window.location.origin)
+    if (url.origin !== window.location.origin) return '/maintenance'
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return '/maintenance'
+  }
 }
 
 export function AuthCard({
   mode,
   currentLang,
-  onSwitchMode,
 }: AuthCardProps) {
   const t = getTranslations(currentLang)
   const navigate = useNavigate()
@@ -60,14 +69,10 @@ export function AuthCard({
   // Form States
   const [email, setEmail] = useState(emailFromQuery || '')
   const [password, setPassword] = useState('')
-  const [totpCode, setTotpCode] = useState('')
-  const [showTotpField, setShowTotpField] = useState(false)
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [serviceDown, setServiceDown] = useState(false)
-  const [infoMessage, setInfoMessage] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [termsError, setTermsError] = useState(false)
@@ -112,37 +117,6 @@ export function AuthCard({
     }
   }, [])
 
-  // Password strength calculation (0 to 4)
-  const calculatePasswordStrength = (pwd: string): number => {
-    if (!pwd) return 0
-    let score = 0
-    if (pwd.length >= 8) score += 1
-    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score += 1
-    if (/\d/.test(pwd)) score += 1
-    if (/[^A-Za-z0-9]/.test(pwd) || pwd.length >= 12) score += 1
-    return score
-  }
-
-  const pwStrength = calculatePasswordStrength(password)
-
-  // Password strength text & color (matching Figma A2)
-  const getStrengthMeta = () => {
-    switch (pwStrength) {
-      case 2:
-        return { label: t.pwStrengthFair, color: 'bg-[#EB6834]', text: 'text-[#EB6834]' }
-      case 3:
-        return { label: t.pwStrengthGood, color: 'bg-[#EDA100]', text: 'text-[#EDA100]' }
-      case 4:
-        return { label: t.pwStrengthStrong, color: 'bg-[#1BAF7A]', text: 'text-[#1BAF7A]' }
-      case 1:
-        return { label: t.pwStrengthWeak, color: 'bg-[#C62F31]', text: 'text-[#C62F31]' }
-      default:
-        return { label: '', color: 'bg-[#DDE3EA]', text: 'text-[#5E6B7E]' }
-    }
-  }
-
-  const strengthMeta = getStrengthMeta()
-
   const validateEmail = (val: string): string | null => {
     const trimmed = val.trim()
     if (!trimmed) return t.emailRequired
@@ -159,8 +133,6 @@ export function AuthCard({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setErrorMessage(null)
-    setInfoMessage(null)
-    setServiceDown(false)
 
     if (mode === 'signup') {
       const errEmail = validateEmail(email)
@@ -201,44 +173,32 @@ export function AuthCard({
     setLoading(true)
 
     try {
-      const payload: { email: string; password: string; totp_code?: string } = {
-        email,
-        password,
-      }
-      if (showTotpField && totpCode.trim()) {
-        payload.totp_code = totpCode.trim()
-      }
-
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ email: email.trim(), password }),
       })
 
       if (res.ok) {
         const data = await res.json()
-        if (data.access_token) {
-          localStorage.setItem('autowallet_token', data.access_token)
-        }
-        const redirectTarget = searchParams.get('redirect') || searchParams.get('return_to') || '/maintenance'
-        navigate(redirectTarget)
+        if (typeof data.access_token !== 'string') throw new Error('Missing access token')
+        localStorage.setItem('autowallet_token', data.access_token)
+        navigate(safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to')))
       } else if (res.status === 401) {
         const errData = await res.json().catch(() => ({}))
         if (errData.detail === '2FA code required') {
-          sessionStorage.setItem('autowallet_2fa_pending', JSON.stringify({ email, password }))
-          navigate('/login/2fa', { state: { email, password } })
+          sessionStorage.setItem('autowallet_2fa_pending', JSON.stringify({ email: email.trim(), password }))
+          navigate('/login/2fa', { state: { email: email.trim(), password } })
           return
         } else {
           setErrorMessage(t.wrongCredentials)
         }
       } else if (res.status === 503) {
-        setServiceDown(true)
         setErrorMessage(t.serviceUnavailable)
       } else {
         setErrorMessage(t.wrongCredentials)
       }
     } catch {
-      setServiceDown(true)
       setErrorMessage(t.serviceUnavailable)
     } finally {
       setLoading(false)
@@ -332,23 +292,7 @@ export function AuthCard({
         </div>
 
         {/* Legal Footer */}
-        <footer className="mt-6 text-center text-xs text-[#5E6B7E] flex items-center justify-center gap-4">
-          <button
-            type="button"
-            onClick={() => alert('AutoWallet Privacy Policy: Your financial split rules are computed locally/securely.')}
-            className="hover:text-[#1A2330] hover:underline cursor-pointer"
-          >
-            {t.privacy}
-          </button>
-          <span>·</span>
-          <button
-            type="button"
-            onClick={() => alert('AutoWallet Terms of Service: Ledger budgeting simulation.')}
-            className="hover:text-[#1A2330] hover:underline cursor-pointer"
-          >
-            {t.terms}
-          </button>
-        </footer>
+        <LegalFooter t={t} />
       </main>
     )
   }
@@ -426,44 +370,7 @@ export function AuthCard({
             className="mb-5 p-3.5 rounded-xl bg-[#FFF5F5] border border-[#FFD2D2] text-[#C62F31] text-sm flex items-start gap-3 animate-in fade-in"
           >
             <AlertCircle className="w-5 h-5 shrink-0 text-[#C62F31] mt-0.5" />
-            <div className="flex-1 leading-snug">
-              <span>{errorMessage}</span>
-              {errorMessage === t.emailExists && (
-                <div className="mt-1.5 text-xs text-[#5E6B7E]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onSwitchMode) onSwitchMode('login')
-                      else navigate('/login')
-                    }}
-                    className="underline text-[#5A64B4] font-medium cursor-pointer"
-                  >
-                    {t.loginButton}
-                  </button>
-                </div>
-              )}
-              {serviceDown && (
-                <div className="mt-1 text-xs text-[#5E6B7E]">
-                  Form is ready. You can test inputs or click{' '}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/maintenance')}
-                    className="underline text-[#5A64B4] font-medium cursor-pointer"
-                  >
-                    continue to preview
-                  </button>
-                  .
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Info Banner (e.g. 2FA required) */}
-        {infoMessage && !errorMessage && (
-          <div className="mb-5 p-3.5 rounded-xl bg-[#ECEEFA] border border-[#D0D6F5] text-[#4A53A0] text-sm flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5 text-[#5A64B4]" />
-            <div className="flex-1 leading-snug text-xs sm:text-sm">{infoMessage}</div>
+            <div className="flex-1 leading-snug">{errorMessage}</div>
           </div>
         )}
 
@@ -490,9 +397,6 @@ export function AuthCard({
                 setEmail(e.target.value)
                 if (emailError) {
                   setEmailError(validateEmail(e.target.value))
-                }
-                if (errorMessage === t.emailExists) {
-                  setErrorMessage(null)
                 }
                 if (googleStatus !== 'idle') {
                   setGoogleStatus('idle')
@@ -576,48 +480,9 @@ export function AuthCard({
 
             {/* Password Strength Meter & Requirement (Figma A2 Signup) */}
             {mode === 'signup' && (
-              <div className="pt-1.5 space-y-2">
-                {/* 4-segment progress bar */}
-                <div className="grid grid-cols-4 gap-1.5 h-1 w-full" aria-hidden="true">
-                  {[1, 2, 3, 4].map((step) => (
-                    <div
-                      key={step}
-                      className={`h-full rounded-full transition-colors duration-200 ${
-                        pwStrength >= step ? strengthMeta.color : 'bg-[#DDE3EA]'
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                {/* Requirement & Status */}
-                <div className="flex items-center justify-between text-xs text-[#5E6B7E]">
-                  <div className="flex items-center gap-1.5">
-                    {password.length >= 8 ? (
-                      <Check className="w-3.5 h-3.5 text-[#1BAF7A]" />
-                    ) : (
-                      <Minus className="w-3.5 h-3.5 text-[#5E6B7E]" />
-                    )}
-                    <span className={password.length >= 8 ? 'text-[#1A2330] font-medium' : 'text-[#5E6B7E]'}>
-                      {t.pwRequirement}
-                    </span>
-                  </div>
-                  {password.length > 0 && (
-                    <span className={`font-semibold ${strengthMeta.text}`}>
-                      {strengthMeta.label}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <PasswordStrength password={password} t={t} />
             )}
           </div>
-
-          {/* 2FA TOTP Code Field (Visible when backend responds with 401 TOTP code required) */}
-          {mode === 'login' && showTotpField && (
-            <div className="space-y-2 animate-in fade-in pt-1">
-              <label className="block text-sm font-medium text-[#1A2330]">{t.totpLabel}</label>
-              <OTPInput value={totpCode} onChange={setTotpCode} />
-            </div>
-          )}
 
           {/* Terms Checkbox (Figma A2 component EL-d12cf65d) */}
           {mode === 'signup' && (
@@ -736,8 +601,6 @@ export function AuthCard({
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>{mode === 'login' ? t.loggingIn : t.signingUp}</span>
                 </>
-              ) : mode === 'login' && showTotpField ? (
-                t.verifyTotp
               ) : mode === 'login' ? (
                 t.loginButton
               ) : (
@@ -770,9 +633,7 @@ export function AuthCard({
             type="button"
             onClick={() => {
               setErrorMessage(null)
-              setShowTotpField(false)
               navigate(mode === 'login' ? '/signup' : '/login')
-              if (onSwitchMode) onSwitchMode(mode === 'login' ? 'signup' : 'login')
             }}
             className="font-semibold text-[#5A64B4] hover:text-[#4A53A0] hover:underline cursor-pointer"
           >
@@ -782,23 +643,7 @@ export function AuthCard({
       </div>
 
       {/* Legal Footer (Figma frame EL-0b7a78e5) */}
-      <footer className="mt-6 text-center text-xs text-[#5E6B7E] flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Privacy Policy: Your financial split rules are computed locally/securely.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.privacy}
-        </button>
-        <span>·</span>
-        <button
-          type="button"
-          onClick={() => alert('AutoWallet Terms of Service: Ledger budgeting simulation.')}
-          className="hover:text-[#1A2330] hover:underline cursor-pointer"
-        >
-          {t.terms}
-        </button>
-      </footer>
+      <LegalFooter t={t} />
     </main>
   )
 }

@@ -76,7 +76,6 @@ export function Step1About({
                   setFirstNameTouched(false)
                 }
               }}
-              placeholder={t.firstNamePlaceholder}
               className={`w-full h-11 px-3.5 rounded-[10px] border bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none transition ${
                 firstNameError
                   ? 'border-[#FFD2D2] focus:border-[#C62F31] focus:ring-2 focus:ring-[#C62F31]/20'
@@ -108,7 +107,6 @@ export function Step1About({
                   setLastNameTouched(false)
                 }
               }}
-              placeholder={t.lastNamePlaceholder}
               className={`w-full h-11 px-3.5 rounded-[10px] border bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none transition ${
                 lastNameError
                   ? 'border-[#FFD2D2] focus:border-[#C62F31] focus:ring-2 focus:ring-[#C62F31]/20'
