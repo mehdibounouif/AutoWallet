@@ -70,16 +70,16 @@ export const ar: Translations = {
   verifyEmailSubtitle: 'لقد أرسلنا رابطًا إلى {email} للتأكد من أنه بريدك. يمكنك متابعة الإعداد أثناء الانتظار.',
   continueSettingUp: 'متابعة الإعداد',
   emailExists: 'يوجد حساب بهذا البريد الإلكتروني بالفعل. سجّل الدخول أو أعد تعيين كلمة المرور.',
+  changeEmail: 'استخدام بريد إلكتروني آخر',
   emailInvalid: 'يرجى إدخال عنوان بريد إلكتروني صالح.',
   emailRequired: 'يرجى إدخال عنوان بريدك الإلكتروني.',
   pwTooShort: 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.',
   termsRequired: 'يرجى الموافقة على الشروط وقراءة صفحة الخصوصية.',
   firstNameRequired: 'يرجى إدخال اسمك الأول (حرفان على الأقل).',
   lastNameRequired: 'يرجى إدخال اسم العائلة (حرفان على الأقل).',
-  bankAccountRequired: 'يرجى إدخال رقم حسابك البنكي / RIB أو النقر على تخطي الآن.',
-  bankAccountInvalid: 'يجب أن يتكون رقم الحساب / RIB من 3 أحرف على الأقل (أو 24 رقمًا لـ RIB).',
+  bankAccountRequired: 'يرجى إدخال رقم حسابك البنكي / RIB للمتابعة.',
+  bankAccountInvalid: 'يجب أن يتكون رقم الحساب / RIB من 3 إلى 50 حرفًا.',
   bankAccountExists: 'هذا الحساب البنكي مرتبط بالفعل بمستخدم آخر.',
-  changeBankAccount: 'تغيير الحساب البنكي',
 
   // A7 Onboarding
   stepAboutYou: 'عنك',
@@ -98,9 +98,8 @@ export const ar: Translations = {
   accountNumberLabel: 'رقم الحساب (RIB)',
   accountNumberPlaceholder: '•••• •••• •••• 4821',
   accountNumberHint: 'نعرض آخر 4 أرقام فقط. AutoWallet لا ينقل أي أموال حقيقية.',
-  linkAccountAlert: 'لست جاهزًا؟ تخطَّ الآن وسجّل المدفوعات بنفسك. يمكنك ربط الحساب لاحقًا في الإعدادات.',
+  linkAccountAlert: 'عند إنشاء الحساب، يُحفظ رقم الحساب هذا في ملفك الشخصي على AutoWallet. يسجل AutoWallet تقسيم المدفوعات دون نقل أموال حقيقية.',
   backButton: 'رجوع',
-  skipForNowButton: 'تخطي الآن',
 
   // A8 Onboarding: Step 3 Envelopes
   envelopesTitle: 'خمسة أظرفة، مهمة واحدة لكل منها',

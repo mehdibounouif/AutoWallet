@@ -18,6 +18,20 @@ interface OnboardingPageProps {
   onSelectLang: (lang: Language) => void
 }
 
+interface SignupDraft {
+  email?: string
+  password?: string
+  firstName?: string
+  lastName?: string
+  bankAccount?: string
+  rentAmount?: string
+  taxPercent?: string
+  savingsPercent?: string
+  savingsCap?: string
+  registered?: boolean
+  bankAccountError?: string
+}
+
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
   value ? value.replace(/[^\d.-]/g, '') || fallback : fallback
 
@@ -39,18 +53,23 @@ export function OnboardingPage({
 
   const [draft] = useState(() => {
     try {
-      const saved = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}')
-      return { ...saved, ...location.state } as Record<string, string>
+      const saved = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}') as SignupDraft
+      return { ...saved, ...(location.state as SignupDraft | null) } as SignupDraft
     } catch {
-      return (location.state || {}) as Record<string, string>
+      return (location.state || {}) as SignupDraft
     }
   })
   const draftEmail = draft.email || ''
   const draftPassword = draft.password || ''
+  const [registered, setRegistered] = useState(Boolean(draft.registered))
 
   useEffect(() => {
     if (!draftEmail || !draftPassword) navigate('/signup', { replace: true })
   }, [draftEmail, draftPassword, navigate])
+
+  useEffect(() => {
+    if (registered && step < 3) navigate('/welcome/envelopes', { replace: true })
+  }, [navigate, registered, step])
 
   const hasLegacySampleName = draft.firstName === 'Yasmine' && draft.lastName === 'El Amrani'
   const [firstName, setFirstName] = useState(hasLegacySampleName ? '' : draft.firstName || '')
@@ -81,9 +100,11 @@ export function OnboardingPage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [firstNameError, setFirstNameError] = useState<string | null>(null)
   const [lastNameError, setLastNameError] = useState<string | null>(null)
-  const [bankAccountError, setBankAccountError] = useState<string | null>(null)
+  const [bankAccountError, setBankAccountError] = useState<string | null>(
+    (location.state as { bankAccountError?: string } | null)?.bankAccountError ?? null,
+  )
 
-  const persistDraft = (extra: Record<string, unknown> = {}) => {
+  const persistDraft = (extra: Partial<SignupDraft> = {}) => {
     try {
       const existing = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}')
       const merged = {
@@ -137,16 +158,10 @@ export function OnboardingPage({
     navigate('/welcome/account')
   }
 
-  const handleStep2Continue = (skip = false) => {
+  const handleStep2Continue = async () => {
+    if (loading || registered) return
     setErrorMessage(null)
     setBankAccountError(null)
-
-    if (skip) {
-      setBankAccount('')
-      persistDraft({ bankAccount: '', skippedBank: true })
-      navigate('/welcome/envelopes')
-      return
-    }
 
     const cleanAcc = bankAccount.trim()
     if (!cleanAcc) {
@@ -155,14 +170,53 @@ export function OnboardingPage({
       return
     }
 
-    if (cleanAcc.length < 3) {
+    if (cleanAcc.length < 3 || cleanAcc.length > 50) {
       setBankAccountError(t.bankAccountInvalid)
       setErrorMessage(t.bankAccountInvalid)
       return
     }
 
-    persistDraft({ bankAccount: cleanAcc, skippedBank: false })
-    navigate('/welcome/envelopes')
+    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
+      persistDraft({ bankAccount: cleanAcc })
+      navigate('/welcome/about')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: `${firstName.trim()} ${lastName.trim()}`,
+          email: draftEmail.trim(),
+          password: draftPassword,
+          bank_account_id: cleanAcc,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        const detail = typeof error.detail === 'string' ? error.detail.toLowerCase() : ''
+        if (detail.includes('email')) {
+          setErrorMessage(t.emailExists)
+        } else if (detail.includes('bank account')) {
+          setBankAccountError(t.bankAccountExists)
+          setErrorMessage(t.bankAccountExists)
+        } else {
+          setErrorMessage(t.serviceUnavailable)
+        }
+        return
+      }
+
+      persistDraft({ bankAccount: cleanAcc, registered: true })
+      setRegistered(true)
+      navigate('/welcome/envelopes')
+    } catch {
+      setErrorMessage(t.serviceUnavailable)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleStep3Continue = () => {
@@ -192,10 +246,11 @@ export function OnboardingPage({
   const handleBack = () => {
     setErrorMessage(null)
     persistDraft()
-    if (step > 1) navigate(onboardingPaths[step - 2])
+    if (step > (registered ? 3 : 1)) navigate(onboardingPaths[step - 2])
   }
 
   const handleStepClick = (targetStep: number) => {
+    if (registered && targetStep < 3) return
     setErrorMessage(null)
     persistDraft()
     const path = onboardingPaths[targetStep - 1]
@@ -206,65 +261,50 @@ export function OnboardingPage({
     if (loading) return
     setErrorMessage(null)
 
-    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim()
     const email = draftEmail.trim()
     const password = draftPassword
-    const bankAccountId = bankAccount.trim() || `TEMP-${crypto.randomUUID()}`
 
-    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
+    if (!registered) {
       persistDraft()
-      navigate('/welcome/about')
+      navigate('/welcome/account')
       return
     }
 
     setLoading(true)
 
     try {
-      const regRes = await fetch('/api/auth/register', {
+      const loginRes = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name: fullName,
-          email,
-          password,
-          bank_account_id: bankAccountId,
-        }),
+        body: JSON.stringify({ email, password }),
       })
-
-      if (!regRes.ok) {
-        const errData = await regRes.json().catch(() => ({}))
-        const detail = typeof errData.detail === 'string' ? errData.detail.toLowerCase() : ''
-        if (detail.includes('email')) setErrorMessage(t.emailExists)
-        else if (detail.includes('bank account')) setErrorMessage(t.bankAccountExists)
-        else setErrorMessage(t.serviceUnavailable)
-        return
+      if (loginRes.ok) {
+        const tokenData = await loginRes.json()
+        if (typeof tokenData.access_token === 'string') {
+          localStorage.setItem('autowallet_token', tokenData.access_token)
+          try {
+            sessionStorage.removeItem('autowallet_signup_draft')
+          } catch {
+            // The session is valid even when browser storage is unavailable.
+          }
+          navigate('/maintenance', { replace: true })
+          return
+        }
       }
-
       try {
         sessionStorage.removeItem('autowallet_signup_draft')
       } catch {
-        // Registration has already succeeded, even if storage is unavailable.
-      }
-      try {
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        })
-        if (loginRes.ok) {
-          const tokenData = await loginRes.json()
-          if (typeof tokenData.access_token === 'string') {
-            localStorage.setItem('autowallet_token', tokenData.access_token)
-            navigate('/maintenance', { replace: true })
-            return
-          }
-        }
-      } catch {
-        // Registration is complete; login can be retried from the login page.
+        // The account already exists; the user can sign in from the login page.
       }
       navigate('/login', { replace: true })
     } catch {
-      setErrorMessage(t.serviceUnavailable)
+      // The account exists; sign-in can be retried without registering again.
+      try {
+        sessionStorage.removeItem('autowallet_signup_draft')
+      } catch {
+        // The login page remains available without browser storage.
+      }
+      navigate('/login', { replace: true })
     } finally {
       setLoading(false)
     }
@@ -282,7 +322,7 @@ export function OnboardingPage({
       >
         <Stepper
           currentStep={step}
-          onStepClick={handleStepClick}
+          onStepClick={registered ? undefined : handleStepClick}
           currentLang={currentLang}
           t={t}
         />
@@ -300,7 +340,7 @@ export function OnboardingPage({
             <div className="flex-1 leading-snug">
               <span>{errorMessage}</span>
               {errorMessage === t.emailExists && (
-                <div className="mt-1.5 text-xs text-[#5E6B7E]">
+                <div className="mt-1.5 flex gap-4 text-xs text-[#5E6B7E]">
                   <button
                     type="button"
                     onClick={() => navigate('/login')}
@@ -308,18 +348,12 @@ export function OnboardingPage({
                   >
                     {t.loginButton}
                   </button>
-                </div>
-              )}
-              {errorMessage === t.bankAccountExists && step !== 2 && (
-                <div className="mt-1.5 text-xs text-[#5E6B7E]">
                   <button
                     type="button"
-                    onClick={() => {
-                      navigate('/welcome/account')
-                    }}
+                    onClick={() => navigate('/signup')}
                     className="underline text-[#5A64B4] font-medium cursor-pointer"
                   >
-                    {t.changeBankAccount}
+                    {t.changeEmail}
                   </button>
                 </div>
               )}
@@ -355,10 +389,14 @@ export function OnboardingPage({
             bankAccount={bankAccount}
             setBankAccount={(val) => {
               setBankAccount(val)
-              if (bankAccountError && val.trim().length >= 3) setBankAccountError(null)
+              if (errorMessage === t.bankAccountExists) setErrorMessage(null)
+              if (bankAccountError && val.trim().length >= 3 && val.trim().length <= 50) {
+                setBankAccountError(null)
+              }
             }}
             t={t}
             externalBankAccountError={bankAccountError}
+            disabled={loading}
           />
         )}
 
@@ -426,39 +464,31 @@ export function OnboardingPage({
                 <span>{t.backButton}</span>
               </button>
 
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  id="onboarding-skip-step2"
-                  onClick={() => handleStep2Continue(true)}
-                  disabled={loading}
-                  className="h-11 px-4 rounded-[10px] text-[#5E6B7E] hover:text-[#1A2330] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
-                >
-                  {t.skipForNowButton}
-                </button>
-                <button
-                  type="button"
-                  id="onboarding-continue-step2"
-                  onClick={() => handleStep2Continue(false)}
-                  disabled={loading}
-                  className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
-                >
-                  <span>{t.continueButton}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                id="onboarding-continue-step2"
+                onClick={handleStep2Continue}
+                disabled={loading}
+                className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
+              >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>{t.signupButton}</span>
+              </button>
             </>
           ) : step === 3 ? (
             <>
-              <button
-                type="button"
-                id="onboarding-back-step3"
-                onClick={handleBack}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
-              >
-                <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
-                <span>{t.backButton}</span>
-              </button>
+              {registered ? <div /> : (
+                <button
+                  type="button"
+                  id="onboarding-back-step3"
+                  onClick={handleBack}
+                  disabled={loading}
+                  className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
+                >
+                  <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+                  <span>{t.backButton}</span>
+                </button>
+              )}
 
               <button
                 type="button"

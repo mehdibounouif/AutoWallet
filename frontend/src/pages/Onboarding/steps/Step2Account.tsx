@@ -7,6 +7,7 @@ interface Step2AccountProps {
   setBankAccount: (val: string) => void
   t: Translations
   externalBankAccountError?: string | null
+  disabled?: boolean
 }
 
 export function Step2Account({
@@ -14,11 +15,12 @@ export function Step2Account({
   setBankAccount,
   t,
   externalBankAccountError,
+  disabled = false,
 }: Step2AccountProps) {
   const [touched, setTouched] = useState(false)
 
-  const cleanAcc = bankAccount.trim().replace(/\s+/g, '')
-  const isValidFormat = cleanAcc.length >= 3
+  const cleanAcc = bankAccount.trim()
+  const isValidFormat = cleanAcc.length >= 3 && cleanAcc.length <= 50
 
   const error =
     externalBankAccountError ||
@@ -45,6 +47,11 @@ export function Step2Account({
           <input
             id="account-number-input"
             type="text"
+            required
+            minLength={3}
+            maxLength={50}
+            aria-invalid={Boolean(error)}
+            disabled={disabled}
             autoFocus
             value={bankAccount}
             onBlur={() => setTouched(true)}

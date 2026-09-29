@@ -70,16 +70,16 @@ export const fr: Translations = {
   verifyEmailSubtitle: 'Nous avons envoyé un lien à {email} pour confirmer qu’il vous appartient. Vous pouvez continuer la configuration en attendant.',
   continueSettingUp: 'Continuer la configuration',
   emailExists: 'Un compte avec cet e-mail existe déjà. Connectez-vous ou réinitialisez votre mot de passe.',
+  changeEmail: 'Utiliser un autre e-mail',
   emailInvalid: 'Veuillez saisir une adresse e-mail valide.',
   emailRequired: 'Veuillez saisir votre adresse e-mail.',
   pwTooShort: 'Le mot de passe doit comporter au moins 8 caractères.',
   termsRequired: 'Veuillez accepter les Conditions et lire la page de Confidentialité.',
   firstNameRequired: 'Veuillez saisir votre prénom (au moins 2 caractères).',
   lastNameRequired: 'Veuillez saisir votre nom (au moins 2 caractères).',
-  bankAccountRequired: 'Veuillez saisir votre identifiant de compte bancaire / RIB ou cliquer sur Ignorer pour le moment.',
-  bankAccountInvalid: 'Le numéro de compte / RIB doit comporter au moins 3 caractères (ou 24 chiffres pour le RIB).',
+  bankAccountRequired: 'Veuillez saisir votre identifiant de compte bancaire / RIB pour continuer.',
+  bankAccountInvalid: 'Le numéro de compte / RIB doit comporter entre 3 et 50 caractères.',
   bankAccountExists: 'Ce compte bancaire est déjà associé à un autre utilisateur.',
-  changeBankAccount: 'Modifier le compte bancaire',
 
   // A7 Onboarding
   stepAboutYou: 'À propos de vous',
@@ -98,9 +98,8 @@ export const fr: Translations = {
   accountNumberLabel: 'Numéro de compte (RIB)',
   accountNumberPlaceholder: '•••• •••• •••• 4821',
   accountNumberHint: 'Nous n’affichons que les 4 derniers chiffres. AutoWallet ne déplace jamais de fonds.',
-  linkAccountAlert: 'Pas prêt ? Ignorez pour le moment et enregistrez les paiements vous-même. Vous pourrez lier le compte plus tard dans les Paramètres.',
+  linkAccountAlert: 'Créer un compte enregistre cet identifiant dans votre profil AutoWallet. AutoWallet enregistre la répartition des paiements sans déplacer de fonds.',
   backButton: 'Retour',
-  skipForNowButton: 'Ignorer pour l’instant',
 
   // A8 Onboarding: Step 3 Envelopes
   envelopesTitle: 'Cinq enveloppes, une mission chacune',

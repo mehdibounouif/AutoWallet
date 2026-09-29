@@ -71,6 +71,7 @@ export interface Translations {
   verifyEmailSubtitle: string
   continueSettingUp: string
   emailExists: string
+  changeEmail: string
   emailInvalid: string
   emailRequired: string
   pwTooShort: string
@@ -80,7 +81,6 @@ export interface Translations {
   bankAccountRequired: string
   bankAccountInvalid: string
   bankAccountExists: string
-  changeBankAccount: string
 
   // A7 Onboarding Stepper & Screens
   stepAboutYou: string
@@ -101,7 +101,6 @@ export interface Translations {
   accountNumberHint: string
   linkAccountAlert: string
   backButton: string
-  skipForNowButton: string
 
   // A8 Onboarding: Step 3 Envelopes
   envelopesTitle: string
