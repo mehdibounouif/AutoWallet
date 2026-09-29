@@ -2,19 +2,16 @@ import { LegalFooter } from '../../components/common/LegalFooter'
 import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Clock } from 'lucide-react'
-import { getTranslations } from '../../i18n'
-import type { Language } from '../../i18n'
+import { translations } from '../../i18n'
 
 interface SessionEndedCardProps {
-  currentLang: Language
   onLogInAgain?: () => void
 }
 
 export function SessionEndedCard({
-  currentLang,
   onLogInAgain,
 }: SessionEndedCardProps) {
-  const t = getTranslations(currentLang)
+  const t = translations
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 

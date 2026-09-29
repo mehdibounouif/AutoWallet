@@ -1,6 +1,6 @@
 # AutoWallet frontend
 
-React, TypeScript, Vite, Tailwind CSS, and React Router. The app covers email login and sign-up, Google sign-in callback, two-factor entry, password recovery screens, five onboarding steps, and a placeholder dashboard.
+React, TypeScript, Vite, Tailwind CSS, and React Router. The English-only app covers email login and sign-up, Google sign-in callback, two-factor entry, password recovery screens, five onboarding steps, and a placeholder dashboard.
 
 ## Run locally
 

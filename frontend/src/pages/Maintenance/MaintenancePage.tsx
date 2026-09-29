@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
-import { getTranslations } from '../../i18n'
-import type { Language } from '../../i18n'
+import { translations } from '../../i18n'
 
-export function MaintenancePage({ currentLang }: { currentLang: Language }) {
+export function MaintenancePage() {
   const navigate = useNavigate()
-  const t = getTranslations(currentLang)
+  const t = translations
   const [status, setStatus] = useState<'checking' | 'authenticated' | 'error'>('checking')
 
   useEffect(() => {

@@ -11,15 +11,10 @@ import {
   EyeOff,
   Loader2,
 } from 'lucide-react'
-import { getTranslations } from '../../i18n'
-import type { Language } from '../../i18n'
+import { translations } from '../../i18n'
 
-interface ResetPasswordCardProps {
-  currentLang: Language
-}
-
-export function ResetPasswordCard({ currentLang }: ResetPasswordCardProps) {
-  const t = getTranslations(currentLang)
+export function ResetPasswordCard() {
+  const t = translations
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -136,12 +131,12 @@ export function ResetPasswordCard({ currentLang }: ResetPasswordCardProps) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t.passwordPlaceholder}
-                    className="w-full h-11 pl-3.5 pr-10 rtl:pr-3.5 rtl:pl-10 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20 transition"
+                    className="w-full h-11 pl-3.5 pr-10 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20 transition"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 rtl:right-auto rtl:left-3 top-1/2 -translate-y-1/2 text-[#5E6B7E] hover:text-[#1A2330] p-1 cursor-pointer transition"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5E6B7E] hover:text-[#1A2330] p-1 cursor-pointer transition"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

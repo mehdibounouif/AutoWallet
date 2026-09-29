@@ -91,7 +91,6 @@ export const en: Translations = {
   aboutYouSubtitle: 'We use your first name on Home. You can change any of this later in Settings.',
   firstNameLabel: 'First name',
   lastNameLabel: 'Last name',
-  languageLabel: 'Language',
   continueButton: 'Continue',
   linkAccountTitle: 'Where do your clients pay you?',
   linkAccountSubtitle: 'Link the account your clients pay into, so each payment is split as it arrives.',

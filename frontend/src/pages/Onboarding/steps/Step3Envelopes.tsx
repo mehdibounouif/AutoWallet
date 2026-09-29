@@ -73,7 +73,7 @@ export function Step3Envelopes({ t }: Step3EnvelopesProps) {
   return (
     <div className="w-full max-w-5xl mx-auto px-2 sm:px-4">
       {/* Step 3 Heading */}
-      <div className="mb-8 space-y-2 text-center sm:text-left rtl:sm:text-right">
+      <div className="mb-8 space-y-2 text-center sm:text-left">
         <h1 className="text-2xl sm:text-[32px] font-semibold text-[#1A2330] tracking-tight">
           {t.envelopesTitle}
         </h1>
@@ -129,7 +129,7 @@ export function Step3Envelopes({ t }: Step3EnvelopesProps) {
                   <span className="text-2xl sm:text-[28px] font-bold text-[#1A2330] tracking-tight">
                     {card.amount}
                   </span>
-                  <span className="text-xs sm:text-sm font-medium text-[#5E6B7E] ml-1.5 rtl:ml-0 rtl:mr-1.5">
+                  <span className="text-xs sm:text-sm font-medium text-[#5E6B7E] ml-1.5">
                     {card.currency}
                   </span>
                 </div>

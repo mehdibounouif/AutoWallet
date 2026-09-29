@@ -4,15 +4,10 @@ import type { FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ShieldCheck, AlertCircle, Loader2, KeyRound } from 'lucide-react'
 import { OTPInput } from '../../components/common/OTPInput'
-import { getTranslations } from '../../i18n'
-import type { Language } from '../../i18n'
+import { translations } from '../../i18n'
 
-interface TwoFactorCardProps {
-  currentLang: Language
-}
-
-export function TwoFactorCard({ currentLang }: TwoFactorCardProps) {
-  const t = getTranslations(currentLang)
+export function TwoFactorCard() {
+  const t = translations
   const navigate = useNavigate()
   const location = useLocation()
 

@@ -1,17 +1,15 @@
 import { Check } from 'lucide-react'
-import type { Language, Translations } from '../../i18n'
+import type { Translations } from '../../i18n'
 
 export interface StepperProps {
   currentStep: number // 1 to 5
   onStepClick?: (step: number) => void
-  currentLang: Language
   t: Translations
 }
 
 export function Stepper({
   currentStep,
   onStepClick,
-  currentLang,
   t,
 }: StepperProps) {
   const steps = [
@@ -21,12 +19,6 @@ export function Stepper({
     { num: 4, label: t.stepRules },
     { num: 5, label: t.stepTryPayment },
   ]
-
-  const getStepText = (step: number) => {
-    if (currentLang === 'AR') return `الخطوة ${step} من 5`
-    if (currentLang === 'FR') return `Étape ${step} sur 5`
-    return `Step ${step} of 5`
-  }
 
   return (
     <nav aria-label="Progress" className="flex items-center">
@@ -104,7 +96,7 @@ export function Stepper({
             {steps[currentStep - 1]?.label}
           </span>
           <span className="text-[11px] font-normal text-[#5E6B7E]">
-            {getStepText(currentStep)}
+            Step {currentStep} of 5
           </span>
         </div>
         <div className="flex gap-1 mt-1" aria-hidden="true">

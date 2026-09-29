@@ -1,18 +1,12 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Language } from '../../i18n'
-import { LanguageSelector } from './LanguageSelector'
 
 export interface TopBarProps {
-  currentLang: Language
-  onSelectLang: (lang: Language) => void
   variant?: 'auth' | 'onboarding'
   children?: React.ReactNode
 }
 
 export function TopBar({
-  currentLang,
-  onSelectLang,
   variant = 'auth',
   children,
 }: TopBarProps) {
@@ -26,12 +20,12 @@ export function TopBar({
           : 'border-b border-transparent'
       }`}
     >
-      <div className="w-full flex items-center justify-between gap-4">
+      <div className="w-full flex items-center gap-4">
         {/* AutoWallet Official Logo using AW.svg */}
         <button
           type="button"
           onClick={() => navigate('/login')}
-          className="flex items-center gap-2.5 cursor-pointer group text-left rtl:text-right transition-opacity hover:opacity-90 select-none shrink-0"
+          className="flex items-center gap-2.5 cursor-pointer group text-left transition-opacity hover:opacity-90 select-none shrink-0"
           title="AutoWallet Home"
         >
           <img
@@ -44,22 +38,15 @@ export function TopBar({
           </span>
         </button>
 
-        {/* Stepper (Desktop / Tablet md+: centered between Logo and Language Switcher) */}
+        {/* Stepper (Desktop / Tablet md+) */}
         {children && (
           <div className="hidden md:flex flex-1 justify-center items-center min-w-0">
             {children}
           </div>
         )}
-
-        {/* Language Switcher */}
-        <LanguageSelector
-          currentLang={currentLang}
-          onSelectLang={onSelectLang}
-          className="shrink-0"
-        />
       </div>
 
-      {/* Stepper (Mobile <md: placed below Logo and Language Switcher row, matching Figma #117:1147) */}
+      {/* Stepper (Mobile <md: placed below the logo) */}
       {children && (
         <div className="md:hidden flex justify-center w-full pt-3">
           {children}
@@ -68,4 +55,3 @@ export function TopBar({
     </header>
   )
 }
-

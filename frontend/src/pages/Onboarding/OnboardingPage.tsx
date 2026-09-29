@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
-import { getTranslations } from '../../i18n'
-import type { Language } from '../../i18n'
+import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
 import { Stepper } from '../../components/common/Stepper'
 import { Step1About } from './steps/Step1About'
@@ -12,11 +11,6 @@ import { Step3Envelopes } from './steps/Step3Envelopes'
 import { Step4Rules } from './steps/Step4Rules'
 import { Step5TryPayment } from './steps/Step5TryPayment'
 import { onboardingPaths } from './routes'
-
-interface OnboardingPageProps {
-  currentLang: Language
-  onSelectLang: (lang: Language) => void
-}
 
 interface SignupDraft {
   email?: string
@@ -40,11 +34,8 @@ const isValidRuleValue = (value: string, maximum = Infinity) => {
   return value.trim() !== '' && Number.isFinite(numericValue) && numericValue >= 0 && numericValue <= maximum
 }
 
-export function OnboardingPage({
-  currentLang,
-  onSelectLang,
-}: OnboardingPageProps) {
-  const t = getTranslations(currentLang)
+export function OnboardingPage() {
+  const t = translations
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -314,16 +305,11 @@ export function OnboardingPage({
 
   return (
     <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col justify-between">
-      {/* Onboarding Top Bar with Logo, Stepper, and Language Switcher */}
-      <TopBar
-        currentLang={currentLang}
-        onSelectLang={onSelectLang}
-        variant="onboarding"
-      >
+      {/* Onboarding Top Bar with Logo and Stepper */}
+      <TopBar variant="onboarding">
         <Stepper
           currentStep={step}
           onStepClick={registered ? undefined : handleStepClick}
-          currentLang={currentLang}
           t={t}
         />
       </TopBar>
@@ -374,8 +360,6 @@ export function OnboardingPage({
               setLastName(val)
               if (lastNameError && val.trim().length >= 2) setLastNameError(null)
             }}
-            currentLang={currentLang}
-            onSelectLang={onSelectLang}
             t={t}
             onSubmit={handleStep1Continue}
             externalFirstNameError={firstNameError}
@@ -460,7 +444,7 @@ export function OnboardingPage({
                 disabled={loading}
                 className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
               >
-                <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+                <ChevronLeft className="w-4 h-4" />
                 <span>{t.backButton}</span>
               </button>
 
@@ -485,7 +469,7 @@ export function OnboardingPage({
                   disabled={loading}
                   className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
                 >
-                  <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+                  <ChevronLeft className="w-4 h-4" />
                   <span>{t.backButton}</span>
                 </button>
               )}
@@ -509,7 +493,7 @@ export function OnboardingPage({
                 disabled={loading}
                 className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
               >
-                <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+                <ChevronLeft className="w-4 h-4" />
                 <span>{t.backButton}</span>
               </button>
 
@@ -533,7 +517,7 @@ export function OnboardingPage({
                 disabled={loading || isSimulating}
                 className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
               >
-                <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+                <ChevronLeft className="w-4 h-4" />
                 <span>{t.backButton}</span>
               </button>
 

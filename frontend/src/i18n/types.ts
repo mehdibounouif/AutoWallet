@@ -1,6 +1,3 @@
-// Supported Languages from Figma Canvas "🌍 i18n & RTL"
-export type Language = 'EN' | 'FR' | 'AR'
-
 export interface Translations {
   loginTitle: string
   loginSubtitle: string
@@ -92,7 +89,6 @@ export interface Translations {
   aboutYouSubtitle: string
   firstNameLabel: string
   lastNameLabel: string
-  languageLabel: string
   continueButton: string
   linkAccountTitle: string
   linkAccountSubtitle: string
