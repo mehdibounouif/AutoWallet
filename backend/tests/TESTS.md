@@ -10,15 +10,17 @@ doesn't make the reason obvious, that's a documentation bug — tell me.
 
 ```bash
 cd backend
-./venv/bin/pytest -q          # expected: 70 passed, 2 xfailed (nothing red)
+./venv/bin/pytest -q          # expected: 72 passed (nothing red)
 ./venv/bin/pytest tests/test_transactions.py -q   # one file
 ./venv/bin/pytest "tests/test_auth_client.py::test_auth_service_403_propagates_as_403"  # one test
 ```
 
 - No server, no database server, no Redis, no bank simulator, no
   authorization service needed — see §2 (fake infrastructure).
-- Current baseline: **70 passed + 2 xfailed**. The 2 xfails are DELIBERATE
-  acceptance tests tracking open findings (§4) — the suite is green by design.
+- Current baseline: **72 passed, 0 xfailed**. The two findings the xfail
+  acceptance tests tracked (#10 GET leg, #12 role claim) are FIXED
+  (12269aa) — the tests now pass as plain tests and their xfail markers
+  were resolved (see §4's cycle log).
 
 ---
 
@@ -113,9 +115,9 @@ The mapping contract (`service answer → endpoint status`):
 | `test_real_service_grants_token_with_role_claim` | realish + token WITH role → 200 (the contract the backend must reach) |
 | `test_real_service_accepts_backend_token_once_role_claim_exists` ⚠️ xfail | realish + REAL backend token → DESIRED 200; fails today (403): finding **#12** (owner **HOMIE**) |
 
-### `tests/test_oauth.py` — Google OAuth + linked-account gate (13 tests, 1 xfail)
+### `tests/test_oauth.py` — Google OAuth + linked-account gate (13 tests)
 
-|load-bearingu:test_transactions_require_authTest | Scenario → Expected |
+| Test | Scenario → Expected |
 |---|---|
 | `test_me_stays_open_for_unlinked_oauth_user` | unlinked user + /me → 200, bank_account_id None (documented design) |
 | `test_gate_blocks_wallets_for_unlinked_user` | unlinked + wallets → 403 "link a bank account" |
@@ -184,7 +186,14 @@ support functions, NOT fixtures; fixtures stay in `conftest.py`.
 
 ## 4. The acceptance-test convention (xfail-strict) — how findings are tracked
 
-Open findings are NOT hidden. Each is one named test marked:
+**Cycle status: the first generation is CLOSED.** The two tracked findings
+(#10 GET leg, #12 role claim, owner HOMIE) were fixed in `12269aa`; both
+acceptance tests exist and pass today as plain tests, and the xfail
+markers were resolved (commented out in that commit — a full delete of
+the marker blocks is the preferred form, minor cleanup, see §6).
+
+The convention stays documented here because it is the pattern for every
+FUTURE finding:
 
 ```python
 @pytest.mark.xfail(strict=True, reason="finding #N (owner: X): ... exact fix location ...")
@@ -198,15 +207,12 @@ Open findings are NOT hidden. Each is one named test marked:
 - Reason text always names the finding number, the owner, and the exact
   file:line of the missing fix — so whoever picks it up starts warm.
 
-Currently open:
+Closed-cycle log:
 
-| Test | Finding | Owner | File to fix |
+| Test | Finding | Owner | Resolution |
 |---|---|---|---|
-| `test_real_service_accepts_backend_token_once_role_claim_exists` | #12 | HOMIE | `app/core/security.py` `create_access_token` — add `role` claim |
-| `test_transaction_list_gated_for_unlinked_user` | #10 (reopened, partial fix) | HOMIE | `app/api/transactions.py:38` `list_transactions` — swap `get_current_user` → `require_linked_account` |
-
-When one flips: delete the xfail marker, re-run the suite, expect the xfail
-count to drop and passed count to rise.
+| `test_real_service_accepts_backend_token_once_role_claim_exists` | #12 | HOMIE | `create_access_token` now emits `{"sub", "role", "exp"}` (security.py:22); verified live: token carries `role:"user"`, guarded chain answers 200 (e2e, 2026-09-28) |
+| `test_transaction_list_gated_for_unlinked_user` | #10 (reopened, partial fix) | HOMIE | `list_transactions` (transactions.py:38) now `Depends(require_linked_account)`; verified by the test passing |
 
 ---
 
