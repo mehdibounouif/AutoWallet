@@ -1,25 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
-import type { Language } from '../../i18n'
-import { getTranslations } from '../../i18n'
+import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
-
-interface GoogleCallbackPageProps {
-  currentLang: Language
-  onSelectLang: (lang: Language) => void
-}
 
 interface ExchangeResult {
   ok: boolean
   data: { access_token?: unknown; detail?: unknown }
 }
 
-export function GoogleCallbackPage({
-  currentLang,
-  onSelectLang,
-}: GoogleCallbackPageProps) {
-  const t = getTranslations(currentLang)
+export function GoogleCallbackPage() {
+  const t = translations
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -99,7 +90,7 @@ export function GoogleCallbackPage({
 
   return (
     <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col">
-      <TopBar currentLang={currentLang} onSelectLang={onSelectLang} />
+      <TopBar />
 
       <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10">
         <div className="w-full max-w-[440px] bg-white rounded-2xl border border-[#DDE3EA] p-8 sm:p-10 shadow-[0_8px_24px_-4px_rgba(27,36,50,0.08),0_2px_6px_-1px_rgba(27,36,50,0.04)] text-center flex flex-col items-center">

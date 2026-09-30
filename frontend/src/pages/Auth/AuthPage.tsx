@@ -1,4 +1,3 @@
-import type { Language } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
 import { AuthCard } from './AuthCard'
 import { TwoFactorCard } from './TwoFactorCard'
@@ -16,26 +15,24 @@ interface AuthPageProps {
     | 'forgot-password'
     | 'reset-password'
     | 'verify-email'
-  currentLang: Language
-  onSelectLang: (lang: Language) => void
 }
 
-export function AuthPage({ mode, currentLang, onSelectLang }: AuthPageProps) {
+export function AuthPage({ mode }: AuthPageProps) {
   return (
     <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col">
-      <TopBar currentLang={currentLang} onSelectLang={onSelectLang} />
+      <TopBar />
       {mode === '2fa' ? (
-        <TwoFactorCard currentLang={currentLang} />
+        <TwoFactorCard />
       ) : mode === 'session-ended' ? (
-        <SessionEndedCard currentLang={currentLang} />
+        <SessionEndedCard />
       ) : mode === 'forgot-password' ? (
-        <ForgotPasswordCard currentLang={currentLang} />
+        <ForgotPasswordCard />
       ) : mode === 'reset-password' ? (
-        <ResetPasswordCard currentLang={currentLang} />
+        <ResetPasswordCard />
       ) : mode === 'verify-email' ? (
-        <VerifyEmailCard currentLang={currentLang} />
+        <VerifyEmailCard />
       ) : (
-        <AuthCard mode={mode} currentLang={currentLang} />
+        <AuthCard mode={mode} />
       )}
     </div>
   )

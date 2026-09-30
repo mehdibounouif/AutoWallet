@@ -4,15 +4,10 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { KeyRound, MailCheck, ArrowLeft, Loader2 } from 'lucide-react'
-import { getTranslations } from '../../i18n'
-import type { Language } from '../../i18n'
+import { translations } from '../../i18n'
 
-interface ForgotPasswordCardProps {
-  currentLang: Language
-}
-
-export function ForgotPasswordCard({ currentLang }: ForgotPasswordCardProps) {
-  const t = getTranslations(currentLang)
+export function ForgotPasswordCard() {
+  const t = translations
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
@@ -94,7 +89,7 @@ export function ForgotPasswordCard({ currentLang }: ForgotPasswordCardProps) {
                 onClick={() => navigate('/login')}
                 className="inline-flex items-center gap-2 text-sm font-medium text-[#4A53A0] hover:text-[#3B495D] hover:underline cursor-pointer"
               >
-                <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+                <ArrowLeft className="w-4 h-4" />
                 <span>{t.backToLogIn}</span>
               </button>
             </div>
@@ -156,7 +151,7 @@ export function ForgotPasswordCard({ currentLang }: ForgotPasswordCardProps) {
                 onClick={() => navigate('/login')}
                 className="inline-flex items-center gap-2 text-sm font-medium text-[#4A53A0] hover:text-[#3B495D] hover:underline cursor-pointer"
               >
-                <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+                <ArrowLeft className="w-4 h-4" />
                 <span>{t.backToLogIn}</span>
               </button>
             </div>

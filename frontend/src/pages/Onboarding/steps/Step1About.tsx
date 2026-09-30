@@ -1,15 +1,13 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ChevronDown, AlertCircle } from 'lucide-react'
-import type { Language, Translations } from '../../../i18n'
+import { AlertCircle } from 'lucide-react'
+import type { Translations } from '../../../i18n'
 
 interface Step1AboutProps {
   firstName: string
   setFirstName: (val: string) => void
   lastName: string
   setLastName: (val: string) => void
-  currentLang: Language
-  onSelectLang: (lang: Language) => void
   t: Translations
   onSubmit: (e?: FormEvent) => void
   externalFirstNameError?: string | null
@@ -21,8 +19,6 @@ export function Step1About({
   setFirstName,
   lastName,
   setLastName,
-  currentLang,
-  onSelectLang,
   t,
   onSubmit,
   externalFirstNameError,
@@ -122,30 +118,6 @@ export function Step1About({
           </div>
         </div>
 
-        {/* Language Select (Figma #117:1035) */}
-        <div className="space-y-1.5">
-          <label htmlFor="language-select" className="block text-sm font-medium text-[#1A2330]">
-            {t.languageLabel}
-          </label>
-          <div className="relative">
-            <select
-              id="language-select"
-              value={currentLang}
-              onChange={(e) => {
-                const val = (e.target.value || 'EN').toUpperCase()
-                onSelectLang(val === 'AR' || val === 'FR' ? (val as Language) : 'EN')
-              }}
-              className="w-full h-11 pl-3.5 pr-10 rtl:pr-3.5 rtl:pl-10 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] text-sm focus:outline-none focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20 transition appearance-none cursor-pointer"
-            >
-              <option value="EN">English</option>
-              <option value="FR">Français</option>
-              <option value="AR">العربية</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 rtl:right-auto rtl:left-0 flex items-center px-3 text-[#5E6B7E]">
-              <ChevronDown className="w-4 h-4" />
-            </div>
-          </div>
-        </div>
       </form>
     </div>
   )

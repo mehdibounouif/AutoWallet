@@ -1,6 +1,5 @@
-import { lazy, Suspense, useState, useEffect } from 'react'
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import type { Language } from './i18n'
 import { AuthPage } from './pages/Auth/AuthPage'
 import { GoogleCallbackPage } from './pages/Auth/GoogleCallbackPage'
 import { MaintenancePage } from './pages/Maintenance/MaintenancePage'
@@ -22,34 +21,7 @@ const authRoutes = {
   '/verify-email': 'verify-email',
 } as const
 
-function getSavedLanguage(): Language {
-  try {
-    const saved = localStorage.getItem('autowallet_language')
-    return saved === 'FR' || saved === 'AR' ? saved : 'EN'
-  } catch {
-    return 'EN'
-  }
-}
-
 export default function App() {
-  const [currentLang, setCurrentLang] = useState<Language>(getSavedLanguage)
-
-  const handleSelectLang = (lang: string) => {
-    const code = (lang || 'EN').toUpperCase() as Language
-    setCurrentLang(code === 'AR' || code === 'FR' ? code : 'EN')
-  }
-
-  // Set html dir attribute for Arabic RTL
-  useEffect(() => {
-    document.documentElement.dir = currentLang === 'AR' ? 'rtl' : 'ltr'
-    document.documentElement.lang = currentLang.toLowerCase()
-    try {
-      localStorage.setItem('autowallet_language', currentLang)
-    } catch {
-      // Language still applies for this visit when storage is unavailable.
-    }
-  }, [currentLang])
-
   return (
     <BrowserRouter>
       <Suspense
@@ -65,7 +37,7 @@ export default function App() {
               key={path}
               path={path}
               element={
-                <AuthPage mode={mode} currentLang={currentLang} onSelectLang={handleSelectLang} />
+                <AuthPage mode={mode} />
               }
             />
           ))}
@@ -74,7 +46,7 @@ export default function App() {
           <Route
             path="/auth/google/callback"
             element={
-              <GoogleCallbackPage currentLang={currentLang} onSelectLang={handleSelectLang} />
+              <GoogleCallbackPage />
             }
           />
 
@@ -82,7 +54,7 @@ export default function App() {
             <Route
               key={path}
               path={path}
-              element={<OnboardingPage currentLang={currentLang} onSelectLang={handleSelectLang} />}
+              element={<OnboardingPage />}
             />
           ))}
 
@@ -91,7 +63,7 @@ export default function App() {
           {/* Root Route redirects to /login */}
           <Route path="/" element={<Navigate to="/login" replace />} />
 
-          <Route path="/maintenance" element={<MaintenancePage currentLang={currentLang} />} />
+          <Route path="/maintenance" element={<MaintenancePage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>

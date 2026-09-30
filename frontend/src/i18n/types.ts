@@ -1,6 +1,3 @@
-// Supported Languages from Figma Canvas "🌍 i18n & RTL"
-export type Language = 'EN' | 'FR' | 'AR'
-
 export interface Translations {
   loginTitle: string
   loginSubtitle: string
@@ -71,6 +68,7 @@ export interface Translations {
   verifyEmailSubtitle: string
   continueSettingUp: string
   emailExists: string
+  changeEmail: string
   emailInvalid: string
   emailRequired: string
   pwTooShort: string
@@ -80,7 +78,6 @@ export interface Translations {
   bankAccountRequired: string
   bankAccountInvalid: string
   bankAccountExists: string
-  changeBankAccount: string
 
   // A7 Onboarding Stepper & Screens
   stepAboutYou: string
@@ -92,7 +89,6 @@ export interface Translations {
   aboutYouSubtitle: string
   firstNameLabel: string
   lastNameLabel: string
-  languageLabel: string
   continueButton: string
   linkAccountTitle: string
   linkAccountSubtitle: string
@@ -101,7 +97,6 @@ export interface Translations {
   accountNumberHint: string
   linkAccountAlert: string
   backButton: string
-  skipForNowButton: string
 
   // A8 Onboarding: Step 3 Envelopes
   envelopesTitle: string

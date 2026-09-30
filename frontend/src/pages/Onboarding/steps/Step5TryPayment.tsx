@@ -134,7 +134,7 @@ export function Step5TryPayment({
       </div>
 
       <div className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-3 w-full">
-        <div className="w-full sm:w-80 space-y-1.5 text-left rtl:text-right">
+        <div className="w-full sm:w-80 space-y-1.5 text-left">
           <label
             htmlFor="simulated-amount"
             className="block text-xs font-semibold uppercase tracking-wider text-[#5E6B7E]"
@@ -150,9 +150,9 @@ export function Step5TryPayment({
               onChange={(event) => setSimulatedAmount(event.target.value)}
               disabled={isSimulating}
               aria-invalid={Boolean(simulatedAmount) && !validAmount}
-              className="w-full h-11 pl-4 pr-16 rtl:pl-16 rtl:pr-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] font-semibold text-base focus:outline-none focus:border-[#5A64B4] focus:ring-3 focus:ring-[#5A64B4]/15 transition shadow-2xs"
+              className="w-full h-11 pl-4 pr-16 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] font-semibold text-base focus:outline-none focus:border-[#5A64B4] focus:ring-3 focus:ring-[#5A64B4]/15 transition shadow-2xs"
             />
-            <span className="absolute right-3 rtl:right-auto rtl:left-3 text-xs font-bold text-[#5E6B7E] bg-[#F3F6FA] px-2 py-0.5 rounded">
+            <span className="absolute right-3 text-xs font-bold text-[#5E6B7E] bg-[#F3F6FA] px-2 py-0.5 rounded">
               MAD
             </span>
           </div>
@@ -190,7 +190,7 @@ export function Step5TryPayment({
             className="p-3.5 sm:p-4 rounded-xl bg-[#E8F8F0] border border-[#BCE8D3] text-[#0E7A4A] text-xs sm:text-sm flex items-center justify-center gap-2.5 max-w-2xl mx-auto shadow-2xs animate-fadeIn"
           >
             <CheckCircle2 className="w-5 h-5 text-[#1BAF7A] shrink-0" />
-            <p className="font-medium leading-relaxed text-center sm:text-left rtl:sm:text-right">
+            <p className="font-medium leading-relaxed text-center sm:text-left">
               {t.splitSuccessAlert.replace('{amount}', money(amount))}
             </p>
           </div>
@@ -300,7 +300,7 @@ export function Step5TryPayment({
                         {item.amount > 0 && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
                         {item.amount > 0 ? t.ranStatusBadge : t.skippedStatusBadge}
                       </span>
-                      <div className="text-right rtl:text-left min-w-[70px]">
+                      <div className="text-right min-w-[70px]">
                         <div className="font-bold text-[#1A2330]">{money(item.amount)}</div>
                         <div className="text-[11px] text-[#5E6B7E]">
                           {money(item.remaining)} {t.leftText}

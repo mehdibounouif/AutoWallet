@@ -3,7 +3,6 @@
 @theme {
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
-  --font-arabic: 'Noto Sans Arabic', sans-serif;
 
   /* Semantic Colors from Figma Handoff #180:9 */
   --color-action-primary: #5A64B4;

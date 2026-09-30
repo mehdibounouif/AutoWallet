@@ -3,15 +3,10 @@ import { LegalFooter } from '../../components/common/LegalFooter'
 
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Mail } from 'lucide-react'
-import { getTranslations } from '../../i18n'
-import type { Language } from '../../i18n'
+import { translations } from '../../i18n'
 
-interface VerifyEmailCardProps {
-  currentLang: Language
-}
-
-export function VerifyEmailCard({ currentLang }: VerifyEmailCardProps) {
-  const t = getTranslations(currentLang)
+export function VerifyEmailCard() {
+  const t = translations
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 

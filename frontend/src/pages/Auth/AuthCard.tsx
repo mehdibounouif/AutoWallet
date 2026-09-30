@@ -13,12 +13,10 @@ import {
 } from 'lucide-react'
 import { GoogleIcon } from '../../components/icons'
 import { SessionEndedCard } from './SessionEndedCard'
-import { getTranslations } from '../../i18n'
-import type { Language } from '../../i18n'
+import { translations } from '../../i18n'
 
 interface AuthCardProps {
   mode: 'login' | 'signup'
-  currentLang: Language
 }
 
 function safeReturnPath(requestedPath: string | null): string {
@@ -36,9 +34,8 @@ function safeReturnPath(requestedPath: string | null): string {
 
 export function AuthCard({
   mode,
-  currentLang,
 }: AuthCardProps) {
-  const t = getTranslations(currentLang)
+  const t = translations
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -242,7 +239,6 @@ export function AuthCard({
   if (sessionExpired) {
     return (
       <SessionEndedCard
-        currentLang={currentLang}
         onLogInAgain={() => {
           setSessionExpired(false)
           const newParams = new URLSearchParams(searchParams)
@@ -456,7 +452,7 @@ export function AuthCard({
                   }
                 }}
                 placeholder={t.passwordPlaceholder}
-                className={`w-full h-11 pl-3.5 pr-10 rtl:pr-3.5 rtl:pl-10 rounded-[10px] border bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none transition ${
+                className={`w-full h-11 pl-3.5 pr-10 rounded-[10px] border bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none transition ${
                   passwordError
                     ? 'border-[#FFD2D2] focus:border-[#C62F31] focus:ring-2 focus:ring-[#C62F31]/20'
                     : 'border-[#DDE3EA] focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20'
@@ -465,7 +461,7 @@ export function AuthCard({
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 rtl:right-auto rtl:left-3 top-1/2 -translate-y-1/2 text-[#5E6B7E] hover:text-[#1A2330] p-1 cursor-pointer transition"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5E6B7E] hover:text-[#1A2330] p-1 cursor-pointer transition"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -501,85 +497,29 @@ export function AuthCard({
                   }`}
                 />
                 <span className="text-xs text-[#3B495D] leading-snug">
-                  {currentLang === 'EN' ? (
-                    <>
-                      I agree to the{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          alert('AutoWallet Terms: Ledger budgeting simulation.')
-                        }}
-                        className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
-                      >
-                        Terms
-                      </button>{' '}
-                      and have read the{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          alert('AutoWallet Privacy page: Your financial split rules are computed locally/securely.')
-                        }}
-                        className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
-                      >
-                        Privacy page
-                      </button>
-                      .
-                    </>
-                  ) : currentLang === 'FR' ? (
-                    <>
-                      J'accepte les{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          alert("Conditions d'utilisation")
-                        }}
-                        className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
-                      >
-                        Conditions
-                      </button>{' '}
-                      et j'ai lu la page de{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          alert('Politique de confidentialité')
-                        }}
-                        className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
-                      >
-                        Confidentialité
-                      </button>
-                      .
-                    </>
-                  ) : (
-                    <>
-                      أوافق على{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          alert('الشروط')
-                        }}
-                        className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
-                      >
-                        الشروط
-                      </button>{' '}
-                      وقرأت صفحة{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          alert('الخصوصية')
-                        }}
-                        className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
-                      >
-                        الخصوصية
-                      </button>
-                      .
-                    </>
-                  )}
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      alert('AutoWallet Terms: Ledger budgeting simulation.')
+                    }}
+                    className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
+                  >
+                    Terms
+                  </button>{' '}
+                  and have read the{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      alert('AutoWallet Privacy page: Your financial split rules are computed locally/securely.')
+                    }}
+                    className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
+                  >
+                    Privacy page
+                  </button>
+                  .
                 </span>
               </label>
             </div>
