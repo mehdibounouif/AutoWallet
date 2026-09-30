@@ -55,13 +55,6 @@ jobs:
         working-directory: bank-simulator
         run: pytest -q
 
-  # ── Job 3: the authorization service contract suite ──────────────────
-  # The full suite (16 pins) gates here. It was built through the demand
-  # phase — 14 findings were first written as RED demand tests, the fixes
-  # landed (ce8c316), and the tests were promoted into the single pin
-  # file (see authorization/tests/TESTS.md §4 for the findings cycle).
-  # New findings repeat that cycle in a findings file and are NOT gated
-  # until fixed.
   authorization-tests:
     runs-on: ubuntu-latest
     steps:
@@ -89,11 +82,70 @@ jobs:
       - name: Get the code
         uses: actions/checkout@v4
 
-      - name: Build backend image
-        run: docker build backend/
+      - name: Build backend image (tagged, for the boot smoke)
+        run: docker build -t bk:smoke backend/
 
-      - name: Build bank simulator image
-        run: docker build bank-simulator/
+      - name: Build bank simulator image (tagged, for the boot smoke)
+        run: docker build -t sim:smoke bank-simulator/
 
-      - name: Build authorization image
-        run: docker build authorization/
+      - name: Build authorization image (tagged, for the boot smoke)
+        run: docker build -t authz:smoke authorization/
+
+      - name: Boot smoke — backend image
+        run: |
+          docker run -d --name smoke-bk \
+            -e DATABASE_URL=sqlite:///./flowpay.db \
+            -e SECRET_KEY=smoke-secret \
+            -e REDIS_URL=redis://localhost:6379/0 \
+            -e BANK_SIMULATOR_URL=http://localhost:8001 \
+            -e GOOGLE_CLIENT_ID=not-configured \
+            -e GOOGLE_CLIENT_SECRET=not-configured \
+            -e GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/oauth/google/callback \
+            -p 19000:8000 bk:smoke
+          ok=""
+          for i in 1 2 3 4 5 6 7 8; do
+            sleep 2
+            if curl -sf http://127.0.0.1:19000/health; then ok=1; break; fi
+          done
+          if [ -z "$ok" ]; then
+            echo "=== boot smoke FAILED (backend) — container logs: ==="
+            docker logs smoke-bk
+            docker rm -f smoke-bk
+            exit 1
+          fi
+          docker stop smoke-bk
+          docker rm smoke-bk
+
+      - name: Boot smoke — bank simulator image
+        run: |
+          docker run -d --name smoke-sim -p 19002:8001 sim:smoke
+          ok=""
+          for i in 1 2 3 4 5 6 7 8; do
+            sleep 2
+            if timeout 2 bash -c '</dev/tcp/127.0.0.1/19002' 2>/dev/null; then ok=1; break; fi
+          done
+          if [ -z "$ok" ]; then
+            echo "=== boot smoke FAILED (bank simulator) — container logs: ==="
+            docker logs smoke-sim
+            docker rm -f smoke-sim
+            exit 1
+          fi
+          docker stop smoke-sim
+          docker rm smoke-sim
+
+      - name: Boot smoke — authorization image
+        run: |
+          docker run -d --name smoke-authz -e JWT_SECRET=smoke-secret -p 19001:3000 authz:smoke
+          ok=""
+          for i in 1 2 3 4 5 6 7 8; do
+            sleep 2
+            if curl -sf http://127.0.0.1:19001/api/health; then ok=1; break; fi
+          done
+          if [ -z "$ok" ]; then
+            echo "=== boot smoke FAILED (authorization) — container logs: ==="
+            docker logs smoke-authz
+            docker rm -f smoke-authz
+            exit 1
+          fi
+          docker stop smoke-authz
+          docker rm smoke-authz
