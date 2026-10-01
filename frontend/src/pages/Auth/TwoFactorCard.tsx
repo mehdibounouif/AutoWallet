@@ -1,25 +1,16 @@
 import { LegalFooter } from '../../components/common/LegalFooter'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { ShieldCheck, AlertCircle, Loader2, KeyRound } from 'lucide-react'
 import { OTPInput } from '../../components/common/OTPInput'
 import { translations } from '../../i18n'
+import { clearTwoFactorCredentials, getTwoFactorCredentials } from '../../auth/pendingCredentials'
 
 export function TwoFactorCard() {
   const t = translations
   const navigate = useNavigate()
-  const location = useLocation()
-
-  // Retrieve pending credentials if coming from login flow
-  const pendingData = (() => {
-    try {
-      const stored = sessionStorage.getItem('autowallet_2fa_pending')
-      return (location.state as { email?: string; password?: string }) || (stored ? JSON.parse(stored) : null) || {}
-    } catch {
-      return {}
-    }
-  })()
+  const [pendingData] = useState(() => getTwoFactorCredentials() ?? { email: '', password: '' })
 
   useEffect(() => {
     if (!pendingData.email || !pendingData.password) navigate('/login', { replace: true })
@@ -47,11 +38,11 @@ export function TwoFactorCard() {
 
     try {
       // In production/local backend, submit to /api/auth/login with totp_code
-      const payload: { email?: string; password?: string; totp_code: string } = {
+      const payload = {
+        email: pendingData.email,
+        password: pendingData.password,
         totp_code: finalCode,
       }
-      if (pendingData.email) payload.email = pendingData.email
-      if (pendingData.password) payload.password = pendingData.password
 
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -63,7 +54,7 @@ export function TwoFactorCard() {
         const data = await res.json()
         if (typeof data.access_token !== 'string') throw new Error('Missing access token')
         localStorage.setItem('autowallet_token', data.access_token)
-        sessionStorage.removeItem('autowallet_2fa_pending')
+        clearTwoFactorCredentials()
         navigate('/maintenance')
       } else if (res.status === 401) {
         setWrongCode(true)
@@ -85,7 +76,7 @@ export function TwoFactorCard() {
   }
 
   const handleLogout = () => {
-    sessionStorage.removeItem('autowallet_2fa_pending')
+    clearTwoFactorCredentials()
     navigate('/login')
   }
 

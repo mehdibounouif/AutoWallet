@@ -6,7 +6,6 @@ import {
   Landmark,
   Loader2,
   PiggyBank,
-  RefreshCw,
   ShoppingBag,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -97,6 +96,104 @@ function getAllocations(
   ]
 }
 
+const PIPE_HEIGHT = 120
+const PIPE_TOP = 20
+const PIPE_END = 188
+const PIPE_BEND = 24
+const SPLIT_X = [156, 300, 444, 588]
+
+function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: Allocation[]; t: Translations }) {
+  const remainingHeights = allocations.map((item) => (item.remaining / amount) * PIPE_HEIGHT)
+  const pipeOutline = [
+    `M 60 ${PIPE_TOP}`,
+    `H ${SPLIT_X[3]}`,
+    `V ${PIPE_TOP + remainingHeights[2]}`,
+    `H ${SPLIT_X[2]}`,
+    `V ${PIPE_TOP + remainingHeights[1]}`,
+    `H ${SPLIT_X[1]}`,
+    `V ${PIPE_TOP + remainingHeights[0]}`,
+    `H ${SPLIT_X[0]}`,
+    `V ${PIPE_TOP + PIPE_HEIGHT}`,
+    `H 60`,
+    `A 60 60 0 0 1 60 ${PIPE_TOP}`,
+    'Z',
+  ].join(' ')
+
+  return (
+    <div className="hidden min-[1200px]:grid grid-cols-[128px_664px_116px_132px] w-[1040px] mx-auto h-[250px]">
+      <div className="pt-[56px] pr-4 text-right">
+        <div className="whitespace-nowrap text-lg font-bold text-[#1A2330]">
+          {money(amount)} <span className="text-xs text-[#65748C]">MAD</span>
+        </div>
+        <div className="text-sm text-[#65748C]">{t.firstPaymentLabel}</div>
+      </div>
+
+      <div className="relative w-[664px] h-[250px]">
+        {allocations.slice(0, 3).map((item, index) => (
+          <span
+            key={item.name}
+            className="absolute -top-1 whitespace-nowrap text-xs text-[#65748C]"
+            style={{ left: SPLIT_X[index] + 8 }}
+          >
+            {money(item.remaining)} {t.leftText}
+          </span>
+        ))}
+
+        <svg
+          className="absolute inset-0 overflow-visible"
+          width="664"
+          height="190"
+          viewBox="0 0 664 190"
+          role="img"
+          aria-label={`Payment of ${money(amount)} MAD split into ${allocations.map((item) => `${item.name}: ${money(item.amount)} MAD`).join(', ')}`}
+        >
+          {allocations.map((item, index) => {
+            if (item.amount <= 0) return null
+            const width = (item.amount / amount) * PIPE_HEIGHT
+            const x = SPLIT_X[index]
+            const y = PIPE_TOP + remainingHeights[index]
+            const outerRadius = PIPE_BEND + width
+            const branch = [
+              `M ${x} ${y}`,
+              `A ${outerRadius} ${outerRadius} 0 0 1 ${x + outerRadius} ${y + outerRadius}`,
+              `V ${PIPE_END}`,
+              `H ${x + PIPE_BEND}`,
+              `V ${y + width + PIPE_BEND}`,
+              `A ${PIPE_BEND} ${PIPE_BEND} 0 0 0 ${x} ${y + width}`,
+              'Z',
+            ].join(' ')
+            return <path key={item.name} d={branch} fill={item.color} />
+          })}
+          <path d={pipeOutline} fill="#8A95D2" />
+        </svg>
+
+        {allocations.map((item, index) => (
+          <div
+            key={item.name}
+            className="absolute top-[197px] whitespace-nowrap text-[#1A2330]"
+            style={{ left: SPLIT_X[index] + PIPE_BEND }}
+          >
+            <div className="flex items-center gap-1 text-sm font-semibold">
+              <span style={{ color: item.color }}><item.Icon className="w-4 h-4" /></span>
+              <span>{item.name}</span>
+            </div>
+            <div className="mt-0.5 text-base font-bold leading-5">{money(item.amount)}</div>
+          </div>
+        ))}
+      </div>
+
+      <div aria-hidden="true" />
+      <div className="pt-[46px] text-[#1A2330]">
+        <div className="text-sm text-[#52617A]">{t.leftoverToMainLabel}</div>
+        <div className="text-base font-bold">0.00</div>
+        <div className="mt-2 flex items-center gap-1 text-sm font-semibold">
+          = {money(amount)} <Check className="h-4 w-4 text-[#1F7A3A]" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Step5TryPayment({
   simulatedAmount,
   setSimulatedAmount,
@@ -115,16 +212,9 @@ export function Step5TryPayment({
     ? getAllocations(amount, rentAmount, taxPercent, savingsPercent, savingsCap, t)
     : []
   const total = cents(allocations.reduce((sum, item) => sum + item.amount, 0))
-  const segmentCenters = allocations.map((item, index) => {
-    const precedingAmount = allocations
-      .slice(0, index)
-      .reduce((sum, allocation) => sum + allocation.amount, 0)
-    return ((precedingAmount + item.amount / 2) / amount) * 1000
-  })
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn w-full px-2 sm:px-4">
-      <div className="text-center space-y-2 max-w-xl mx-auto">
+    <div className="max-w-[1200px] mx-auto space-y-6 animate-fadeIn w-full">
+      <div className="text-center space-y-2 max-w-[640px] mx-auto pb-1.5">
         <h1 className="text-2xl sm:text-3xl font-bold text-[#1A2330] tracking-tight">
           {t.tryPaymentTitle}
         </h1>
@@ -137,7 +227,7 @@ export function Step5TryPayment({
         <div className="w-full sm:w-80 space-y-1.5 text-left">
           <label
             htmlFor="simulated-amount"
-            className="block text-xs font-semibold uppercase tracking-wider text-[#5E6B7E]"
+            className="block text-sm font-medium text-[#1A2330]"
           >
             {t.amountInputLabel}
           </label>
@@ -150,9 +240,9 @@ export function Step5TryPayment({
               onChange={(event) => setSimulatedAmount(event.target.value)}
               disabled={isSimulating}
               aria-invalid={Boolean(simulatedAmount) && !validAmount}
-              className="w-full h-11 pl-4 pr-16 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] font-semibold text-base focus:outline-none focus:border-[#5A64B4] focus:ring-3 focus:ring-[#5A64B4]/15 transition shadow-2xs"
+              className="w-full h-11 pl-3 pr-14 rounded-[10px] border border-[#7A879B] bg-white text-[#1A2330] font-semibold text-base focus:outline-none focus:border-[#5A64B4] focus:ring-3 focus:ring-[#5A64B4]/15 transition"
             />
-            <span className="absolute right-3 text-xs font-bold text-[#5E6B7E] bg-[#F3F6FA] px-2 py-0.5 rounded">
+            <span className="absolute right-3 text-sm font-semibold text-[#65748C]">
               MAD
             </span>
           </div>
@@ -162,14 +252,12 @@ export function Step5TryPayment({
           id={hasSimulated ? 'simulate-again-btn' : 'simulate-payment-btn'}
           onClick={onSimulate}
           disabled={isSimulating || !validAmount}
-          className={`w-full sm:w-auto h-11 px-6 rounded-[10px] font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2 shrink-0 ${hasSimulated ? 'border border-[#DDE3EA] bg-white hover:bg-[#F3F6FA] text-[#3B495D]' : 'bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white'}`}
+          className={`w-full sm:w-auto h-[52px] px-5 rounded-[12px] font-medium text-sm transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 ${hasSimulated ? 'bg-[#ECEFF4] hover:bg-[#E1E6EE] text-[#1A2330]' : 'bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white'}`}
         >
           {isSimulating ? (
             <Loader2 className="w-4 h-4 animate-spin" />
-          ) : hasSimulated ? (
-            <RefreshCw className="w-4 h-4" />
           ) : (
-            <FlaskConical className="w-4 h-4" />
+            <FlaskConical className="w-5 h-5" />
           )}
           <span>
             {isSimulating
@@ -187,69 +275,26 @@ export function Step5TryPayment({
             id="split-success-alert"
             role="status"
             aria-live="polite"
-            className="p-3.5 sm:p-4 rounded-xl bg-[#E8F8F0] border border-[#BCE8D3] text-[#0E7A4A] text-xs sm:text-sm flex items-center justify-center gap-2.5 max-w-2xl mx-auto shadow-2xs animate-fadeIn"
+            className="min-h-[46px] px-4 py-2.5 rounded-xl bg-[#E4F3E8] text-[#1F7A3A] text-sm flex items-center gap-3 max-w-[640px] mx-auto animate-fadeIn"
           >
-            <CheckCircle2 className="w-5 h-5 text-[#1BAF7A] shrink-0" />
-            <p className="font-medium leading-relaxed text-center sm:text-left">
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+            <p className="leading-relaxed">
               {t.splitSuccessAlert.replace('{amount}', money(amount))}
             </p>
           </div>
-          <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-8 space-y-8 shadow-xs animate-fadeIn">
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs sm:text-sm text-[#5E6B7E] pb-2 border-b border-[#EDF0F4] select-none">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-[#1A2330]">{t.firstPaymentLabel}</span>
-                  <span className="font-bold text-[#1A2330] text-base">{money(amount)} MAD</span>
-                </div>
-                <span className="font-semibold text-[#1A2330]">
-                  {t.leftoverToMainLabel}: 0.00 MAD
-                </span>
+          <div className="w-full bg-white rounded-2xl border border-[#DDE3EA] px-5 sm:px-8 pt-11 pb-12 animate-fadeIn">
+            <PaymentPipe amount={amount} allocations={allocations} t={t} />
+
+            <div className="min-[1200px]:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 text-sm">
+                <span className="font-semibold">{t.firstPaymentLabel}: {money(amount)} MAD</span>
+                <span className="text-[#5E6B7E]">{t.leftoverToMainLabel}: 0.00</span>
               </div>
-              <div className="w-full h-8 rounded-lg overflow-hidden flex bg-[#EDF0F4] shadow-inner p-1 gap-1">
-                {allocations
-                  .filter((item) => item.amount > 0)
-                  .map((item) => (
-                    <div
-                      key={item.name}
-                      style={{
-                        width: `${(item.amount / amount) * 100}%`,
-                        backgroundColor: item.color,
-                      }}
-                      className="h-full rounded-md transition-all duration-700 flex items-center justify-center min-w-0"
-                      title={`${item.name}: ${money(item.amount)} MAD`}
-                    >
-                      <span className="hidden md:inline text-[11px] font-semibold text-white truncate px-1">
-                        {item.name}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-              <svg
-                className="hidden md:block w-full h-10 overflow-visible"
-                viewBox="0 0 1000 40"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                {allocations.map((item, index) => {
-                  const start = segmentCenters[index]
-                  const end = (index + 0.5) * 250
-                  return (
-                    <path
-                      key={item.name}
-                      d={`M ${start} 0 C ${start} 20, ${end} 20, ${end} 40`}
-                      fill="none"
-                      stroke={item.color}
-                      strokeWidth="2.5"
-                      strokeOpacity="0.55"
-                    />
-                  )
-                })}
-              </svg>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 md:pt-0 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {allocations.map((item) => (
                   <div
                     key={item.name}
-                    className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] border-t-[3px] md:border-t flex flex-col gap-1.5 transition-shadow hover:shadow-xs"
+                    className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] border-t-[3px] flex flex-col gap-1.5"
                     style={{ borderTopColor: item.color }}
                   >
                     <div className="flex items-center gap-2">
@@ -273,40 +318,27 @@ export function Step5TryPayment({
                 ))}
               </div>
             </div>
-            <div className="max-w-[720px] mx-auto w-full pt-8 border-t border-[#EDF0F4]">
+
+            <div className="max-w-[720px] mx-auto w-full mt-8 min-[1200px]:mt-12">
               <div className="py-3 px-1 flex items-center justify-between border-b border-[#DDE3EA]">
                 <span className="font-semibold text-sm text-[#1A2330]">{t.firstPaymentLabel}</span>
-                <span className="font-bold text-sm text-[#1A2330]">{money(amount)} MAD</span>
+                <span className="font-bold text-base text-[#1A2330]">{money(amount)} <span className="text-xs text-[#65748C]">MAD</span></span>
               </div>
               <div className="divide-y divide-[#DDE3EA] text-xs sm:text-sm">
                 {allocations.map((item, index) => (
                   <div
                     key={item.name}
-                    className="py-3.5 px-1 flex items-center justify-between gap-3"
+                    className="py-3 px-1 flex flex-wrap min-[850px]:grid min-[850px]:grid-cols-[24px_224px_96px_minmax(0,1fr)_100px_86px] items-center gap-x-2 gap-y-1"
                   >
-                    <div className="flex items-center gap-2.5 sm:gap-3">
-                      <span className="w-4 text-[#8C9BAE] font-medium text-xs">{index + 1}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#1A2330]">{item.name}</span>
-                        <span className="bg-[#EDF0F4] text-[#5E6B7E] text-[11px] px-2.5 py-0.5 rounded-full font-normal">
-                          {item.rule}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 sm:gap-6">
-                      <span
-                        className={`inline-flex items-center gap-1 text-xs font-medium ${item.amount > 0 ? 'text-[#1F7A3A]' : 'text-[#5E6B7E]'}`}
-                      >
-                        {item.amount > 0 && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
-                        {item.amount > 0 ? t.ranStatusBadge : t.skippedStatusBadge}
-                      </span>
-                      <div className="text-right min-w-[70px]">
-                        <div className="font-bold text-[#1A2330]">{money(item.amount)}</div>
-                        <div className="text-[11px] text-[#5E6B7E]">
-                          {money(item.remaining)} {t.leftText}
-                        </div>
-                      </div>
-                    </div>
+                    <span className="w-4 text-[#65748C] font-medium text-xs">{index + 1}</span>
+                    <span className="font-semibold text-[#1A2330]">{index === 0 ? t.rule1Title.replace(/^\d+\.\s*/, '') : item.name}</span>
+                    <span className="bg-[#EDF0F4] text-[#3B495D] text-[11px] px-2 py-0.5 rounded-full w-fit whitespace-nowrap">{item.rule}</span>
+                    <span className={`inline-flex items-center gap-1 text-xs ${item.amount > 0 ? 'text-[#1F7A3A]' : 'text-[#5E6B7E]'}`}>
+                      {item.amount > 0 && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                      {item.amount > 0 ? t.ranStatusBadge : t.skippedStatusBadge}
+                    </span>
+                    <span className="ml-auto font-semibold text-[#1A2330]">{money(item.amount)}</span>
+                    <span className="ml-auto text-[#65748C] whitespace-nowrap">{money(item.remaining)} {t.leftText}</span>
                   </div>
                 ))}
                 <div className="py-3.5 px-1 flex items-center justify-between text-xs sm:text-sm text-[#5E6B7E]">

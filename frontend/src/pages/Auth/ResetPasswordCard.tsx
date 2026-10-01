@@ -39,6 +39,10 @@ export function ResetPasswordCard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password, token: searchParams.get('token') }),
       })
+      if (response.status === 404) {
+        setErrorMessage(t.passwordRecoveryUnavailable)
+        return
+      }
       if (!response.ok) throw new Error('Password reset failed')
       setIsSuccess(true)
     } catch {
