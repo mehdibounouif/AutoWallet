@@ -80,7 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node 22
         uses: actions/setup-node@v4
@@ -174,3 +174,39 @@ jobs:
           fi
           docker stop smoke-authz
           docker rm smoke-authz
+
+  stack-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v5
+
+      - name: Copy the env example (compose refuses to boot without it)
+        run: cp .env.example .env
+
+      - name: Build + start the stack (healthchecks gate startup)
+        run: |
+          docker compose build
+          docker compose up -d --wait
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install e2e test dependencies
+        run: pip install pytest==8.4.2 httpx==0.28.1 PyJWT==2.13.0
+
+      - name: Run the stack e2e suite
+        working-directory: backend
+        env:
+          E2E_PG_USER: autowallet
+          E2E_PG_DB: autowallet
+          SECRET_KEY: dev-secret-change-me-later
+        run: pytest tests_e2e -q
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
