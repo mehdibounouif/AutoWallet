@@ -22,9 +22,9 @@ import pytest
 
 BACKEND = os.environ.get("E2E_BACKEND_URL", "http://127.0.0.1:8000")
 SIMULATOR = os.environ.get("E2E_SIMULATOR_URL", "http://127.0.0.1:8001")
-POSTGRES_USER = os.environ.get("E2E_PG_USER", "qa_user")
-POSTGRES_DB = os.environ.get("E2E_PG_DB", "qa_wallets")
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # backend/ -> repo root
+POSTGRES_USER = os.environ.get("E2E_PG_USER", "autowallet")
+POSTGRES_DB = os.environ.get("E2E_PG_DB", "autowallet")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # backend/tests_e2e/ -> repo root
 
 
 def psql(sql: str) -> list[list[str]]:
