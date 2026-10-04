@@ -4,6 +4,7 @@ import { AuthPage } from './pages/Auth/AuthPage'
 import { GoogleCallbackPage } from './pages/Auth/GoogleCallbackPage'
 import { MaintenancePage } from './pages/Maintenance/MaintenancePage'
 import { onboardingPaths } from './pages/Onboarding/routes'
+import { LegalPage } from './pages/Legal/LegalPage'
 
 const OnboardingPage = lazy(() =>
   import('./pages/Onboarding/OnboardingPage').then(({ OnboardingPage }) => ({
@@ -64,6 +65,8 @@ export default function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
 
           <Route path="/maintenance" element={<MaintenancePage />} />
+          <Route path="/terms" element={<LegalPage document="terms" />} />
+          <Route path="/privacy" element={<LegalPage document="privacy" />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>

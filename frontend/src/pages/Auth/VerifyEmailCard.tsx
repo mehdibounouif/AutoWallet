@@ -13,9 +13,10 @@ export function VerifyEmailCard() {
   const emailParam = searchParams.get('email') || (() => {
     try {
       const stored = sessionStorage.getItem('autowallet_signup_draft')
-      return stored ? JSON.parse(stored).email : 'yasmine.elamrani@example.com'
+      const email = stored ? (JSON.parse(stored) as { email?: unknown }).email : null
+      return typeof email === 'string' && email ? email : 'your email address'
     } catch {
-      return 'yasmine.elamrani@example.com'
+      return 'your email address'
     }
   })()
 

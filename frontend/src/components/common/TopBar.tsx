@@ -3,20 +3,22 @@ import { useNavigate } from 'react-router-dom'
 
 export interface TopBarProps {
   variant?: 'auth' | 'onboarding'
+  finalStep?: boolean
   children?: React.ReactNode
 }
 
 export function TopBar({
   variant = 'auth',
+  finalStep = false,
   children,
 }: TopBarProps) {
   const navigate = useNavigate()
 
   return (
     <header
-      className={`w-full px-6 sm:px-10 py-5 sm:py-6 flex flex-col justify-center z-20 transition-colors ${
+      className={`w-full px-6 sm:px-10 py-5 ${finalStep ? 'sm:py-[21px]' : 'sm:py-6'} flex flex-col justify-center z-20 transition-colors ${
         variant === 'onboarding'
-          ? 'bg-white border-b border-[#DDE3EA] shadow-xs'
+          ? `bg-white border-b border-[#DDE3EA] ${finalStep ? '' : 'shadow-xs'}`
           : 'border-b border-transparent'
       }`}
     >
@@ -33,14 +35,14 @@ export function TopBar({
             alt="AutoWallet Logo"
             className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
           />
-          <span className="text-xl sm:text-2xl font-bold text-[#3B495D] tracking-tight leading-none">
+          <span className={`${finalStep ? 'text-base' : 'text-xl sm:text-2xl'} font-bold text-[#3B495D] tracking-tight leading-none`}>
             AutoWallet
           </span>
         </button>
 
         {/* Stepper (Desktop / Tablet md+) */}
         {children && (
-          <div className="hidden md:flex flex-1 justify-center items-center min-w-0">
+          <div className={`hidden ${finalStep ? 'xl:flex pl-4' : 'md:flex justify-center'} flex-1 items-center min-w-0`}>
             {children}
           </div>
         )}
@@ -48,7 +50,7 @@ export function TopBar({
 
       {/* Stepper (Mobile <md: placed below the logo) */}
       {children && (
-        <div className="md:hidden flex justify-center w-full pt-3">
+        <div className={`${finalStep ? 'xl:hidden' : 'md:hidden'} flex justify-center w-full pt-3`}>
           {children}
         </div>
       )}

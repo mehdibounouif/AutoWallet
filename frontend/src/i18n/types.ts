@@ -62,6 +62,7 @@ export interface Translations {
   savePassword: string
   savingPassword: string
   resetLinkExpired: string
+  passwordRecoveryUnavailable: string
   askForNewLink: string
   passwordChangedTitle: string
   passwordChangedSubtitle: string

@@ -14,6 +14,12 @@ import {
 import { GoogleIcon } from '../../components/icons'
 import { SessionEndedCard } from './SessionEndedCard'
 import { translations } from '../../i18n'
+import {
+  clearSignupCredentials,
+  clearTwoFactorCredentials,
+  setSignupCredentials,
+  setTwoFactorCredentials,
+} from '../../auth/pendingCredentials'
 
 interface AuthCardProps {
   mode: 'login' | 'signup'
@@ -114,6 +120,13 @@ export function AuthCard({
     }
   }, [])
 
+  useEffect(() => {
+    if (mode === 'login') {
+      clearSignupCredentials()
+      clearTwoFactorCredentials()
+    }
+  }, [mode])
+
   const validateEmail = (val: string): string | null => {
     const trimmed = val.trim()
     if (!trimmed) return t.emailRequired
@@ -151,12 +164,13 @@ export function AuthCard({
         return
       }
 
-      // Persist draft credentials and transition to A7 Onboarding (/welcome/about)
-      const draft = { email: email.trim(), password }
+      // Keep the password in memory while non-secret draft details survive route changes.
+      const draft = { email: email.trim() }
+      setSignupCredentials({ ...draft, password })
       try {
         sessionStorage.setItem('autowallet_signup_draft', JSON.stringify(draft))
       } catch {
-        // sessionStorage fallback
+        // In-memory credentials still allow signup to continue.
       }
       navigate('/welcome/about', { state: draft })
       return
@@ -184,8 +198,8 @@ export function AuthCard({
       } else if (res.status === 401) {
         const errData = await res.json().catch(() => ({}))
         if (errData.detail === '2FA code required') {
-          sessionStorage.setItem('autowallet_2fa_pending', JSON.stringify({ email: email.trim(), password }))
-          navigate('/login/2fa', { state: { email: email.trim(), password } })
+          setTwoFactorCredentials({ email: email.trim(), password })
+          navigate('/login/2fa')
           return
         } else {
           setErrorMessage(t.wrongCredentials)
@@ -497,29 +511,29 @@ export function AuthCard({
                   }`}
                 />
                 <span className="text-xs text-[#3B495D] leading-snug">
-                  I agree to the{' '}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      alert('AutoWallet Terms: Ledger budgeting simulation.')
-                    }}
-                    className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
+                  I have read the{' '}
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Terms (opens in a new tab)"
+                    onClick={(event) => event.stopPropagation()}
+                    className="underline text-[#5A64B4] hover:text-[#4A53A0]"
                   >
                     Terms
-                  </button>{' '}
-                  and have read the{' '}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      alert('AutoWallet Privacy page: Your financial split rules are computed locally/securely.')
-                    }}
-                    className="underline text-[#5A64B4] hover:text-[#4A53A0] cursor-pointer"
+                  </a>{' '}
+                  and{' '}
+                  <a
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Privacy (opens in a new tab)"
+                    onClick={(event) => event.stopPropagation()}
+                    className="underline text-[#5A64B4] hover:text-[#4A53A0]"
                   >
-                    Privacy page
-                  </button>
-                  .
+                    Privacy
+                  </a>
+                  {' '}pages.
                 </span>
               </label>
             </div>
@@ -531,7 +545,7 @@ export function AuthCard({
               type="submit"
               disabled={
                 loading ||
-                (mode === 'signup' && (!agreeTerms || password.length < 8 || !email.trim())) ||
+                (mode === 'signup' && (password.length < 8 || !email.trim())) ||
                 (mode === 'login' && (!email.trim() || !password))
               }
               className="w-full h-11 sm:h-12 px-4 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"

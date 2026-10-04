@@ -11,10 +11,10 @@ import { Step3Envelopes } from './steps/Step3Envelopes'
 import { Step4Rules } from './steps/Step4Rules'
 import { Step5TryPayment } from './steps/Step5TryPayment'
 import { onboardingPaths } from './routes'
+import { clearSignupCredentials, getSignupPassword } from '../../auth/pendingCredentials'
 
 interface SignupDraft {
   email?: string
-  password?: string
   firstName?: string
   lastName?: string
   bankAccount?: string
@@ -27,11 +27,12 @@ interface SignupDraft {
 }
 
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
-  value ? value.replace(/[^\d.-]/g, '') || fallback : fallback
+  value ? value.replaceAll(',', '').trim() || fallback : fallback
 
 const isValidRuleValue = (value: string, maximum = Infinity) => {
+  if (!/^\d+(?:\.\d{1,2})?$/.test(value.trim())) return false
   const numericValue = Number(value)
-  return value.trim() !== '' && Number.isFinite(numericValue) && numericValue >= 0 && numericValue <= maximum
+  return Number.isFinite(numericValue) && numericValue <= maximum
 }
 
 export function OnboardingPage() {
@@ -51,12 +52,16 @@ export function OnboardingPage() {
     }
   })
   const draftEmail = draft.email || ''
-  const draftPassword = draft.password || ''
+  const [draftPassword] = useState(() => getSignupPassword(draftEmail) || '')
   const [registered, setRegistered] = useState(Boolean(draft.registered))
 
   useEffect(() => {
-    if (!draftEmail || !draftPassword) navigate('/signup', { replace: true })
-  }, [draftEmail, draftPassword, navigate])
+    if (!draftEmail || !draftPassword) {
+      const path = draft.registered ? '/login' : '/signup'
+      const emailQuery = draftEmail ? `?email=${encodeURIComponent(draftEmail)}` : ''
+      navigate(`${path}${emailQuery}`, { replace: true })
+    }
+  }, [draft.registered, draftEmail, draftPassword, navigate])
 
   useEffect(() => {
     if (registered && step < 3) navigate('/welcome/envelopes', { replace: true })
@@ -97,11 +102,11 @@ export function OnboardingPage() {
 
   const persistDraft = (extra: Partial<SignupDraft> = {}) => {
     try {
-      const existing = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}')
+      const existing = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}') as Record<string, unknown>
+      delete existing.password
       const merged = {
         ...existing,
         email: draftEmail,
-        password: draftPassword,
         firstName,
         lastName,
         bankAccount,
@@ -297,6 +302,7 @@ export function OnboardingPage() {
       }
       navigate('/login', { replace: true })
     } finally {
+      clearSignupCredentials()
       setLoading(false)
     }
   }
@@ -304,18 +310,19 @@ export function OnboardingPage() {
   if (!draftEmail || !draftPassword) return null
 
   return (
-    <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col justify-between">
+    <div className={`min-h-screen bg-[#F3F6FA] flex flex-col justify-between ${step === 5 ? 'w-screen overflow-x-hidden' : 'w-full'}`}>
       {/* Onboarding Top Bar with Logo and Stepper */}
-      <TopBar variant="onboarding">
+      <TopBar variant="onboarding" finalStep={step === 5}>
         <Stepper
           currentStep={step}
           onStepClick={registered ? undefined : handleStepClick}
+          expanded={step === 5}
           t={t}
         />
       </TopBar>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-12 z-10">
+      <main className={`flex-1 flex flex-col items-center px-4 z-10 ${step === 5 ? 'justify-start pt-[54px] pb-40' : 'justify-center py-8 sm:py-12'}`}>
         {/* Error Alert Display */}
         {errorMessage && (
           <div
@@ -420,8 +427,8 @@ export function OnboardingPage() {
       </main>
 
       {/* Fixed / Bottom Actions Bar per Figma layout_daff2d4f */}
-      <footer className="w-full bg-white border-t border-[#DDE3EA] px-6 sm:px-10 py-4 z-20">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+      <footer className={`w-full bg-white border-t border-[#DDE3EA] z-20 ${step === 5 ? 'fixed inset-x-0 bottom-0 h-[132px] px-4 sm:px-10 flex items-center' : 'px-6 sm:px-10 py-4'}`}>
+        <div className={`${step === 5 ? 'w-full' : 'max-w-5xl mx-auto'} flex items-center justify-between`}>
           {step === 1 ? (
             <>
               <div /> {/* Spacer */}
@@ -515,7 +522,7 @@ export function OnboardingPage() {
                 id="onboarding-back-step5"
                 onClick={handleBack}
                 disabled={loading || isSimulating}
-                className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-2 h-11 px-5 rounded-[10px] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>{t.backButton}</span>
@@ -538,7 +545,7 @@ export function OnboardingPage() {
                   id="onboarding-go-to-home-step5"
                   onClick={handleComplete}
                   disabled={loading || isSimulating}
-                  className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
+                  className="h-[52px] px-5 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>{t.goToHomeButton}</span>

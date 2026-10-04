@@ -27,6 +27,10 @@ export function ForgotPasswordCard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       })
+      if (response.status === 404) {
+        setErrorMessage(t.passwordRecoveryUnavailable)
+        return
+      }
       if (!response.ok) throw new Error('Reset request failed')
       setSubmitted(true)
       startCountdown(60)
