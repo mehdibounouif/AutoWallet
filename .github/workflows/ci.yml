@@ -30,7 +30,7 @@ jobs:
 
       - name: Run backend tests
         working-directory: backend
-        run: pytest -q
+        run: pytest tests -q
 
   simulator-tests:
     runs-on: ubuntu-latest
