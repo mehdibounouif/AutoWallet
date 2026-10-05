@@ -5,14 +5,20 @@
  *   LOGIN   POST /api/auth/login  {email, password}
  *           -> 200 {access_token}  : token stored in
  *              localStorage["autowallet_token"]
- *           -> 401 "2FA code required" : 2FA pending draft stored, routed to /login/2fa
+ *           -> 401 "2FA code required" : credentials parked in the
+ *              in-memory pending store (auth/pendingCredentials, never
+ *              sessionStorage), routed to /login/2fa
  *           -> 401 anything else       : the uniform wrongCredentials message
  *           -> 503                     : serviceUnavailable message
  *           -> empty fields            : no fetch AT ALL
  *   SIGNUP  client-side only: validate email/password/terms -> on success
- *           store draft in sessionStorage["autowallet_signup_draft"] and
- *           navigate to onboarding — NO backend call happens here
+ *           store the email-only draft in
+ *           sessionStorage["autowallet_signup_draft"], keep the password in
+ *           the in-memory pending store, and navigate to onboarding —
+ *           NO backend call happens here
  *           (the register call happens later, in onboarding Step5).
+ *           Unchecked terms are rejected at submit-time with the
+ *           termsRequired message (the button stays enabled).
  *
  * fetch is stubbed globally per test: the component's URL, method, headers
  * and body are asserted exactly — this is the contract the vite proxy
@@ -24,6 +30,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthCard } from '../src/pages/Auth/AuthCard'
 import { translations as t } from '../src/i18n'
+import {
+  clearSignupCredentials,
+  clearTwoFactorCredentials,
+  getSignupPassword,
+  getTwoFactorCredentials,
+} from '../src/auth/pendingCredentials'
 
 function renderCard(mode: 'login' | 'signup' = 'login') {
   return render(
@@ -53,6 +65,8 @@ async function fillCredentials(user: ReturnType<typeof userEvent.setup>, email: 
 beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
+  clearSignupCredentials()
+  clearTwoFactorCredentials()
 })
 afterEach(() => {
   // (component cleanup lives in tests/setup.ts)
@@ -95,11 +109,12 @@ describe('PIN: login flow', () => {
     expect(localStorage.getItem('autowallet_token')).toBeNull()
   })
 
-  it('PIN: 401 "2FA code required" -> 2FA pending draft stored, routed onward', async () => {
+  it('PIN: 401 "2FA code required" -> credentials in the in-memory pending store, routed onward', async () => {
     // SCENARIO: the account has 2FA enabled; backend answers the exact
     //           "2FA code required" detail (the backend's own contract).
-    // EXPECTED: credentials parked in sessionStorage under the 2FA key so
-    //           the /login/2fa screen can continue the flow.
+    // EXPECTED: credentials parked in the in-memory pending store
+    //           (auth/pendingCredentials) so the /login/2fa screen can
+    //           continue the flow — and NOTHING secret in sessionStorage.
     const user = userEvent.setup()
     fetchReturning(401, { detail: '2FA code required' })
     renderCard('login')
@@ -107,10 +122,12 @@ describe('PIN: login flow', () => {
     await user.click(screen.getByRole('button', { name: t.loginButton }))
 
     await waitFor(() =>
-      expect(sessionStorage.getItem('autowallet_2fa_pending')).toBe(
-        JSON.stringify({ email: 'user@autowallet.dev', password: 'SuperSecret1337!' }),
-      ),
+      expect(getTwoFactorCredentials()).toEqual({
+        email: 'user@autowallet.dev',
+        password: 'SuperSecret1337!',
+      }),
     )
+    expect(sessionStorage.getItem('autowallet_2fa_pending')).toBeNull()
   })
 
   it('PIN: backend outage (503) -> serviceUnavailable message', async () => {
@@ -145,11 +162,12 @@ describe('PIN: login flow', () => {
 })
 
 describe('PIN: signup flow (client-side, no backend call)', () => {
-  it('PIN: valid signup -> draft in sessionStorage, NO fetch (register happens in onboarding)', async () => {
+  it('PIN: valid signup -> email-only draft in sessionStorage, password in memory, NO fetch', async () => {
     // SCENARIO: user fills valid email + strong password + accepts terms.
-    // EXPECTED: draft credentials parked for the onboarding flow
-    //           ("/welcome/about" next), and NO network call — this card
-    //           does not register; onboarding Step5 does.
+    // EXPECTED: the email-only draft parked for the onboarding flow
+    //           ("/welcome/about" next), the password kept in the in-memory
+    //           pending store (never in storage), and NO network call —
+    //           this card does not register; onboarding Step5 does.
     const user = userEvent.setup()
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
@@ -160,9 +178,10 @@ describe('PIN: signup flow (client-side, no backend call)', () => {
 
     await waitFor(() =>
       expect(sessionStorage.getItem('autowallet_signup_draft')).toBe(
-        JSON.stringify({ email: 'new.user@autowallet.dev', password: 'SuperSecret1337!' }),
+        JSON.stringify({ email: 'new.user@autowallet.dev' }),
       ),
     )
+    expect(getSignupPassword('new.user@autowallet.dev')).toBe('SuperSecret1337!')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -180,15 +199,21 @@ describe('PIN: signup flow (client-side, no backend call)', () => {
     expect(sessionStorage.getItem('autowallet_signup_draft')).toBeNull()
   })
 
-  it('PIN: terms not accepted -> submit DISABLED, nothing stored', async () => {
+  it('PIN: terms not accepted -> submit rejected with termsRequired, nothing stored', async () => {
     // SCENARIO: valid fields but the terms checkbox is left unchecked.
-    // EXPECTED: the submit button is DISABLED — no draft.
+    // EXPECTED: submit is rejected at submit-time with the termsRequired
+    //           message (the button stays enabled) — no draft, no password
+    //           kept, no navigation.
     const user = userEvent.setup()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
     renderCard('signup')
     await fillCredentials(user, 'new.user@autowallet.dev', 'SuperSecret1337!')
     await user.click(screen.getByRole('button', { name: t.signupButton }))
 
-    expect(screen.getByRole('button', { name: t.signupButton })).toBeDisabled()
+    await waitFor(() => expect(screen.getByText(t.termsRequired)).toBeInTheDocument())
     expect(sessionStorage.getItem('autowallet_signup_draft')).toBeNull()
+    expect(getSignupPassword('new.user@autowallet.dev')).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
