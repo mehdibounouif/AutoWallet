@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.ai.prompt import build_messages, describe_user_data
-from app.ai.provider import ask_llm
+from app.ai.provider import AIError, ask_llm
 from app.ai.schemas import ChatRequest, ChatResponse
 from app.core.database import get_db
 from app.core.deps import require_linked_account
@@ -33,5 +33,9 @@ def load_user_data(current_user: User = Depends(require_linked_account), db: Ses
 @router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, user_data: str = Depends(load_user_data)):
     # Ask Gemini with our instructions + this user's data, and send its answer back
-    answer = await ask_llm(build_messages(payload.message, user_data))
+    try:
+        answer = await ask_llm(build_messages(payload.message, user_data))
+    except AIError as err:
+        # Turn the provider problem into a clear HTTP error for the browser
+        raise HTTPException(status_code=err.status, detail={"code": err.code, "message": err.message})
     return ChatResponse(answer=answer)
