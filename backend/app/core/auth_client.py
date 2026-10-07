@@ -1,7 +1,7 @@
 import httpx
 from fastapi import HTTPException, Request, status
 
-AUTHORIZATION_URL = "http://authorization:3000/api/authorize"
+AUTHORIZATION_URL = "http://api-gateway:3000/api/authorize"
 
 
 async def require_client(request: Request):
