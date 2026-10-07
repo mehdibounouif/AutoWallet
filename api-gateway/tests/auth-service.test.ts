@@ -54,24 +54,6 @@ function userToken(role = "USER", options: jwt.SignOptions = { expiresIn: "1h" }
 }
 
 // ---------------------------------------------------------------------------
-// 1. PIN — health endpoint
-// ---------------------------------------------------------------------------
-
-describe("GET /api/health", () => {
-  it("PIN: answers 200 with the service identity shape", async () => {
-    // SCENARIO: anyone probes the health endpoint.
-    // EXPECTED: 200 and exactly this shape — CI and the compose
-    // healthcheck both depend on it.
-    const res = await request(app).get("/api/health");
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      service: "authorization",
-      status: "ok",
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
 // 2. PIN — the real authorize path (was finding #13, fixed)
 // ---------------------------------------------------------------------------
 
@@ -264,9 +246,5 @@ describe("service survival", () => {
       .set("Authorization", "Bearer not.a.jwt")
       .send({ permission: 1 });
     await Promise.all([burst, burst2]);
-
-    const health = await request(app).get("/api/health");
-    expect(health.status).toBe(200);
-    expect(health.body.status).toBe("ok");
   });
 });

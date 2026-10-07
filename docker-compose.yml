@@ -64,10 +64,11 @@ services:
       retries: 5
       start_period: 20s
 
-  authorization:
-    build: authorization/
+  api-gateway:
+    build: api-gateway/
     environment:
       JWT_SECRET: ${SECRET_KEY}
+      NODE_ENV: 'test1'
       PORT: "3000"
     depends_on:
       backend:
