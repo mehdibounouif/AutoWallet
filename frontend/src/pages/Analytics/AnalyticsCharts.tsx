@@ -15,6 +15,11 @@ function moneyTooltip(value: unknown) {
   return formatMAD(Number(value ?? 0))
 }
 
+/** Legend names in dark text (yellow text on white is hard to read); grey when the user hid that series. */
+function legendText(value: string, entry: LegendPayload) {
+  return <span style={{ color: entry.inactive ? '#A0AAB8' : '#3B495D' }}>{value}</span>
+}
+
 function ChartCard({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
     <figure className="h-full bg-white rounded-2xl border border-[#DDE3EA] p-4 sm:p-5 shadow-sm min-w-0">
@@ -77,7 +82,7 @@ export function SplitChart({ points, interval, envelopes }: { points: Timeseries
           <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#DDE3EA' }} minTickGap={16} />
           <YAxis tickFormatter={formatCompact} tick={AXIS_TICK} tickLine={false} axisLine={false} width={48} />
           <Tooltip formatter={moneyTooltip} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F3F6FA' }} />
-          <Legend onClick={toggle} wrapperStyle={{ fontSize: 13, cursor: 'pointer' }} />
+          <Legend onClick={toggle} itemSorter={null} formatter={legendText} wrapperStyle={{ fontSize: 13, cursor: 'pointer' }} />
           {ENVELOPES.filter((envelope) => envelopes.includes(envelope.id)).map((envelope) => (
             <Bar
               key={envelope.id}
@@ -127,7 +132,7 @@ export function SplitPie({ summary }: { summary: Summary }) {
             formatter={(value) => `${formatMAD(Number(value ?? 0))} (${Math.round((Number(value ?? 0) / total) * 100)}%)`}
             contentStyle={TOOLTIP_STYLE}
           />
-          <Legend wrapperStyle={{ fontSize: 13 }} />
+          <Legend itemSorter={null} formatter={legendText} wrapperStyle={{ fontSize: 13 }} />
         </PieChart>
       </ResponsiveContainer>
     </ChartCard>

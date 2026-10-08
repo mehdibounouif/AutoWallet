@@ -176,7 +176,7 @@ export function PrivacyDataPage() {
             </button>
           ) : (
             <div className="mt-5 space-y-4">
-              <div role="group" aria-label="Deletion code from the email" className="max-w-sm">
+              <div className="max-w-sm">
                 <OTPInput
                   value={code}
                   onChange={(value) => {
