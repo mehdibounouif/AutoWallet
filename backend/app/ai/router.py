@@ -31,7 +31,9 @@ def load_user_data(current_user: User = Depends(require_linked_account), db: Ses
         .limit(5)
         .all()
     )
-    return describe_user_data(wallets, rules, payments)
+    user_data = describe_user_data(wallets, rules, payments)
+    db.close()  # an answer can stream for a minute: give the database connection back now
+    return user_data
 
 
 @router.post("/chat", response_model=ChatResponse, dependencies=[Depends(ai_rate_limit)])
