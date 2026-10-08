@@ -81,3 +81,9 @@ class TwoFactorVerify(BaseModel):
 
 class LinkBankAccount(BaseModel):
     bank_account_id: str = Field(min_length=3, max_length=50)
+
+class OnboardingRulesUpdate(BaseModel):
+    rent_amount: float = Field(ge=0)
+    tax_percent: float = Field(ge=0, le=100)
+    savings_percent: float = Field(ge=0, le=100)
+    savings_cap: float = Field(ge=0)

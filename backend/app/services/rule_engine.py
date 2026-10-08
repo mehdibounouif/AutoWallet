@@ -58,6 +58,15 @@ def apply_rules(amount: float, rules: list[RuleInput], wallet_balances: dict[str
         else:  # percentage_remainder
             take = pool * ((rule.percentage or 0.0) / 100)
 
+            # Self-capping rule: if this rule's own condition checks its own
+            # target wallet against a "<" threshold, never take more than
+            # what's left under that cap.
+            own_balance_field = f"{rule.target_wallet}_balance"
+            if rule.condition_field == own_balance_field and rule.condition_operator in ("<", "<="):
+                current = wallet_balances.get(own_balance_field, 0.0)
+                room_left = max(0.0, rule.condition_value - current)
+                take = min(take, room_left)
+
         allocations[rule.target_wallet] = allocations.get(rule.target_wallet, 0.0) + take
         pool -= take
     if pool > 0:
