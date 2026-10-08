@@ -9,6 +9,8 @@ interface LegalSection {
   title: string
   paragraphs?: readonly string[]
   items?: readonly string[]
+  // Starts the section with "<before> <link to a page of the app><after>"
+  pageLink?: { before: string; to: string; label: string; after: string }
   // Ends the section with "<contactLine> <email link>."
   contactLine?: string
 }
@@ -41,7 +43,7 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
           'Account: your full name, email address, password and bank account ID. We store only a bcrypt hash of your password, never the password itself.',
           'Google sign-in, if you use it: your Google account ID, name and email address. We never receive your Google password.',
           'Two-factor authentication, if you turn it on: a secret key used to check your 6-digit codes.',
-          'Your budget: the balances of your five envelopes (main, rent, tax, savings and free), your splitting rules, and your payments (reference, amount, status and dates).',
+          'Your budget: the balances of your five envelopes (main, rent, tax, savings and free), your splitting rules, your payments (reference, amount, status and dates), and how much of each payment went into each envelope.',
           'AI assistant: the questions you ask it (see "The AI assistant and Google Gemini" below).',
         ],
       },
@@ -50,7 +52,9 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
         items: [
           'To create your account and let you sign in securely.',
           'To split each payment between your envelopes according to your rules, and to show you your balances and history.',
+          'To show you charts and totals of your payments for the period you choose (the Analytics page), and to export them as a CSV or PDF file when you ask.',
           'To answer your questions with the AI assistant, using your own envelopes and rules.',
+          'To email you about your account, for example the code that confirms deleting it, or a notice when your data is exported.',
           'To keep the service safe, for example by limiting how many AI questions each account can send per minute.',
         ],
       },
@@ -74,6 +78,7 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
         items: [
           'Google, when you choose to sign in with Google, and when you use the AI assistant (Gemini).',
           'Our bank simulator, a test service run by the team, which only knows your bank account ID and simulated payments.',
+          'Our email service, which delivers the emails we send you. It receives your email address and the message.',
           'Nobody else: we do not sell your data, and we do not use advertising or analytics services.',
         ],
       },
@@ -83,6 +88,7 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
           'Your account, envelopes, rules and payments: until you delete your account or ask us to delete it.',
           'Your AI questions and answers: not stored by AutoWallet.',
           'The counter that limits AI questions: deleted automatically after 60 seconds.',
+          'The code that confirms deleting your account: 15 minutes at most.',
           'The access token in your browser: until you log out. It stops working after 24 hours.',
         ],
       },
@@ -98,8 +104,14 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
       },
       {
         title: 'Your rights',
+        pageLink: {
+          before: 'You can download a copy of your data (JSON or CSV) or delete your account yourself, at any time, on the',
+          to: '/account/privacy',
+          label: 'Privacy & data',
+          after: ' page of your account. To delete it, you type a 6-digit code that we send to your email address.',
+        },
         paragraphs: [
-          'You can ask us at any time to see a copy of your data, to correct it, or to delete your account and all its data. We answer within 30 days.',
+          'You can also write to us to see a copy of your data, to correct it, or to delete your account and all its data. We answer within 30 days.',
           'These rights come from the EU General Data Protection Regulation (GDPR) and from Moroccan law 09-08 on the protection of personal data.',
         ],
         contactLine: 'To use them, write to us at',
@@ -213,6 +225,15 @@ export function LegalPage({ document }: LegalPageProps) {
             {content.sections.map((section) => (
               <section key={section.title}>
                 <h2 className="text-lg font-semibold text-[#1A2330]">{section.title}</h2>
+                {section.pageLink && (
+                  <p className="mt-2 text-sm leading-7 text-[#3B495D]">
+                    {section.pageLink.before}{' '}
+                    <Link to={section.pageLink.to} className="font-medium text-[#4A53A0] underline">
+                      {section.pageLink.label}
+                    </Link>
+                    {section.pageLink.after}
+                  </p>
+                )}
                 {section.paragraphs?.map((paragraph) => (
                   <p key={paragraph} className="mt-2 text-sm leading-7 text-[#3B495D]">
                     {paragraph}
