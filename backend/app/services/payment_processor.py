@@ -2,8 +2,9 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from app.analytics.events import publish_payment_processed
 from app.core.redis_client import redis_client
-from app.models.models import Rule, Transaction, TransactionStatus, User, Wallet
+from app.models.models import Allocation, Rule, Transaction, TransactionStatus, User, Wallet, WalletType
 from app.services.rule_engine import RuleInput, apply_rules
 
 
@@ -43,11 +44,14 @@ def process_payment(user: User, reference: str, amount: float, db: Session) -> T
         allocations = apply_rules(amount, rule_inputs, wallet_balances)
         for wallet_type, take in allocations.items():
             wallets_by_type[wallet_type].balance += take
+            # keep how this payment was split, for the analytics dashboard
+            db.add(Allocation(transaction_id=transaction.id, user_id=user.id, wallet_type=WalletType(wallet_type), amount=take))
 
         transaction.status = TransactionStatus.processed
         transaction.processed_at = datetime.utcnow()
         db.commit()
         db.refresh(transaction)
+        publish_payment_processed(user.id, reference, amount, allocations)
         return transaction
     finally:
         lock.release()
