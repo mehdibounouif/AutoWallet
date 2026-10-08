@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     ai_api_key: str | None = None
     ai_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     ai_model: str = "gemini-3.5-flash-lite"
+    ai_rate_limit_per_minute: int = 20
 
     class Config:
         env_file = ".env"

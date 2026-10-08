@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.prompt import build_messages, describe_user_data
 from app.ai.provider import AIError, ask_llm, check_configured, stream_llm
+from app.ai.rate_limit import ai_rate_limit
 from app.ai.schemas import ChatRequest, ChatResponse
 from app.core.database import get_db
 from app.core.deps import require_linked_account
@@ -33,7 +34,7 @@ def load_user_data(current_user: User = Depends(require_linked_account), db: Ses
     return describe_user_data(wallets, rules, payments)
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat", response_model=ChatResponse, dependencies=[Depends(ai_rate_limit)])
 async def chat(payload: ChatRequest, user_data: str = Depends(load_user_data)):
     # Ask Gemini with our instructions + this user's data, and send its answer back
     try:
@@ -60,7 +61,7 @@ async def answer_events(messages: list[dict]):
     yield sse("done", {})
 
 
-@router.post("/chat/stream")
+@router.post("/chat/stream", dependencies=[Depends(ai_rate_limit)])
 async def chat_stream(payload: ChatRequest, user_data: str = Depends(load_user_data)):
     """Same question as /chat, but the answer arrives piece by piece (Server-Sent Events)."""
     try:
