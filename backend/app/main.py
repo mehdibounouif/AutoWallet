@@ -6,6 +6,7 @@ from app.api import transactions as transactions_router
 from app.api import wallets as wallets_router
 from app.api import rules as rules_router
 from app.api import oauth as oauth_router
+from app.gdpr import router as gdpr_router
 from app.workers.poller import scheduler
 from app.ai import router as ai_router
 
@@ -13,6 +14,7 @@ app = FastAPI(title="AutoWallet")
 
 # add the auth routes to the central fastapi app
 app.include_router(auth_router.router)
+app.include_router(gdpr_router.router)
 app.include_router(transactions_router.router)
 app.include_router(wallets_router.router)
 app.include_router(rules_router.router)
