@@ -121,7 +121,7 @@ def test_auth_service_500_maps_to_503(client, auth_headers, authorization_servic
 
 
 def test_auth_service_outage_maps_to_503(client, auth_headers, authorization_service):
-    """SCENARIO:   service is down — connection refused on authorization:3000.
+    """SCENARIO:   service is down — connection refused on the gateway's port.
     EXPECTED:   endpoint 503 "Authorization service unavailable"."""
     authorization_service.refuse()
 

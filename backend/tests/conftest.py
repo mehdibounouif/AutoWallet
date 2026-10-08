@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.auth_client import AUTHORIZATION_URL
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.security import create_access_token, hash_password
@@ -148,22 +149,24 @@ def auth_headers(test_user):
 # The authorization-service seam
 #
 # require_client (app/core/auth_client.py) POSTs every guarded request to
-# http://authorization:3000/api/authorize — a hostname that only exists
+# the gateway's /api/authorize — a hostname that only exists
 # inside the docker network. Without interception every guarded test dies
 # with 503. Like the fakeredis patch above, the REAL middleware code keeps
 # running; only the network hop is replaced, by respx at the httpx
 # transport layer (the same HTTP client the middleware uses).
+#
+# The intercepted URL is the middleware's OWN constant (imported above),
+# never a copy — a rename (authorization -> api-gateway, PR #44) once
+# desynced the two and reddened the whole guarded suite.
 #
 # Default answer is 200 "allowed": the ~50 business-logic tests merely need
 # the guard to open the door. The guard's own decision matrix (what status
 # in → what status out) is exercised in tests/test_auth_client.py.
 # ---------------------------------------------------------------------------
 
-AUTHORIZATION_URL = "http://authorization:3000/api/authorize"
-
 
 def _realish_authorize(request: httpx.Request) -> httpx.Response:
-    """Answer the way the REAL service would (authorization/src:
+    """Answer the way the REAL service would (api-gateway/src:
     authenticate.ts decodes the JWT with the shared secret and requires a
     `role` claim; authorize.ts then checks rolePermissions)."""
     token = request.headers.get("Authorization", "").removeprefix("Bearer ")
@@ -207,7 +210,7 @@ class AuthorizationServiceStub:
         self._realish = False
 
     def refuse(self) -> None:
-        """Simulate an outage: nothing listening at authorization:3000."""
+        """Simulate an outage: nothing listening at the gateway's port."""
         self._error = httpx.ConnectError("[Errno 111] Connection refused")
 
     def timeout(self) -> None:

@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "vitest run tests/auth-service.test.ts",
+    "test": "vitest run",
     "test:report": "node tests/report-demands.mjs"
   },
   "keywords": [],
