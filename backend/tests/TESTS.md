@@ -47,8 +47,9 @@ patching only the core module changes nothing for importers.
 ### The authorization_service seam (the most load-bearing fixture)
 
 `require_client` (app/core/auth_client.py) POSTs every guarded request to
-`http://authorization:3000/api/authorize`. The seam answers instead, with a
-per-test script:
+`http://api-gateway:3000/api/authorize` (the seam imports the middleware's own
+`AUTHORIZATION_URL` — the URL can never desync again). The seam answers
+instead, with a per-test script:
 
 | Mode | What the fake service does |
 |---|---|

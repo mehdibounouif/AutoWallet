@@ -55,7 +55,7 @@ jobs:
         working-directory: bank-simulator
         run: pytest -q
 
-  authorization-tests:
+  api-gateway-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Get the code
@@ -66,14 +66,14 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: authorization/package-lock.json
+          cache-dependency-path: api-gateway/package-lock.json
 
       - name: Install dependencies
-        working-directory: authorization
+        working-directory: api-gateway
         run: npm ci
 
-      - name: Run authorization service tests
-        working-directory: authorization
+      - name: Run api-gateway tests
+        working-directory: api-gateway
         run: npm test
 
   frontend-tests:
@@ -113,8 +113,8 @@ jobs:
       - name: Build bank simulator image (tagged, for the boot smoke)
         run: docker build -t sim:smoke bank-simulator/
 
-      - name: Build authorization image (tagged, for the boot smoke)
-        run: docker build -t authz:smoke authorization/
+      - name: Build api-gateway image (tagged, for the boot smoke)
+        run: docker build -t authz:smoke api-gateway/
 
       - name: Boot smoke — backend image
         run: |
@@ -158,7 +158,7 @@ jobs:
           docker stop smoke-sim
           docker rm smoke-sim
 
-      - name: Boot smoke — authorization image
+      - name: Boot smoke — api-gateway image
         run: |
           docker run -d --name smoke-authz -e JWT_SECRET=smoke-secret -p 19001:3000 authz:smoke
           ok=""
@@ -167,7 +167,7 @@ jobs:
             if curl -sf http://127.0.0.1:19001/api/health; then ok=1; break; fi
           done
           if [ -z "$ok" ]; then
-            echo "=== boot smoke FAILED (authorization) — container logs: ==="
+            echo "=== boot smoke FAILED (api-gateway) — container logs: ==="
             docker logs smoke-authz
             docker rm -f smoke-authz
             exit 1

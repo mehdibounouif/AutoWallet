@@ -1,5 +1,5 @@
 /**
- * Contract suite for the authorization service (authorization/src).
+ * Contract suite for the authorization service (api-gateway/src).
  *
  * HOW TO READ THIS FILE
  * ---------------------
@@ -10,7 +10,7 @@
  *
  * Every test is a PIN: behavior that works and must stay working. If any
  * of them breaks, a regression was introduced — the suite (and CI job
- * `authorization-tests`) goes red until it is fixed.
+ * `api-gateway-tests`) goes red until it is fixed.
  *
  * PROVENANCE — this file absorbed the old findings.test.ts demand tests
  * after all fixes were verified live on main (commit ce8c316, 2026-09-27):
