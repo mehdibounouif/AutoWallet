@@ -4,6 +4,7 @@ import { AuthPage } from './pages/Auth/AuthPage'
 import { GoogleCallbackPage } from './pages/Auth/GoogleCallbackPage'
 import { onboardingPaths } from './pages/Onboarding/routes'
 import { LegalPage } from './pages/Legal/LegalPage'
+import { RequireToken } from './components/account/RequireToken'
 
 const OnboardingPage = lazy(() =>
   import('./pages/Onboarding/OnboardingPage').then(({ OnboardingPage }) => ({
@@ -14,6 +15,23 @@ const OnboardingPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import('./pages/Dashboard/DashboardPage').then(({ DashboardPage }) => ({
     default: DashboardPage,
+  })),
+)
+
+// Signed-in pages: analytics dashboard, AI assistant, privacy & data (GDPR).
+const AnalyticsPage = lazy(() =>
+  import('./pages/Analytics/AnalyticsPage').then(({ AnalyticsPage }) => ({
+    default: AnalyticsPage,
+  })),
+)
+const AssistantPage = lazy(() =>
+  import('./pages/Assistant/AssistantPage').then(({ AssistantPage }) => ({
+    default: AssistantPage,
+  })),
+)
+const PrivacyDataPage = lazy(() =>
+  import('./pages/Account/PrivacyDataPage').then(({ PrivacyDataPage }) => ({
+    default: PrivacyDataPage,
   })),
 )
 
@@ -73,6 +91,9 @@ export default function App() {
           <Route path="/app/envelopes" element={<DashboardPage />} />
           <Route path="/app/envelopes/:walletType" element={<DashboardPage />} />
           <Route path="/maintenance" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/analytics" element={<RequireToken><AnalyticsPage /></RequireToken>} />
+          <Route path="/assistant" element={<RequireToken><AssistantPage /></RequireToken>} />
+          <Route path="/account/privacy" element={<RequireToken><PrivacyDataPage /></RequireToken>} />
           <Route path="/terms" element={<LegalPage document="terms" />} />
           <Route path="/privacy" element={<LegalPage document="privacy" />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
