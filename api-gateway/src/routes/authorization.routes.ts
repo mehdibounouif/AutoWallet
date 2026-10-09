@@ -4,7 +4,7 @@ import { authorize } from "../middleware/authorize.js";
 
 const router = Router();
 
-router.get("/health", (_req, res) => {
+router.get("/healths", (_req, res) => {
   res.status(200).json({
     service: "api-gateway",
     status: "ok",
