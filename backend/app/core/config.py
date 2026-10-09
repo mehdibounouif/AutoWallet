@@ -14,12 +14,17 @@ class Settings(BaseSettings):
     google_client_id: str
     google_client_secret: str
     google_redirect_uri: str
+    frontend_google_callback_url: str
+    
 
     # AI assistant (app/ai): any OpenAI-compatible API (Gemini, OpenRouter, OpenAI...)
     ai_api_key: str | None = None
     ai_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     ai_model: str = "gemini-3.5-flash-lite"
     ai_rate_limit_per_minute: int = 20
+    postgres_user: str
+    postgres_password: str
+    postgres_db: str
 
     class Config:
         env_file = ".env"

@@ -87,3 +87,7 @@ class OnboardingRulesUpdate(BaseModel):
     tax_percent: float = Field(ge=0, le=100)
     savings_percent: float = Field(ge=0, le=100)
     savings_cap: float = Field(ge=0)
+
+
+class OAuthExchangeRequest(BaseModel):
+    code: str
