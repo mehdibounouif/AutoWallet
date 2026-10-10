@@ -67,9 +67,15 @@ def fake_redis(monkeypatch):
     the original in app.core.redis_client changes nothing for importers.
     New modules importing redis_client must be added here.
     """
-    fake = fakeredis.FakeStrictRedis()
+    # decode_responses=True mirrors the PRODUCTION client (redis.Redis.from_url
+    # in app/core/redis_client.py) — with it, hget/get return str like the real
+    # stack; without it every Redis string comes back as bytes and code that
+    # compares str (e.g. gdpr's hmac.compare_digest) explodes in tests only.
+    fake = fakeredis.FakeStrictRedis(decode_responses=True)
     monkeypatch.setattr("app.api.transactions.redis_client", fake)
     monkeypatch.setattr("app.services.payment_processor.redis_client", fake)
+    monkeypatch.setattr("app.ai.rate_limit.redis_client", fake)
+    monkeypatch.setattr("app.gdpr.router.redis_client", fake)
     yield fake
 
 
@@ -236,3 +242,48 @@ def authorization_service():
         stub = AuthorizationServiceStub()
         route.side_effect = stub._handle
         yield stub
+
+
+# ---------------------------------------------------------------------------
+# The AI-provider seam
+#
+# app/ai/provider.py POSTs the conversation to {ai_base_url}/chat/completions
+# with httpx. Like the authorization seam, tests intercept it at the httpx
+# transport layer — no test ever reaches a real AI provider.
+#
+# The provider URL is repointed at a fake host per test. The gateway hop is
+# re-registered inside the nested mock so these tests keep passing once
+# finding #15 (AI routes missing the require_client hop) is fixed.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def ai_provider(monkeypatch):
+    """Point the AI provider at a fake URL; returns the respx route to script."""
+    monkeypatch.setattr(settings, "ai_api_key", "qa-test-key")
+    monkeypatch.setattr(settings, "ai_base_url", "https://ai.test")
+    with respx.mock(assert_all_called=False) as mock:
+        mock.post(AUTHORIZATION_URL).respond(
+            json={"allowed": True, "user_id": None, "role": "user"}
+        )
+        route = mock.post("https://ai.test/chat/completions")
+        yield route
+
+
+# ---------------------------------------------------------------------------
+# The GDPR email outbox
+#
+# app/gdpr/router.py sends every confirmation through send_email
+# (smtplib → localhost:1025). Tests replace it with an in-memory outbox so
+# no test ever touches a real SMTP server, and can read the captured codes.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def gdpr_email(monkeypatch):
+    """Record every email app/gdpr tries to send; return the outbox list."""
+    outbox: list[dict] = []
+
+    def record(to: str, subject: str, body: str) -> None:
+        outbox.append({"to": to, "subject": subject, "body": body})
+
+    monkeypatch.setattr("app.gdpr.router.send_email", record)
+    return outbox
