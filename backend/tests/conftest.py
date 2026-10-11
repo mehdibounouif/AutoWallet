@@ -70,6 +70,7 @@ def fake_redis(monkeypatch):
     fake = fakeredis.FakeStrictRedis()
     monkeypatch.setattr("app.api.transactions.redis_client", fake)
     monkeypatch.setattr("app.services.payment_processor.redis_client", fake)
+    monkeypatch.setattr("app.api.oauth.redis_client", fake)
     yield fake
 
 

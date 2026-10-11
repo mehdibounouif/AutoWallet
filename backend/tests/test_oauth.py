@@ -2,9 +2,11 @@
 
 Sections:
     1. Gate & link flows       (green: the documented design works today)
-    2. Google callback errors  (green: hostile inputs end in clean 401s)
+    2. Google callback errors  (green: hostile inputs end in clean 401s —
+                               re-pinned to the state dance after PR #51)
     3. Acceptance tests        (finding #10 legs; xfail-strict while open)
     4. Provisioning parity     (OAuth signup promises the same 5+4)
+    5. OAuth security acceptance — cycle-2 findings (xfail-strict)
 
 Report-only findings referenced below (owners hold the fixes):
     #9   OAuth config hard-requires 3 Google secrets — verified live via
@@ -12,11 +14,23 @@ Report-only findings referenced below (owners hold the fixes):
          config-boot behavior, not an endpoint).
     #10  transactions must be gated by require_linked_account like
          wallets/rules are — POST leg FIXED, GET leg REOPENED (see §3).
+    #17  the OAuth state is not bound to the browser that requested it —
+         login-CSRF / authorization-code injection (see §5).
+    #18  Google's email is linked onto existing password accounts without
+         checking email_verified — the classic OAuth ATO pattern (see §5).
+    #19  a userinfo answer without "sub" crashes with KeyError/500 instead
+         of the intended clean 401 (see §5).
+    #20  the 4 required settings PR #51 added are missing from the
+         committed .env.example, so the app can't boot from it (see §5).
 
 The full Google round-trip (real redirect, real token exchange) is not
 tested here — it needs live Google credentials; the callback is tested
 from the point where Google would have answered (code exchange -> 401).
+The state dance (GET /login, harvest state from the redirect, replay it
+at /callback) IS exercised — against fakeredis, never Google.
 """
+from urllib.parse import parse_qs, urlparse
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -164,16 +178,57 @@ def test_link_requires_auth(client: TestClient):
 # ---------------------------------------------------------------------------
 
 
-def test_google_callback_bad_code_is_handled(client: TestClient, monkeypatch):
-    """SCENARIO:   Google rejects the forged code (400 at token exchange).
-    EXPECTED:   a clean 401 "Google rejected ..." — no crash, no traceback."""
+def _login_state(client: TestClient) -> str:
+    """Complete GET /login in THIS browser and harvest the state from the
+    Google redirect — exactly the dance a real browser does now (PR #51).
+    follow_redirects=False: the TestClient must NOT follow the redirect to
+    accounts.google.com (a real network call — and it would swallow the 307
+    whose Location carries the state)."""
+    resp = client.get("/api/auth/oauth/google/login", follow_redirects=False)
+    assert resp.status_code in (302, 307)
+    return parse_qs(urlparse(resp.headers["location"]).query)["state"][0]
+
+
+def _fake_google(
+    monkeypatch,
+    *,
+    token_status: int = 200,
+    userinfo_status: int = 200,
+    userinfo_body: dict | None = None,
+):
+    """Answer Google's two server-to-server calls (token exchange, userinfo)
+    from inside the test — no test ever talks to the real Google."""
     import httpx
 
-    def fake_post(url, data):
-        return httpx.Response(400, request=httpx.Request("POST", url))
+    class _FakeResponse:
+        def __init__(self, status_code: int, body: dict):
+            self.status_code = status_code
+            self._body = body
+
+        def json(self) -> dict:
+            return self._body
+
+    def fake_post(url, data=None, **kwargs):
+        return _FakeResponse(token_status, {"access_token": "google-access-token"})
+
+    def fake_get(url, headers=None, **kwargs):
+        return _FakeResponse(userinfo_status, userinfo_body or {})
 
     monkeypatch.setattr(httpx, "post", fake_post)
-    response = client.get("/api/auth/oauth/google/callback", params={"code": "forged"})
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+
+def test_google_callback_bad_code_is_handled(client: TestClient, monkeypatch):
+    """SCENARIO:   the full legit dance (login -> state), then Google
+                rejects the forged code (400 at token exchange).
+    EXPECTED:   a clean 401 "Google rejected ..." — no crash, no traceback."""
+    state = _login_state(client)
+    _fake_google(monkeypatch, token_status=400)
+
+    response = client.get(
+        "/api/auth/oauth/google/callback", params={"code": "forged", "state": state},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 401
     assert "Google rejected" in response.json()["detail"]
@@ -181,24 +236,15 @@ def test_google_callback_bad_code_is_handled(client: TestClient, monkeypatch):
 
 def test_google_callback_garbage_userinfo_response(client: TestClient, monkeypatch):
     """SCENARIO:   token exchange SUCCEEDS but the userinfo call comes back
-                hostile (403/malformed).
+                hostile (403).
     EXPECTED:   a clean 401 mentioning "user info" — not a KeyError/500."""
-    import httpx
+    state = _login_state(client)
+    _fake_google(monkeypatch, userinfo_status=403)
 
-    class FakeTokenResponse:
-        status_code = 200
-        def json(self):
-            return {"access_token": "tok"}
-
-    def fake_post(url, data):
-        return FakeTokenResponse()
-
-    def fake_get(url, headers):
-        return httpx.Response(403, request=httpx.Request("GET", url))
-
-    monkeypatch.setattr(httpx, "post", fake_post)
-    monkeypatch.setattr(httpx, "get", fake_get)
-    response = client.get("/api/auth/oauth/google/callback", params={"code": "real-looking"})
+    response = client.get(
+        "/api/auth/oauth/google/callback", params={"code": "real-looking", "state": state},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 401
     assert "user info" in response.json()["detail"]
@@ -260,3 +306,153 @@ def test_oauth_user_provisioning_matches_promise(db_session, oauth_user_id):
     rules = db_session.query(Rule).filter(Rule.user_id == oauth_user_id).all()
     assert len(wallets) == 5
     assert len(rules) == 4
+
+
+# ---------------------------------------------------------------------------
+# 5. OAUTH SECURITY ACCEPTANCE — cycle-2 findings (owner of all four: MEHDI)
+#
+# PR #51's state/exchange rewrite hardened the flow (single-use state,
+# timeouts, error param, JWT out of URLs) but left three cracks plus one
+# boot blocker. Each is pinned here xfail-strict: the test asserts the
+# DESIRED (post-fix) behavior, fails today because of the finding, and
+# XPASSes (turning the suite red ON PURPOSE) the moment the fix lands.
+# The full analysis is the OAuth security review document, kept outside
+# the repo (QA's shared documents) — ask QA for it.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="finding #17 (owner: MEHDI): login-CSRF — the OAuth state is not "
+           "bound to the browser that requested it (app/api/oauth.py:31 stores "
+           "the raw state in Redis; nothing ties it to the /login caller). An "
+           "attacker completes his own /login, replays HIS code+state into the "
+           "victim's browser, and the victim lands in the ATTACKER's account. "
+           "Fix: bind the state to a browser-held secret (httpOnly "
+           "SameSite=Lax cookie with a nonce; store hash(nonce+state)).",
+)
+def test_a_state_issued_to_another_browser_is_rejected(client: TestClient, monkeypatch):
+    """SCENARIO:   the ATTACKER's browser does /login (state S lands in Redis,
+                unused), then the VICTIM's browser — which never requested
+                anything — opens /callback?code=<attacker's code>&state=S.
+    EXPECTED:   400 — a state this browser never requested must not open the
+                door for it (login-CSRF / authorization-code injection)."""
+    from app.main import app as fastapi_app
+
+    state = _login_state(client)  # the attacker's browser starts the flow
+    _fake_google(
+        monkeypatch,
+        userinfo_body={
+            "sub": "google-attacker-1",
+            "email": "attacker@autowallet.dev",
+            "email_verified": True,
+            "name": "Attacker",
+        },
+    )
+
+    victim_browser = TestClient(fastapi_app)  # a DIFFERENT browser: no cookies, no /login
+    response = victim_browser.get(
+        "/api/auth/oauth/google/callback",
+        params={"code": "attacker-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 400, \
+        "finding #17: a state from ANOTHER browser completed the login"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="finding #18 (owner: MEHDI): the callback links Google onto an "
+           "EXISTING password account by email alone (app/api/oauth.py:143) "
+           "without checking Google's email_verified claim — the classic "
+           "OAuth account-takeover pattern. Fix: refuse with 401 unless "
+           "profile.get('email_verified') is true, BEFORE the link branch.",
+)
+def test_unverified_google_email_never_links_onto_an_existing_account(
+    client: TestClient, monkeypatch, db_session
+):
+    """SCENARIO:   Google answers with an identity that CLAIMS the victim's
+                email but carries email_verified: false.
+    EXPECTED:   401, and the victim's password account stays un-linked."""
+    from tests.helpers import make_user
+
+    victim_id = make_user(db_session, "oauth-victim@autowallet.dev",
+                          bank_account_id="MA6400010000VICT")
+
+    state = _login_state(client)
+    _fake_google(
+        monkeypatch,
+        userinfo_body={
+            "sub": "google-attacker-2",
+            "email": "oauth-victim@autowallet.dev",   # claims the VICTIM's email
+            "email_verified": False,
+            "name": "Attacker",
+        },
+    )
+    response = client.get(
+        "/api/auth/oauth/google/callback", params={"code": "real-looking", "state": state},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 401, \
+        "finding #18: an unverified email completed an OAuth login"
+
+    db_session.expire_all()
+    victim = db_session.query(User).filter(User.id == victim_id).first()
+    assert victim.oauth_provider is None, \
+        "finding #18: the attacker's Google identity was LINKED onto the victim's account"
+    assert victim.oauth_id is None
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="finding #19 (owner: MEHDI): profile['sub'] and profile['email'] "
+           "use direct indexing (app/api/oauth.py:135-136), so a userinfo "
+           "answer missing those keys raises KeyError/500 BEFORE the "
+           "if-not-google_id 401 guard below it (dead code). Fix: .get() + "
+           "an explicit 401.",
+)
+def test_userinfo_without_sub_answers_401_not_500(client: TestClient, monkeypatch):
+    """SCENARIO:   token exchange succeeds, but the userinfo answer is 200
+                with a malformed body (no 'sub').
+    EXPECTED:   the intended clean 401 — never an unhandled KeyError/500."""
+    state = _login_state(client)
+    _fake_google(monkeypatch, userinfo_body={"email": "who@autowallet.dev"})
+
+    response = client.get(
+        "/api/auth/oauth/google/callback", params={"code": "real-looking", "state": state},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 401, \
+        "finding #19: malformed userinfo must answer 401, not crash"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="finding #20 (owner: MEHDI): PR #51 added four REQUIRED settings "
+           "(frontend_google_callback_url, postgres_user, postgres_password, "
+           "postgres_db — app/core/config.py) with no defaults, but did not "
+           "add postgres_* to backend/.env.example — so `cp .env.example "
+           ".env` (what CI and new clones do) can't boot the app: 3 CI jobs "
+           "red at import. Fix: defaults (the AI module's pattern) or "
+           "complete the example file.",
+)
+def test_the_app_boots_from_the_committed_env_example(monkeypatch):
+    """SCENARIO:   CI and a fresh clone configure the backend with exactly
+                `cp .env.example .env` — nothing else.
+    EXPECTED:   Settings constructs from backend/.env.example alone; the
+                committed example must always be a complete boot recipe."""
+    from pathlib import Path
+
+    for var in (
+        "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB",
+        "FRONTEND_GOOGLE_CALLBACK_URL",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
+    from app.core.config import Settings
+
+    env_file = Path(__file__).resolve().parents[1] / ".env.example"
+    Settings(_env_file=env_file)  # DESIRED: constructs — today raises ValidationError
