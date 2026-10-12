@@ -1,11 +1,11 @@
 # AutoWallet frontend
 
-React, TypeScript, Vite, Tailwind CSS, and React Router. The English-only app covers email login and sign-up, Google sign-in callback, two-factor entry, password recovery screens, five onboarding steps, Terms and Privacy information pages, and a placeholder dashboard.
+React, TypeScript, Vite, Tailwind CSS, and React Router. The English-only app covers email login and sign-up, Google sign-in callback, two-factor entry, password recovery screens, five onboarding steps, Terms and Privacy information pages, and a dashboard backed by the existing API.
 
 ## Run locally
 
 ```bash
-docker compose up -d --build backend bank-simulator
+docker compose up -d --build backend bank-simulator authorization
 npm ci --prefix frontend
 npm run dev --prefix frontend
 ```
@@ -19,7 +19,9 @@ Open `http://localhost:5173`. The development server proxies `/api` to the FastA
 - Password recovery screens call `/api/auth/password/forgot` and `/api/auth/password/reset`. Those endpoints are not implemented by the current backend, so they show an error until the backend adds them.
 - The two-factor backup-code form has no backend verification endpoint yet, so it cannot complete sign-in.
 - Email verification resend is a UI placeholder; it currently only starts a countdown. Terms and Privacy links open prototype information pages. Their text needs legal review before public release.
-- The payment split on the final onboarding step is a local simulation. The backend currently provisions default rules; edited onboarding rule values are not submitted. The dashboard route is a placeholder.
+- The payment split on the final onboarding step is a local simulation. Edited onboarding rule values are saved through `PATCH /api/rules/onboarding` before moving to that step.
+- The protected `/dashboard` route loads `/api/auth/me`, `/api/wallets/`, `/api/transactions/`, and `/api/rules/`. Its Home screen follows the Figma free-to-spend, set-aside, payment-ribbon, and recent-payments layout. Users can record a payment through `POST /api/transactions/`, preview a split locally using their current rules, and link a bank account ID if needed. `/maintenance` redirects to `/dashboard` for older links.
+- Wallet and transaction reads require the `authorization` service in Docker Compose. The transaction API does not yet return payment dates or allocation breakdowns. The dashboard shows a clearly labeled next-payment preview when a historical split is unavailable, and it only shows dates and historical split bars when those fields are supplied. It refreshes after recording a payment, when the browser reconnects, and when the tab becomes visible; WebSocket events are not connected yet.
 
 Signup and two-factor passwords are kept only in page memory while those flows are open. Refreshing the page loses them and returns the user to sign-up or login; after registration, a refresh returns to login. Non-secret signup draft details stay in session storage. The app removes passwords left in session storage by older frontend versions at startup. API failures stay on the current screen; they do not create a session or report success.
 

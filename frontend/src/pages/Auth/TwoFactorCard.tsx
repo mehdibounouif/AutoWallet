@@ -55,7 +55,7 @@ export function TwoFactorCard() {
         if (typeof data.access_token !== 'string') throw new Error('Missing access token')
         localStorage.setItem('autowallet_token', data.access_token)
         clearTwoFactorCredentials()
-        navigate('/maintenance')
+        navigate('/dashboard')
       } else if (res.status === 401) {
         setWrongCode(true)
       } else if (res.status === 503) {

@@ -2,13 +2,18 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthPage } from './pages/Auth/AuthPage'
 import { GoogleCallbackPage } from './pages/Auth/GoogleCallbackPage'
-import { MaintenancePage } from './pages/Maintenance/MaintenancePage'
 import { onboardingPaths } from './pages/Onboarding/routes'
 import { LegalPage } from './pages/Legal/LegalPage'
 
 const OnboardingPage = lazy(() =>
   import('./pages/Onboarding/OnboardingPage').then(({ OnboardingPage }) => ({
     default: OnboardingPage,
+  })),
+)
+
+const DashboardPage = lazy(() =>
+  import('./pages/Dashboard/DashboardPage').then(({ DashboardPage }) => ({
+    default: DashboardPage,
   })),
 )
 
@@ -64,7 +69,10 @@ export default function App() {
           {/* Root Route redirects to /login */}
           <Route path="/" element={<Navigate to="/login" replace />} />
 
-          <Route path="/maintenance" element={<MaintenancePage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/app/envelopes" element={<DashboardPage />} />
+          <Route path="/app/envelopes/:walletType" element={<DashboardPage />} />
+          <Route path="/maintenance" element={<Navigate to="/dashboard" replace />} />
           <Route path="/terms" element={<LegalPage document="terms" />} />
           <Route path="/privacy" element={<LegalPage document="privacy" />} />
           <Route path="*" element={<Navigate to="/login" replace />} />

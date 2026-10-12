@@ -35,6 +35,7 @@ export const en: Translations = {
   pwStrengthStrong: 'Strong.',
   wrongCredentials: 'Wrong email or password',
   serviceUnavailable: 'Sign-in service is currently unreachable. Your data is safe.',
+  googleSignInFailed: 'Google sign-in could not be completed. Please try again.',
   twoFactorTitle: 'Enter your code',
   twoFactorSubtitle: 'Open your authenticator app and type the 6-digit code for AutoWallet.',
   twoFactorCodeLabel: '6-digit code',
@@ -128,6 +129,7 @@ export const en: Translations = {
   rule1Lock: 'Lock',
   rule1Into: 'into',
   ruleValueInvalid: 'Enter valid amounts and percentages between 0 and 100.',
+  rulesSaveFailed: 'We could not save your rules. Please try again.',
   rule2Title: '2. Tax',
   rule2Put: 'Put',
   rule2OfWhatLeftInto: "of what's left into",
@@ -161,7 +163,5 @@ export const en: Translations = {
   checksOutBadge: 'Checks out',
   skipToHomeButton: 'Skip to Home',
   goToHomeButton: 'Go to Home',
-  dashboardPreviewTitle: 'Dashboard preview',
-  dashboardPreviewBody: 'Authentication succeeded. The dashboard is still being built.',
   backToAuthScreen: 'Log out',
 }

@@ -33,6 +33,7 @@ export interface Translations {
   pwStrengthStrong: string
   wrongCredentials: string
   serviceUnavailable: string
+  googleSignInFailed: string
   twoFactorTitle: string
   twoFactorSubtitle: string
   twoFactorCodeLabel: string
@@ -126,6 +127,7 @@ export interface Translations {
   rule1Lock: string
   rule1Into: string
   ruleValueInvalid: string
+  rulesSaveFailed: string
   rule2Title: string
   rule2Put: string
   rule2OfWhatLeftInto: string
@@ -159,7 +161,5 @@ export interface Translations {
   checksOutBadge: string
   skipToHomeButton: string
   goToHomeButton: string
-  dashboardPreviewTitle: string
-  dashboardPreviewBody: string
   backToAuthScreen: string
 }
