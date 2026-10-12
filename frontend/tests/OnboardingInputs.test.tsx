@@ -17,10 +17,10 @@
  *                            the offending input gets focus. (green pins —
  *                            already correct today)
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 
 import { Step2Account } from '../src/pages/Onboarding/steps/Step2Account'
@@ -90,45 +90,59 @@ const PASSWORD = 'SuperSecret1337!'
 
 describe('PIN: RIB field (Step 2)', () => {
   it('an all-digits RIB passes validation', async () => {
-    // SCENARIO: the user types a digits-only account number and leaves the field.
+    // SCENARIO: the user TYPES a digits-only account number and leaves the field.
     // EXPECTED: no invalid message — the hint stays visible.
-    render(<Step2Harness initial="00100000042" />)
-    await userEvent.setup().tab() // blur -> validation runs
+    render(<Step2Harness />)
+    const user = userEvent.setup()
+    const input = screen.getByLabelText(t.accountNumberLabel)
+    await user.type(input, '00100000042')
+    await user.tab()
     expect(screen.queryByText(t.bankAccountInvalid)).not.toBeInTheDocument()
   })
 
   it('a too-short RIB is rejected', async () => {
-    // SCENARIO: "12" — under the 3-character minimum.
+    // SCENARIO: "12" typed — under the 3-character minimum.
     // EXPECTED: the invalid message (length leg of the validation works).
-    render(<Step2Harness initial="12" />)
-    await userEvent.setup().tab()
+    render(<Step2Harness />)
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText(t.accountNumberLabel), '12')
+    await user.tab()
     expect(screen.getByText(t.bankAccountInvalid)).toBeInTheDocument()
   })
 
+  // ⚠️ TEMPORARY (it.fails) — expected to fail while finding #22 is open.
+  // Converts to a plain it() when the digits-only fix lands; the suite going
+  // RED on "expected fail but passed" is the intended signal, NOT a regression.
   it.fails('finding #22: a letters-only RIB is never accepted', async () => {
-    // SCENARIO: the user types "abcdefghij" into the RIB field and leaves it.
+    // SCENARIO: the user TYPES "abcdefghij" into the RIB field (char by
+    //           char, so an input-filtering fix is exercised too) and leaves it.
     // EXPECTED: the field must reject it — EITHER the invalid message shows
     //           OR the value was filtered so no letters remain. A RIB is
     //           digits; letters must never reach the register payload.
     //           (fails today: length-only check accepts it silently)
-    render(<Step2Harness initial="abcdefghij" />)
-    await userEvent.setup().tab()
+    render(<Step2Harness />)
+    const user = userEvent.setup()
     const input = screen.getByLabelText(t.accountNumberLabel) as HTMLInputElement
+    await user.type(input, 'abcdefghij')
+    await user.tab()
     const rejected =
       screen.queryByText(t.bankAccountInvalid) !== null || !/[a-z]/i.test(input.value)
     expect(rejected).toBe(true)
   })
 
+  // ⚠️ TEMPORARY (it.fails) — same lifecycle as the test above.
   it.fails('finding #22: even ONE letter among digits is rejected (no MA-prefix IDs)', async () => {
-    // SCENARIO: "MA64000100000042" — the simulator-style ID: digits with a
-    //           two-letter prefix. PRODUCT RULE (decided by Zakaria): the
-    //           RIB is ALL NUMBERS, not a single letter anywhere.
+    // SCENARIO: "MA64000100000042" typed — the simulator-style ID: digits
+    //           with a two-letter prefix. PRODUCT RULE (decided by Zakaria):
+    //           the RIB is ALL NUMBERS, not a single letter anywhere.
     // EXPECTED: rejected — the message shows OR the letters were filtered
     //           out of the value. MA-prefix IDs are no longer legal input.
     //           (fails today: accepted silently, same as any other string)
-    render(<Step2Harness initial="MA64000100000042" />)
-    await userEvent.setup().tab()
+    render(<Step2Harness />)
+    const user = userEvent.setup()
     const input = screen.getByLabelText(t.accountNumberLabel) as HTMLInputElement
+    await user.type(input, 'MA64000100000042')
+    await user.tab()
     const rejected =
       screen.queryByText(t.bankAccountInvalid) !== null || !/[a-z]/i.test(input.value)
     expect(rejected).toBe(true)
@@ -236,5 +250,100 @@ describe('PIN: rules gate (Step 4)', () => {
     await user.click(screen.getByRole('button', { name: t.continueButton }))
 
     expect(screen.getByLabelText(t.amountInputLabel)).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Register payload — Step 2 end-to-end: the wire contract.
+// Whatever the fix mechanism is (error message OR input filtering), the
+// guarantee that matters is on the NETWORK: a letters-containing RIB must
+// never reach POST /api/auth/register, and a digits RIB must arrive intact.
+// ---------------------------------------------------------------------------
+
+describe('PIN: register payload (Step 2 -> POST /api/auth/register)', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    clearSignupCredentials()
+    setSignupCredentials({ email: EMAIL, password: PASSWORD })
+    sessionStorage.setItem(
+      'autowallet_signup_draft',
+      JSON.stringify({
+        email: EMAIL,
+        firstName: 'Qa',
+        lastName: 'Frontend',
+        registered: false,
+        // no bankAccount: the user types it in this test
+      }),
+    )
+  })
+
+  function stubRegisterFetch() {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  // ⚠️ TEMPORARY (it.fails) — expected to fail while finding #22 is open.
+  // Converts to a plain it() when the digits-only fix lands; the suite going
+  // RED on "expected fail but passed" is the intended signal, NOT a regression.
+  it.fails('finding #22 (end-to-end): neither a letters RIB nor an MA-prefix RIB is sent to the API', async () => {
+    // SCENARIO: full onboarding at Step 2. For EACH illegal RIB the user can
+    //           type, clicking Create account must end in a REJECTION at the
+    //           client — an error message on screen — and NEVER a network
+    //           call carrying the junk value.
+    // EXPECTED: fetch is never called for either value.
+    //           (fails today: both values are POSTed verbatim in the
+    //           bank_account_id of the register payload)
+    for (const rib of ['abcdefghij', 'MA64000100000042']) {
+      const fetchMock = stubRegisterFetch()
+      const { unmount } = renderOnboardingAt('/welcome/account')
+      const user = userEvent.setup()
+
+      await user.type(screen.getByLabelText(t.accountNumberLabel), rib)
+      // step 2's submit button is "Create account" — it triggers the register call
+      await user.click(screen.getByRole('button', { name: t.signupButton }))
+
+      // the app must reach a DECISION point: either it sent something (the
+      // bug, today) or it blocked with a message on screen. Waiting for
+      // "one of the two" avoids racing the async handler.
+      await waitFor(() => {
+        const sent = fetchMock.mock.calls.length > 0
+        const blocked = [t.bankAccountInvalid, t.bankAccountRequired].some(
+          (message) => screen.queryByText(message) !== null,
+        )
+        expect(sent || blocked).toBe(true)
+      })
+
+      // the decision must be "blocked" — nothing left the browser.
+      expect(fetchMock).not.toHaveBeenCalled()
+
+      unmount()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('a digits-only RIB is sent to the register API, exactly as typed', async () => {
+    // SCENARIO: full onboarding at Step 2, digits-only RIB typed, Create account.
+    // EXPECTED: exactly one POST to /api/auth/register, carrying the RIB
+    //           verbatim — the fix must never block legitimate input.
+    const fetchMock = stubRegisterFetch()
+    renderOnboardingAt('/welcome/account')
+    const user = userEvent.setup()
+
+    await user.type(screen.getByLabelText(t.accountNumberLabel), '00100000042')
+    await user.click(screen.getByRole('button', { name: t.signupButton }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/auth/register')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.bank_account_id).toBe('00100000042')
+    expect(body.email).toBe(EMAIL)
   })
 })

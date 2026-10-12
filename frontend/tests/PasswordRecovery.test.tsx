@@ -68,6 +68,10 @@ describe('PIN: forgot-password email', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  // ⚠️ TEMPORARY (it.fails) — expected to fail while finding #23 is open.
+  // Converts to a plain it() when the AuthCard-style email validation is
+  // added; the suite going RED on "expected fail but passed" is the
+  // intended signal, NOT a regression.
   it.fails('finding #23: a malformed email is never sent to the API', async () => {
     // SCENARIO: the user types "not-an-email" and submits.
     // EXPECTED: client-side rejection — the emailInvalid message shows AND
@@ -111,15 +115,18 @@ describe('PIN: forgot-password email', () => {
 })
 
 describe('PIN: reset-password field', () => {
-  it('a password under 8 characters never sends anything', () => {
-    // SCENARIO: "short" typed as the new password.
-    // EXPECTED: the submit button is disabled — the 8-character gate runs
-    //           client-side, before any request.
+  it('a typed password under 8 characters never sends anything', async () => {
+    // SCENARIO: "short" (5 chars) TYPED into the new-password field.
+    // EXPECTED: the submit button is disabled — this pins the 8-character
+    //           gate specifically (not just the empty-field default), so
+    //           no request can leave the browser with a weak password.
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
     const { container } = renderReset()
-    expect(screen.getByLabelText(t.newPasswordLabel)).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText(t.newPasswordLabel), 'short')
+
     const submit = container.querySelector('button[type="submit"]')
     expect(submit).not.toBeNull()
     expect(submit!).toBeDisabled()
