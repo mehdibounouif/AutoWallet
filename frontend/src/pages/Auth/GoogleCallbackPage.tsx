@@ -47,7 +47,11 @@ export function GoogleCallbackPage() {
     if (exchangeRef.current?.code !== code) {
       exchangeRef.current = {
         code,
-        promise: fetch(`/api/auth/oauth/google/callback?code=${encodeURIComponent(code)}`)
+        promise: fetch('/api/auth/oauth/google/exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        })
           .then(async (res) => ({ ok: res.ok, data: await res.json().catch(() => ({})) })),
       }
     }
@@ -62,7 +66,7 @@ export function GoogleCallbackPage() {
         if (result.ok) {
           if (typeof result.data.access_token !== 'string') throw new Error('Missing access token')
           localStorage.setItem('autowallet_token', result.data.access_token)
-          navigate('/maintenance', { replace: true })
+          navigate('/dashboard', { replace: true })
         } else {
           const detail = typeof result.data.detail === 'string'
             ? result.data.detail.toLowerCase()
@@ -72,7 +76,7 @@ export function GoogleCallbackPage() {
             const emailQuery = email ? `&email=${encodeURIComponent(email)}` : ''
             navigate(`/login?google_status=existing_password${emailQuery}`, { replace: true })
           } else {
-            navigate('/login?google_status=cancelled', { replace: true })
+            setErrorMessage(t.googleSignInFailed)
           }
         }
       } catch {
@@ -86,7 +90,7 @@ export function GoogleCallbackPage() {
     return () => {
       isMounted = false
     }
-  }, [navigate, searchParams, t.serviceUnavailable])
+  }, [navigate, searchParams, t.googleSignInFailed, t.serviceUnavailable])
 
   return (
     <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col">
@@ -106,10 +110,10 @@ export function GoogleCallbackPage() {
               <div className="flex flex-col gap-2.5 w-full">
                 <button
                   type="button"
-                  onClick={() => navigate('/login?google_status=cancelled')}
+                  onClick={() => navigate('/login')}
                   className="w-full h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white hover:bg-[#F3F6FA] text-[#3B495D] font-medium text-sm transition cursor-pointer"
                 >
-                  {t.googleCancel}
+                  {t.loginButton}
                 </button>
               </div>
             </>

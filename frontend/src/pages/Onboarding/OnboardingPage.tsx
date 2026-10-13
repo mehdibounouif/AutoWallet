@@ -221,7 +221,8 @@ export function OnboardingPage() {
     navigate('/welcome/rules')
   }
 
-  const handleStep4Continue = () => {
+  const handleStep4Continue = async () => {
+    if (loading) return
     setErrorMessage(null)
     const invalidInput = [
       { id: 'rule1-token-amount-1', value: rentAmount, max: Infinity },
@@ -235,8 +236,55 @@ export function OnboardingPage() {
       document.getElementById(invalidInput.id)?.focus()
       return
     }
+
     persistDraft()
-    navigate('/welcome/try')
+    if (!registered) {
+      navigate('/welcome/account')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: draftEmail.trim(), password: draftPassword }),
+      })
+      if (!loginResponse.ok) {
+        setErrorMessage(t.rulesSaveFailed)
+        return
+      }
+
+      const loginData = await loginResponse.json()
+      if (typeof loginData.access_token !== 'string') {
+        setErrorMessage(t.rulesSaveFailed)
+        return
+      }
+
+      const rulesResponse = await fetch('/api/rules/onboarding', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${loginData.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rent_amount: Number(rentAmount),
+          tax_percent: Number(taxPercent),
+          savings_percent: Number(savingsPercent),
+          savings_cap: Number(savingsCap),
+        }),
+      })
+      if (!rulesResponse.ok) {
+        setErrorMessage(t.rulesSaveFailed)
+        return
+      }
+
+      navigate('/welcome/try')
+    } catch {
+      setErrorMessage(t.rulesSaveFailed)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleBack = () => {
@@ -283,7 +331,7 @@ export function OnboardingPage() {
           } catch {
             // The session is valid even when browser storage is unavailable.
           }
-          navigate('/maintenance', { replace: true })
+          navigate('/dashboard', { replace: true })
           return
         }
       }
@@ -396,17 +444,19 @@ export function OnboardingPage() {
 
         {/* Step 4: Rules */}
         {step === 4 && (
-          <Step4Rules
-            rentAmount={rentAmount}
-            setRentAmount={setRentAmount}
-            taxPercent={taxPercent}
-            setTaxPercent={setTaxPercent}
-            savingsPercent={savingsPercent}
-            setSavingsPercent={setSavingsPercent}
-            savingsCap={savingsCap}
-            setSavingsCap={setSavingsCap}
-            t={t}
-          />
+          <fieldset disabled={loading} className="w-full">
+            <Step4Rules
+              rentAmount={rentAmount}
+              setRentAmount={setRentAmount}
+              taxPercent={taxPercent}
+              setTaxPercent={setTaxPercent}
+              savingsPercent={savingsPercent}
+              setSavingsPercent={setSavingsPercent}
+              savingsCap={savingsCap}
+              setSavingsCap={setSavingsCap}
+              t={t}
+            />
+          </fieldset>
         )}
 
         {/* Step 5: Try payment simulation */}
@@ -511,6 +561,7 @@ export function OnboardingPage() {
                 disabled={loading}
                 className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>{t.continueButton}</span>
               </button>
             </>
