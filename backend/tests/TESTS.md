@@ -10,17 +10,25 @@ doesn't make the reason obvious, that's a documentation bug — tell me.
 
 ```bash
 cd backend
-./venv/bin/pytest -q          # expected: 72 passed (nothing red)
+./venv/bin/pytest tests -q    # expected: 72 passed, 4 xfailed (nothing red)
 ./venv/bin/pytest tests/test_transactions.py -q   # one file
 ./venv/bin/pytest "tests/test_auth_client.py::test_auth_service_403_propagates_as_403"  # one test
 ```
 
+- BARE `pytest` (no path) collects the UNIT suite only — `pytest.ini`'s
+  `testpaths = tests` keeps `tests_e2e/` out of default collection. The
+  stack suite needs `docker compose up -d --wait` first; run it
+  explicitly: `./venv/bin/pytest tests_e2e -q` (CI's stack-e2e job passes
+  the path explicitly and is unaffected).
+
 - No server, no database server, no Redis, no bank simulator, no
-  authorization service needed — see §2 (fake infrastructure).
-- Current baseline: **72 passed, 0 xfailed**. The two findings the xfail
-  acceptance tests tracked (#10 GET leg, #12 role claim) are FIXED
-  (12269aa) — the tests now pass as plain tests and their xfail markers
-  were resolved (see §4's cycle log).
+  authorization service, no Google needed — see §2 (fake infrastructure).
+- Current baseline: **72 passed, 4 xfailed** (cycle-2 OAuth findings, by
+  design — see §4). Generation-1 findings (#10 GET leg, #12 role claim) are
+  FIXED (12269aa).
+- ⚠️ **main's settings currently block the suite at import** (finding #20):
+  until that fix lands, run with the four missing vars supplied —
+  `FRONTEND_GOOGLE_CALLBACK_URL=... POSTGRES_USER=... POSTGRES_PASSWORD=... POSTGRES_DB=... ./venv/bin/pytest -q`
 
 ---
 
@@ -116,7 +124,7 @@ The mapping contract (`service answer → endpoint status`):
 | `test_real_service_grants_token_with_role_claim` | realish + token WITH role → 200 (the contract the backend must reach) |
 | `test_real_service_accepts_backend_token_once_role_claim_exists` ⚠️ xfail | realish + REAL backend token → DESIRED 200; fails today (403): finding **#12** (owner **HOMIE**) |
 
-### `tests/test_oauth.py` — Google OAuth + linked-account gate (13 tests)
+### `tests/test_oauth.py` — Google OAuth + linked-account gate (17 tests)
 
 | Test | Scenario → Expected |
 |---|---|
@@ -128,11 +136,22 @@ The mapping contract (`service answer → endpoint status`):
 | `test_link_stealing_someone_elses_bank_id_rejected` | claim another user's bank id → 400 |
 | `test_link_requires_valid_body` | 2-char bank id → 422 |
 | `test_link_requires_auth` | link, no token → 401 |
-| `test_google_callback_bad_code_is_handled` | Google rejects forged code → clean 401 "Google rejected", no crash |
-| `test_google_callback_garbage_userinfo_response` | token exchange OK, userinfo hostile → clean 401 "user info" |
+| `test_google_callback_bad_code_is_handled` | full state dance, Google rejects forged code → clean 401 "Google rejected" (re-pinned to PR #51's state contract) |
+| `test_google_callback_garbage_userinfo_response` | full state dance, token OK, userinfo 403 → clean 401 "user info" (re-pinned; the malformed-200-body case is finding #19's test) |
 | `test_transactions_gated_for_unlinked_user` | unlinked user POSTs payment → 403 — **finding #10 POST leg, FIXED** |
 | `test_transaction_list_gated_for_unlinked_user` ⚠️ xfail | unlinked user GETs list → DESIRED 403; **fails today (200): finding #10 REOPENED** (owner **HOMIE**) |
 | `test_oauth_user_provisioning_matches_promise` | Google-created user → DB has the same 5 wallets + 4 rules |
+| `test_a_state_issued_to_another_browser_is_rejected` ⚠️ xfail | **finding #17** (owner **MEHDI**): another browser's state must NOT complete a login (login-CSRF) — see §4 |
+| `test_unverified_google_email_never_links_onto_an_existing_account` ⚠️ xfail | **finding #18** (owner **MEHDI**): `email_verified: false` → 401, no link — see §4 |
+| `test_userinfo_without_sub_answers_401_not_500` ⚠️ xfail | **finding #19** (owner **MEHDI**): userinfo without `sub` → 401, not KeyError/500 — see §4 |
+| `test_the_app_boots_from_the_committed_env_example` ⚠️ xfail | **finding #20** (owner **MEHDI**): Settings must construct from `.env.example` alone — see §4 |
+
+The state dance helpers (`_login_state`, `_fake_google`) live in the test
+file; every callback test now does `/login` → harvest state → `/callback`,
+with `follow_redirects=False` (starlette's TestClient follows redirects by
+default and would chase Google's URL over the real network). The full
+security analysis is the OAuth security review document, kept OUTSIDE the
+repo (QA's shared documents) — ask QA for it.
 
 ### `tests/test_poller.py` — the bank-simulator polling bridge (8 tests)
 
@@ -207,6 +226,20 @@ FUTURE finding:
   remove the marker, rename if needed, and re-run.
 - Reason text always names the finding number, the owner, and the exact
   file:line of the missing fix — so whoever picks it up starts warm.
+
+Open findings (cycle 2 — OAuth security review; the review document is kept
+outside the repo, in QA's shared documents):
+
+| Test | Finding | Owner | The missing fix |
+|---|---|---|---|
+| `test_a_state_issued_to_another_browser_is_rejected` (test_oauth.py) | **#17** | MEHDI | login-CSRF: the OAuth state is not bound to the requesting browser (`app/api/oauth.py` stores the raw state in Redis with no browser tie) — an attacker can complete HIS login inside the victim's browser. Fix: httpOnly SameSite=Lax cookie nonce at `/login`; store hash(nonce+state). |
+| `test_unverified_google_email_never_links_onto_an_existing_account` (test_oauth.py) | **#18** | MEHDI | the callback links Google onto an existing password account by email without checking Google's `email_verified` claim (oauth.py link branch) — the classic OAuth ATO pattern. Fix: 401 unless `profile.get("email_verified")` is true. |
+| `test_userinfo_without_sub_answers_401_not_500` (test_oauth.py) | **#19** | MEHDI | `profile["sub"]`/`profile["email"]` direct indexing → KeyError/500 before the author's own 401 guard (dead code for exactly its case). Fix: `.get()` + explicit 401. |
+| `test_the_app_boots_from_the_committed_env_example` (test_oauth.py) | **#20** | MEHDI | 4 required settings (`frontend_google_callback_url`, `postgres_user/password/db`) with no defaults and incomplete `.env.example` — the app can't boot from `cp .env.example .env`; 3 CI jobs red at import. Fix: defaults or complete the example. |
+
+(Finding #15 — AI routes bypass the api-gateway hop — is filed on the
+`feature/qa-ai-gdpr-tests` branch, PR #52. #21 — `/login` Redis-key spam,
+LOW — is report-only in the review doc: the fix shape is a design decision.)
 
 Closed-cycle log:
 
