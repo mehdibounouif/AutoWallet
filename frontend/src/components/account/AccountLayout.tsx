@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { BarChart3, LogOut, MessageCircle, ShieldCheck } from 'lucide-react'
+import { BarChart3, LayoutDashboard, LogOut, MessageCircle, ShieldCheck } from 'lucide-react'
 import { clearToken } from '../../api/client'
 import { LegalFooter } from '../common/LegalFooter'
 import { translations } from '../../i18n'
 
 const links = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/assistant', label: 'Assistant', icon: MessageCircle },
   { to: '/account/privacy', label: 'Privacy & data', icon: ShieldCheck },
@@ -26,7 +27,7 @@ export function AccountLayout({ title, subtitle, actions, children }: AccountLay
     <div className="min-h-screen bg-[#F3F6FA] flex flex-col">
       <header className="bg-white border-b border-[#DDE3EA]">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Link to="/analytics" className="flex items-center gap-2.5 shrink-0 hover:opacity-90">
+          <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0 hover:opacity-90">
             <img src="/AW.svg" alt="" className="h-8 w-auto" />
             <span className="text-xl font-bold text-[#3B495D] tracking-tight leading-none">AutoWallet</span>
           </Link>
