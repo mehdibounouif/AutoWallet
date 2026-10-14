@@ -11,12 +11,14 @@ from sqlalchemy.orm import Session
 from app.analytics import service
 from app.analytics.events import user_channel
 from app.analytics.schemas import Summary, Timeseries
+from app.core.auth_client import require_client
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.models import User, WalletType
 
-router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+# Like the other money routes, every analytics request first asks the api-gateway if it is allowed.
+router = APIRouter(prefix="/api/analytics", tags=["analytics"], dependencies=[Depends(require_client)])
 
 DEFAULT_DAYS = 30  # no dates chosen → the last 30 days
 MAX_DAYS = {"day": 366, "week": 1100, "month": 1100}  # keeps the charts readable
