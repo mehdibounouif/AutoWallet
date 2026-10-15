@@ -5,6 +5,9 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
+import hashlib
+import secrets
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours, as discussed
 
@@ -47,3 +50,11 @@ def get_totp_uri(secret: str, email: str) -> str:
 # Check if this 6-digit code correct for this user's secret and the current time?
 def verify_totp_code(secret: str, code: str) -> bool:
     return pyotp.TOTP(secret).verify(code, valid_window=1)
+
+
+def generate_password_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_password_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

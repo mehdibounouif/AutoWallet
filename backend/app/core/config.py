@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     postgres_password: str
     postgres_db: str
 
+    frontend_password_reset_url: str = "http://localhost:5173/auth/reset-password"
+    password_reset_ttl_seconds: int = 900
+
     class Config:
         env_file = ".env"
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
+from app.core.config import settings
 from app.services.provisioning import create_default_rules, create_default_wallets
 
 from app.api.schemas import Token, UserLogin, UserOut, UserRegister, LinkBankAccount
@@ -11,6 +12,21 @@ from app.models.models import User
 from app.api.schemas import TwoFactorSetupOut, TwoFactorVerify
 from app.core.security import generate_totp_secret, get_totp_uri, verify_totp_code
 
+from app.gdpr.email import EmailError, send_email
+from urllib.parse import urlencode
+
+from app.api.schemas import (
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    MessageResponse,
+)
+
+from app.core.redis_client import redis_client
+from app.core.security import (
+    generate_password_reset_token,
+    hash_password_reset_token,
+    hash_password,
+)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
@@ -99,3 +115,123 @@ def link_bank_account(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+@router.post("/password/forgot",response_model=MessageResponse,)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    generic_response = MessageResponse(
+        message=(
+            "If an account exists for this email, "
+            "a password reset link has been sent."
+        )
+    )
+
+    user = (
+        db.query(User)
+        .filter(User.email == payload.email)
+        .first()
+    )
+
+    if user is None:
+        return generic_response
+
+    if user.hashed_password is None:
+        return generic_response
+
+    reset_token = generate_password_reset_token()
+
+    token_hash = hash_password_reset_token(
+        reset_token
+    )
+
+    redis_client.setex(
+        f"password_reset:{token_hash}",
+        settings.password_reset_ttl_seconds,
+        str(user.id),
+    )
+
+    query = urlencode({
+        "token": reset_token,
+    })
+
+    reset_url = (
+        f"{settings.frontend_password_reset_url}"
+        f"?{query}"
+    )
+
+    try:
+        send_email(
+            to=user.email,
+            subject="Reset your AutoWallet password",
+            body=(
+                "A password reset was requested for your AutoWallet account.\n\n"
+                f"Reset your password here:\n{reset_url}\n\n"
+                f"This link expires in "
+                f"{settings.password_reset_ttl_seconds // 60} minutes.\n\n"
+                "If you did not request this, you can ignore this email."
+            ),
+        )
+    except EmailError:
+        redis_client.delete(
+            f"password_reset:{token_hash}"
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="Password reset email service is temporarily unavailable.",
+        )
+
+    return generic_response
+
+
+@router.post(
+    "/password/reset",
+    response_model=MessageResponse,
+)
+def reset_password(
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    token_hash = hash_password_reset_token(
+        payload.token
+    )
+
+    redis_key = f"password_reset:{token_hash}"
+
+    user_id = redis_client.getdel(redis_key)
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired password reset token",
+        )
+
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired password reset token",
+        )
+
+    if user.hashed_password is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired password reset token",
+        )
+
+    user.hashed_password = hash_password(
+        payload.new_password
+    )
+
+    db.commit()
+
+    return MessageResponse(
+        message="Password reset successfully."
+    )
