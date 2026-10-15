@@ -10,14 +10,14 @@ from typing import Literal
 
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.redis_client import redis_client
 from app.gdpr.email import EmailError, send_email
 from app.gdpr.schemas import DeleteConfirm, GdprMessage
-from app.models.models import Rule, Transaction, User, Wallet
+from app.models.models import Rule, Transaction, User, Wallet, WalletType
 
 router = APIRouter(prefix="/api/gdpr", tags=["gdpr"])
 
@@ -30,7 +30,9 @@ RULE_COLUMNS = [
     "priority", "name", "type", "envelope", "fixed_amount", "percentage",
     "condition_field", "condition_operator", "condition_value", "active",
 ]
-PAYMENT_COLUMNS = ["reference", "amount", "status", "created_at", "processed_at"]
+PAYMENT_FIELDS = ["reference", "amount", "status", "created_at", "processed_at"]
+ENVELOPES = [w.value for w in WalletType]  # main, rent, tax, savings, free
+PAYMENT_COLUMNS = PAYMENT_FIELDS + ENVELOPES  # payments.csv: the payment, then how much went into each envelope
 
 
 
@@ -54,11 +56,23 @@ def _date_for_email() -> str:
     return _now().strftime("%d %B %Y at %H:%M UTC")
 
 
+def _split_of(payment: Transaction) -> dict[str, float]:
+    """How much of this payment went into each envelope, in envelope order. Empty when no split was saved."""
+    amounts = {a.wallet_type.value: a.amount for a in payment.allocations}
+    return {envelope: amounts[envelope] for envelope in ENVELOPES if envelope in amounts}
+
+
 def collect_user_data(user: User, db: Session) -> dict:
     """Everything AutoWallet stores about this user, as plain data. Never the password hash or the 2FA secret."""
     wallets = db.query(Wallet).filter(Wallet.user_id == user.id).all()
     rules = db.query(Rule).filter(Rule.user_id == user.id).order_by(Rule.priority).all()
-    payments = db.query(Transaction).filter(Transaction.user_id == user.id).order_by(Transaction.created_at).all()
+    payments = (
+        db.query(Transaction)
+        .options(selectinload(Transaction.allocations))  # the splits of all payments in one extra query
+        .filter(Transaction.user_id == user.id)
+        .order_by(Transaction.created_at)
+        .all()
+    )
     return {
         "exported_at": _now().isoformat(),
         "profile": {
@@ -94,6 +108,7 @@ def collect_user_data(user: User, db: Session) -> dict:
                 "status": t.status.value if t.status else None,
                 "created_at": _iso(t.created_at),
                 "processed_at": _iso(t.processed_at),
+                "split": _split_of(t),  # e.g. {"main": 5525.0, "rent": 3500.0, "tax": 975.0}
             }
             for t in payments
         ],
@@ -109,6 +124,14 @@ def _csv(rows: list[dict], columns: list[str]) -> str:
     return out.getvalue()
 
 
+def _payment_row(payment: dict) -> dict:
+    """One line of payments.csv: the payment, then the amount per envelope (empty cells when no split was saved)."""
+    split = payment["split"]
+    row = {field: payment[field] for field in PAYMENT_FIELDS}
+    row.update({envelope: split.get(envelope, 0.0) if split else "" for envelope in ENVELOPES})
+    return row
+
+
 def _zip_of_csv(data: dict) -> bytes:
     """profile.csv, envelopes.csv, rules.csv and payments.csv in one zip file."""
     buffer = io.BytesIO()
@@ -116,7 +139,7 @@ def _zip_of_csv(data: dict) -> bytes:
         archive.writestr("profile.csv", _csv([data["profile"]], list(data["profile"])))
         archive.writestr("envelopes.csv", _csv(data["envelopes"], ENVELOPE_COLUMNS))
         archive.writestr("rules.csv", _csv(data["rules"], RULE_COLUMNS))
-        archive.writestr("payments.csv", _csv(data["payments"], PAYMENT_COLUMNS))
+        archive.writestr("payments.csv", _csv([_payment_row(p) for p in data["payments"]], PAYMENT_COLUMNS))
     return buffer.getvalue()
 
 
