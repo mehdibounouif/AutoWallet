@@ -1,10 +1,12 @@
+import { lazy, Suspense } from 'react'
 import { TopBar } from '../../components/common/TopBar'
 import { AuthCard } from './AuthCard'
-import { TwoFactorCard } from './TwoFactorCard'
 import { SessionEndedCard } from './SessionEndedCard'
-import { ForgotPasswordCard } from './ForgotPasswordCard'
-import { ResetPasswordCard } from './ResetPasswordCard'
-import { VerifyEmailCard } from './VerifyEmailCard'
+
+const TwoFactorCard = lazy(() => import('./TwoFactorCard').then(({ TwoFactorCard }) => ({ default: TwoFactorCard })))
+const ForgotPasswordCard = lazy(() => import('./ForgotPasswordCard').then(({ ForgotPasswordCard }) => ({ default: ForgotPasswordCard })))
+const ResetPasswordCard = lazy(() => import('./ResetPasswordCard').then(({ ResetPasswordCard }) => ({ default: ResetPasswordCard })))
+const VerifyEmailCard = lazy(() => import('./VerifyEmailCard').then(({ VerifyEmailCard }) => ({ default: VerifyEmailCard })))
 
 interface AuthPageProps {
   mode:
@@ -21,6 +23,7 @@ export function AuthPage({ mode }: AuthPageProps) {
   return (
     <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col">
       <TopBar />
+      <Suspense fallback={<main className="flex flex-1 items-center justify-center" role="status">Loading…</main>}>
       {mode === '2fa' ? (
         <TwoFactorCard />
       ) : mode === 'session-ended' ? (
@@ -34,6 +37,7 @@ export function AuthPage({ mode }: AuthPageProps) {
       ) : (
         <AuthCard mode={mode} />
       )}
+      </Suspense>
     </div>
   )
 }

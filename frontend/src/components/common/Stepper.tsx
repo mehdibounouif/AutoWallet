@@ -25,7 +25,7 @@ export function Stepper({
   return (
     <nav aria-label="Progress" className={`flex items-center ${expanded ? 'w-full' : ''}`}>
       {/* Desktop Stepper: 5-step numbered markers with connectors (Figma #117:958 & #77:1297) */}
-      <ol className={`hidden ${expanded ? 'xl:flex w-full gap-0' : 'md:flex gap-2 lg:gap-3'} items-center list-none m-0 p-0`}>
+      <ol className={`hidden ${expanded ? 'xl:flex w-full gap-0' : 'lg:flex gap-2 lg:gap-3'} items-center list-none m-0 p-0`}>
         {steps.map((stepItem, index) => {
           const isDone = stepItem.num < currentStep
           const isCurrent = stepItem.num === currentStep
@@ -95,7 +95,7 @@ export function Stepper({
       </ol>
 
       {/* Mobile Stepper Header (Figma #117:1155 & #77:1291) */}
-      <div className={`flex ${expanded ? 'xl:hidden' : 'md:hidden'} flex-col items-center`}>
+      <div className={`flex ${expanded ? 'xl:hidden' : 'lg:hidden'} flex-col items-center`}>
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[#1A2330]">
             {steps[currentStep - 1]?.label}

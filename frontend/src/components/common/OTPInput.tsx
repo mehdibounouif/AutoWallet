@@ -81,7 +81,8 @@ export function OTPInput({
           value={value[i] && value[i] !== ' ' ? value[i] : ''}
           onChange={(e) => handleChange(i, e)}
           onKeyDown={(e) => handleKeyDown(i, e)}
-          className={`w-11 sm:w-12 h-13 sm:h-14 text-center text-2xl font-mono font-semibold rounded-[10px] border transition focus:outline-none ${
+          aria-invalid={hasError || undefined}
+          className={`min-w-0 w-0 flex-1 sm:w-12 sm:flex-none h-13 sm:h-14 text-center text-2xl font-mono font-semibold rounded-[10px] border transition focus:outline-none ${
             disabled
               ? 'bg-[#F3F6FA] text-[#8C9BAE] border-[#DDE3EA] cursor-not-allowed opacity-60'
               : hasError

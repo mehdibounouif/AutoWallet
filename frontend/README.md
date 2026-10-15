@@ -15,10 +15,10 @@ Open `http://localhost:5173`. The development server proxies `/api` to the FastA
 ## Current API integration
 
 - Email login calls `POST /api/auth/login`. Sign-up calls `POST /api/auth/register` when the bank account step is submitted, so duplicate email and account errors appear there. The final onboarding action logs the registered user in.
-- Two-factor entry calls the login endpoint with `totp_code`. The Google button starts `/api/auth/oauth/google/login`, but the configured backend callback currently returns JSON directly to the browser. The frontend callback route is not reached by that flow.
+- Two-factor entry calls the login endpoint with `totp_code` and preserves the requested destination. The Google button starts `/api/auth/oauth/google/login`; the backend redirects to the frontend callback with a one-time code, which is exchanged through `/api/auth/oauth/google/exchange`.
 - Password recovery screens call `/api/auth/password/forgot` and `/api/auth/password/reset`. Those endpoints are not implemented by the current backend, so they show an error until the backend adds them.
 - The two-factor backup-code form has no backend verification endpoint yet, so it cannot complete sign-in.
-- Email verification resend is a UI placeholder; it currently only starts a countdown. Terms and Privacy links open prototype information pages. Their text needs legal review before public release.
+- Email verification sending is marked as unavailable until the backend supports it. Terms and Privacy links open prototype information pages. Their text needs legal review before public release.
 - The payment split on the final onboarding step is a local simulation. Edited onboarding rule values are saved through `PATCH /api/rules/onboarding` before moving to that step.
 - The protected `/dashboard` route loads `/api/auth/me`, `/api/wallets/`, `/api/transactions/`, and `/api/rules/`. Its Home screen follows the Figma free-to-spend, set-aside, payment-ribbon, and recent-payments layout. Users can record a payment through `POST /api/transactions/`, preview a split locally using their current rules, and link a bank account ID if needed. `/maintenance` redirects to `/dashboard` for older links.
 - Wallet and transaction reads require the `authorization` service in Docker Compose. The transaction API does not yet return payment dates or allocation breakdowns. The dashboard shows a clearly labeled next-payment preview when a historical split is unavailable, and it only shows dates and historical split bars when those fields are supplied. It refreshes after recording a payment, when the browser reconnects, and when the tab becomes visible; WebSocket events are not connected yet.
@@ -27,9 +27,11 @@ Signup and two-factor passwords are kept only in page memory while those flows a
 
 ## Integration work before release
 
-- Complete the Google OAuth redirect contract so the backend sends the user to a frontend callback or returns a session through another supported browser flow.
+- Verify Google OAuth provider credentials and deployed callback URLs in the target environment.
 - Add backend endpoints for password recovery, email verification, and backup-code sign-in before presenting those controls as available.
-- Add a way to save onboarding rule changes. Registration currently creates fixed defaults, so the simulated split can differ from subsequent real payments.
-- Registration requires a bank account ID, so onboarding requires an ID between 3 and 50 characters. Entering an ID does not verify ownership or connect to a bank.
+- Add endpoints for creating, deleting, pausing, and reordering individual rules. Edited starter-rule values already save through `PATCH /api/rules/onboarding`.
+- Registration requires a bank account ID, so onboarding requires an ID containing 3 to 50 digits. Entering an ID does not verify ownership or connect to a bank.
 - Replace the prototype Terms and Privacy text with reviewed legal documents before public release.
 - Consider a short-lived server-side challenge if the signup or two-factor flows must survive a page refresh without asking for credentials again.
+
+The dashboard also includes Envelopes at `/app/envelopes`, envelope details at `/app/envelopes/:walletType`, Rules at `/app/rules`, and Activity at `/app/activity`. See [AUDIT.md](AUDIT.md) for the frontend audit, mobile checks, and remaining work.

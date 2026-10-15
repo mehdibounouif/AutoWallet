@@ -1,15 +1,18 @@
+import { Dialog } from '../../components/common/Dialog'
 import { LegalFooter } from '../../components/common/LegalFooter'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, AlertCircle, Loader2, KeyRound } from 'lucide-react'
 import { OTPInput } from '../../components/common/OTPInput'
+import { safeReturnPath } from '../../auth/returnPath'
 import { translations } from '../../i18n'
 import { clearTwoFactorCredentials, getTwoFactorCredentials } from '../../auth/pendingCredentials'
 
 export function TwoFactorCard() {
   const t = translations
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [pendingData] = useState(() => getTwoFactorCredentials() ?? { email: '', password: '' })
 
   useEffect(() => {
@@ -55,7 +58,7 @@ export function TwoFactorCard() {
         if (typeof data.access_token !== 'string') throw new Error('Missing access token')
         localStorage.setItem('autowallet_token', data.access_token)
         clearTwoFactorCredentials()
-        navigate('/dashboard')
+        navigate(safeReturnPath(searchParams.get('redirect')))
       } else if (res.status === 401) {
         setWrongCode(true)
       } else if (res.status === 503) {
@@ -84,7 +87,7 @@ export function TwoFactorCard() {
     e.preventDefault()
     const cleanBackup = backupCode.trim().replace(/-/g, '')
     setBackupError(cleanBackup.length < 8)
-    if (cleanBackup.length >= 8) setServiceError(t.serviceUnavailable)
+    if (cleanBackup.length >= 8) setServiceError('Backup code sign-in is not available yet. Use your authenticator app.')
   }
 
   if (!pendingData.email || !pendingData.password) return null
@@ -191,18 +194,13 @@ export function TwoFactorCard() {
 
       {/* Backup Code Modal */}
       {showBackupModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 bg-[#1A2330]/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-        >
-          <div className="w-full max-w-[420px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-8 shadow-2xl space-y-4">
+        <Dialog labelledBy="backup-code-title" onClose={() => setShowBackupModal(false)} panelClassName="w-full max-w-[420px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-8 shadow-2xl space-y-4">
             <div className="w-10 h-10 rounded-full bg-[#ECEEFA] flex items-center justify-center text-[#5A64B4]">
               <KeyRound className="w-5 h-5" />
             </div>
 
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-[#1A2330]">
+              <h2 id="backup-code-title" className="text-xl font-semibold text-[#1A2330]">
                 {t.twoFactorBackupTitle}
               </h2>
               <p className="text-xs sm:text-sm text-[#5E6B7E] leading-relaxed">
@@ -253,8 +251,7 @@ export function TwoFactorCard() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Legal Footer (Figma EL-0b7a78e5) */}

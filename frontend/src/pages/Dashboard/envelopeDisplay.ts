@@ -1,13 +1,11 @@
 import type { ComponentType } from 'react'
 import { House, Landmark, PiggyBank, ShoppingBag, Wallet } from 'lucide-react'
 import type { DashboardRule, WalletType } from './dashboardApi'
-
-export const money = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
+import { money } from '../../utils/format'
+export { money } from '../../utils/format'
 
 export const envelopeOrder: WalletType[] = ['rent', 'tax', 'savings', 'main']
+export const walletOrder: WalletType[] = ['rent', 'tax', 'savings', 'free', 'main']
 
 export const envelopeMeta: Record<WalletType, {
   name: string
@@ -20,6 +18,24 @@ export const envelopeMeta: Record<WalletType, {
   savings: { name: 'Savings', icon: PiggyBank, color: '#1BAF7A', tint: '#E3F5EE' },
   free: { name: 'Free to spend', icon: ShoppingBag, color: '#A57400', tint: '#FBF1D7' },
   main: { name: 'Main', icon: Wallet, color: '#526176', tint: '#E9EDF2' },
+}
+
+export function envelopeTarget(type: WalletType, rules: DashboardRule[]) {
+  return rules.find((rule) => rule.is_active && rule.target_wallet === type &&
+    rule.condition_field === `${type}_balance` && (rule.condition_operator === '<' || rule.condition_operator === '<=') &&
+    rule.condition_value !== null && rule.condition_value > 0)?.condition_value ?? null
+}
+
+export function ruleDescription(rule: DashboardRule) {
+  const target = envelopeMeta[rule.target_wallet].name
+  const allocation = rule.rule_type === 'lock_fixed'
+    ? `Lock ${money.format(rule.fixed_amount ?? 0)} MAD into ${target}`
+    : `Put ${rule.percentage ?? 0}% of what's left into ${target}`
+  const comparisons: Record<string, string> = { '<': 'below', '<=': 'at or below', '>': 'above', '>=': 'at or above', '==': 'equal to' }
+  const comparison = comparisons[rule.condition_operator ?? '']
+  return rule.condition_field === `${rule.target_wallet}_balance` && rule.condition_value !== null && comparison
+    ? `${allocation}, only while ${target} is ${comparison} ${money.format(rule.condition_value)}`
+    : allocation
 }
 
 export function envelopeDescription(type: WalletType, rules: DashboardRule[]): string {

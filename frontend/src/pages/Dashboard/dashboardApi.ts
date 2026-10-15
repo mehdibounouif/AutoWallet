@@ -1,3 +1,5 @@
+import { newestPaymentsFirst } from './paymentUtils'
+
 export type WalletType = 'main' | 'rent' | 'tax' | 'savings' | 'free'
 
 export interface DashboardUser {
@@ -150,7 +152,7 @@ function parseRule(value: unknown): DashboardRule {
 async function getJson(path: string, token: string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(path, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    signal,
+    signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
   })
   if (!response.ok) throw new DashboardApiError(response.status, `Could not load ${path}`)
   return response.json()
@@ -169,7 +171,7 @@ export async function fetchDashboard(token: string, signal: AbortSignal): Promis
   return {
     user,
     wallets: parseArray(wallets, parseWallet),
-    transactions: parseArray(transactions, parseTransaction),
+    transactions: newestPaymentsFirst(parseArray(transactions, parseTransaction)),
     rules: parseArray(rules, parseRule).sort((a, b) => a.priority - b.priority),
   }
 }

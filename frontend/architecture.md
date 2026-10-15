@@ -1,5 +1,7 @@
 # AutoWallet — Architecture
 
+> Historical snapshot from September 2026. This document includes outdated implementation and deployment status. For the current frontend, see [README.md](README.md) and [AUDIT.md](AUDIT.md).
+
 State of the code on branch `feature/ai-integration` (September 23, 2026): `main` plus the AI assistant in `backend/app/ai`.
 Status marks: ✅ works · 🟡 partial or planned · ❌ empty placeholder / missing.
 

@@ -40,17 +40,17 @@ export function TopBar({
           </span>
         </button>
 
-        {/* Stepper (Desktop / Tablet md+) */}
+        {/* Stepper (Desktop and wide tablets) */}
         {children && (
-          <div className={`hidden ${finalStep ? 'xl:flex pl-4' : 'md:flex justify-center'} flex-1 items-center min-w-0`}>
+          <div className={`hidden ${finalStep ? 'xl:flex pl-4' : 'lg:flex justify-center'} flex-1 items-center min-w-0`}>
             {children}
           </div>
         )}
       </div>
 
-      {/* Stepper (Mobile <md: placed below the logo) */}
+      {/* Stepper (Compact screens: placed below the logo) */}
       {children && (
-        <div className={`${finalStep ? 'xl:hidden' : 'md:hidden'} flex justify-center w-full pt-3`}>
+        <div className={`${finalStep ? 'xl:hidden' : 'lg:hidden'} flex justify-center w-full pt-3`}>
           {children}
         </div>
       )}

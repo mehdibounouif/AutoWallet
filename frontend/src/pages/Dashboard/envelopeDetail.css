@@ -34,7 +34,7 @@
 .envelope-detail-rule-status.is-active > span { background: #5d67ba; }
 .envelope-detail-rule-status.is-active > span::after { transform: translateX(15px); }
 .envelope-detail-text-link { display: inline-flex; align-items: center; gap: 5px; margin-top: 17px; color: #5963b6; font-size: 12px; font-weight: 700; }
-.envelope-detail-text-link:hover, .envelope-detail-insight button:hover { text-decoration: underline; }
+.envelope-detail-text-link:hover, .envelope-detail-insight button:not(:disabled):hover { text-decoration: underline; }
 .envelope-detail-muted { margin-top: 20px; color: #718098; font-size: 13px; }
 .envelope-detail-glance dl { margin-top: 12px; }
 .envelope-detail-glance-row { display: flex; align-items: baseline; justify-content: space-between; gap: 15px; min-height: 42px; padding: 12px 0; border-bottom: 1px solid #dce4ed; font-size: 12px; }
@@ -43,6 +43,7 @@
 .envelope-detail-insight { display: flex; align-items: flex-start; gap: 9px; margin: 24px 0; color: #5b6b83; font-size: 12px; line-height: 1.55; }
 .envelope-detail-insight > svg { flex: 0 0 auto; margin-top: 2px; }
 .envelope-detail-insight button { display: inline-flex; align-items: center; gap: 3px; margin-top: 6px; color: #5963b6; font-weight: 700; }
+.envelope-detail-insight button:disabled { cursor: not-allowed; color: #8b98aa; }
 
 .envelope-detail-history { margin-top: 24px; padding: 24px; }
 .envelope-detail-insight + .envelope-detail-history { margin-top: 0; }

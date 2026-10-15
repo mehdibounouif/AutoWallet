@@ -1,3 +1,5 @@
+import { clearSignupDraft, readSignupDraft, writeSignupDraft } from './signupDraft'
+
 interface Credentials {
   email: string
   password: string
@@ -34,24 +36,8 @@ export function clearTwoFactorCredentials() {
 export function clearStoredPasswords() {
   try {
     sessionStorage.removeItem('autowallet_2fa_pending')
-    const storedDraft = sessionStorage.getItem('autowallet_signup_draft')
-    if (!storedDraft) return
-
-    const draft: unknown = JSON.parse(storedDraft)
-    if (!draft || typeof draft !== 'object' || Array.isArray(draft)) {
-      sessionStorage.removeItem('autowallet_signup_draft')
-      return
-    }
-
-    if ('password' in draft) {
-      delete draft.password
-      sessionStorage.setItem('autowallet_signup_draft', JSON.stringify(draft))
-    }
+    if (sessionStorage.getItem('autowallet_signup_draft')) writeSignupDraft(readSignupDraft())
   } catch {
-    try {
-      sessionStorage.removeItem('autowallet_signup_draft')
-    } catch {
-      // Browser storage can be unavailable; the signup flow still works in memory.
-    }
+    clearSignupDraft()
   }
 }

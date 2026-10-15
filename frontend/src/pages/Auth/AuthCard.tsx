@@ -14,6 +14,9 @@ import {
 import { GoogleIcon } from '../../components/icons'
 import { SessionEndedCard } from './SessionEndedCard'
 import { translations } from '../../i18n'
+import { writeSignupDraft } from '../../auth/signupDraft'
+import { safeReturnPath } from '../../auth/returnPath'
+import { isValidEmail } from '../../auth/validation'
 import {
   clearSignupCredentials,
   clearTwoFactorCredentials,
@@ -23,19 +26,6 @@ import {
 
 interface AuthCardProps {
   mode: 'login' | 'signup'
-}
-
-function safeReturnPath(requestedPath: string | null): string {
-  if (!requestedPath?.startsWith('/') || requestedPath.startsWith('//') || requestedPath.includes('\\')) {
-    return '/dashboard'
-  }
-  try {
-    const url = new URL(requestedPath, window.location.origin)
-    if (url.origin !== window.location.origin) return '/dashboard'
-    return `${url.pathname}${url.search}${url.hash}`
-  } catch {
-    return '/dashboard'
-  }
 }
 
 export function AuthCard({
@@ -130,7 +120,7 @@ export function AuthCard({
   const validateEmail = (val: string): string | null => {
     const trimmed = val.trim()
     if (!trimmed) return t.emailRequired
-    if (!/^\S+@\S+\.\S+$/.test(trimmed)) return t.emailInvalid
+    if (!isValidEmail(trimmed)) return t.emailInvalid
     return null
   }
 
@@ -142,6 +132,7 @@ export function AuthCard({
   // Handle Form Submission
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (loading) return
     setErrorMessage(null)
 
     if (mode === 'signup') {
@@ -167,11 +158,7 @@ export function AuthCard({
       // Keep the password in memory while non-secret draft details survive route changes.
       const draft = { email: email.trim() }
       setSignupCredentials({ ...draft, password })
-      try {
-        sessionStorage.setItem('autowallet_signup_draft', JSON.stringify(draft))
-      } catch {
-        // In-memory credentials still allow signup to continue.
-      }
+      writeSignupDraft(draft)
       navigate('/welcome/about', { state: draft })
       return
     }
@@ -199,7 +186,7 @@ export function AuthCard({
         const errData = await res.json().catch(() => ({}))
         if (errData.detail === '2FA code required') {
           setTwoFactorCredentials({ email: email.trim(), password })
-          navigate('/login/2fa')
+          navigate(`/login/2fa?redirect=${encodeURIComponent(safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to')))}`)
           return
         } else {
           setErrorMessage(t.wrongCredentials)
@@ -395,6 +382,7 @@ export function AuthCard({
               id="email-input"
               ref={emailInputRef}
               type="email"
+              autoComplete="email"
               required
               autoFocus={!statusFromQuery}
               value={email}
@@ -448,6 +436,7 @@ export function AuthCard({
               <input
                 id="password-input"
                 ref={passwordInputRef}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}

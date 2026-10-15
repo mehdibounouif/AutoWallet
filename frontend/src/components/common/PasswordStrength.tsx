@@ -54,7 +54,7 @@ export function PasswordStrength({ password, t, className = 'pt-1.5' }: Password
       </div>
 
       {/* Requirement & Status */}
-      <div className="flex items-center justify-between text-xs text-[#5E6B7E]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#5E6B7E]">
         <div className="flex items-center gap-1.5">
           {password.length >= 8 ? (
             <Check className="w-3.5 h-3.5 text-[#1BAF7A]" />

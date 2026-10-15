@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { Translations } from '../../../i18n'
+import { money as moneyFormatter, parseAmount } from '../../../utils/format'
 
 interface Props {
   simulatedAmount: string
@@ -33,14 +34,8 @@ interface Allocation {
   Icon: ComponentType<{ className?: string }>
 }
 
-const parseAmount = (value: string) => {
-  const trimmed = value.trim()
-  if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(trimmed)) return NaN
-  return Number(trimmed.replaceAll(',', ''))
-}
 const cents = (value: number) => Math.round(value * 100) / 100
-const money = (value: number) =>
-  value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: number) => moneyFormatter.format(value)
 
 function getAllocations(
   amount: number,

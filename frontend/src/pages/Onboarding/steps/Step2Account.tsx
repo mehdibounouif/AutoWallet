@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Info, AlertCircle } from 'lucide-react'
 import type { Translations } from '../../../i18n'
+import { isValidBankAccountId } from '../../../auth/validation'
 
 interface Step2AccountProps {
   bankAccount: string
@@ -20,11 +21,12 @@ export function Step2Account({
   const [touched, setTouched] = useState(false)
 
   const cleanAcc = bankAccount.trim()
-  const isValidFormat = cleanAcc.length >= 3 && cleanAcc.length <= 50
+  const isValidFormat = isValidBankAccountId(cleanAcc)
+  const hasNonDigit = /\D/.test(cleanAcc)
 
   const error =
     externalBankAccountError ||
-    (touched && cleanAcc.length > 0 && !isValidFormat ? t.bankAccountInvalid : null)
+    (hasNonDigit || (touched && cleanAcc.length > 0 && !isValidFormat) ? t.bankAccountInvalid : null)
 
   return (
     <div className="w-full max-w-[560px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-9 shadow-[0_8px_24px_-4px_rgba(27,36,50,0.08),0_2px_6px_-1px_rgba(27,36,50,0.04)] transition-all">
@@ -47,6 +49,8 @@ export function Step2Account({
           <input
             id="account-number-input"
             type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             required
             minLength={3}
             maxLength={50}
@@ -57,9 +61,7 @@ export function Step2Account({
             onBlur={() => setTouched(true)}
             onChange={(e) => {
               setBankAccount(e.target.value)
-              if (touched && e.target.value.trim().length >= 3) {
-                setTouched(false)
-              }
+              if (isValidBankAccountId(e.target.value)) setTouched(false)
             }}
             placeholder={t.accountNumberPlaceholder}
             className={`w-full h-11 px-3.5 rounded-[10px] border bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none transition ${
@@ -69,7 +71,7 @@ export function Step2Account({
             }`}
           />
           {error ? (
-            <p className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
+            <p role="alert" className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span>{error}</span>
             </p>

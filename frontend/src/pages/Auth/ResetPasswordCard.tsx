@@ -129,6 +129,7 @@ export function ResetPasswordCard() {
                 <div className="relative">
                   <input
                     id="new-password-input"
+                    autoComplete="new-password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     autoFocus
