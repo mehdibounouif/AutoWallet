@@ -37,3 +37,8 @@ pytest==8.4.2
 httpx==0.28.1
 fakeredis[lua]==2.30.0
 respx==0.23.1
+# PDF reports for the analytics export (app/analytics)
+fpdf2==2.8.9
+pillow==12.3.0
+fonttools==4.66.1
+defusedxml==0.7.1
