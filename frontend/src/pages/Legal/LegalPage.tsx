@@ -22,7 +22,7 @@ interface LegalDocument {
 }
 
 const CONTACT_EMAIL = 'mohamedamintarza@gmail.com'
-const LAST_UPDATED = '8 October 2026'
+const LAST_UPDATED = '14 October 2026'
 
 const documents: Record<LegalPageProps['document'], LegalDocument> = {
   privacy: {
@@ -69,7 +69,8 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
         title: 'Information stored in your browser',
         items: [
           'After you sign in, your browser keeps an access token in local storage. It is removed when you log out, and it stops working after 24 hours.',
-          "While you sign up, your email address is kept in session storage, and your password stays only in the page's memory. Both disappear when you close the tab.",
+          "While you sign up, the details you type (email address, first and last name, bank account ID and rule values) are kept in session storage, and your password stays only in the page's memory. They are deleted when you finish signing up or close the tab.",
+          'If you sign in with Google, the server sets one small security cookie that protects the sign-in from attacks. It lasts 10 minutes at most.',
           'AutoWallet does not use advertising or tracking cookies.',
         ],
       },
@@ -148,7 +149,7 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
         items: [
           'Payments come from our bank simulator, a test service that creates simulated payments. They are not real transfers.',
           'The Try a payment screen during signup is calculated in your browser. It does not submit a payment or change any balance.',
-          'Rule values you change during signup only affect that preview for now; your saved account starts with the default rules.',
+          'The rule values you choose during signup (rent amount, tax %, savings % and savings cap) are saved as your account rules.',
           'Always check calculated amounts yourself before relying on them.',
         ],
       },
