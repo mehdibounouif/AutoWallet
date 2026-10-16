@@ -1,6 +1,7 @@
 
 from fastapi import FastAPI
 
+from app.analytics import router as analytics_router
 from app.api import auth as auth_router
 from app.api import transactions as transactions_router
 from app.api import wallets as wallets_router
@@ -17,6 +18,7 @@ app.include_router(auth_router.router)
 app.include_router(gdpr_router.router)
 app.include_router(transactions_router.router)
 app.include_router(wallets_router.router)
+app.include_router(analytics_router.router)
 app.include_router(rules_router.router)
 app.include_router(oauth_router.router)
 app.include_router(ai_router.router)

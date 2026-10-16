@@ -8,11 +8,13 @@ from app.ai.prompt import build_messages, describe_user_data
 from app.ai.provider import AIError, ask_llm, check_configured, stream_llm
 from app.ai.rate_limit import ai_rate_limit
 from app.ai.schemas import ChatRequest, ChatResponse
+from app.core.auth_client import require_client
 from app.core.database import get_db
 from app.core.deps import require_linked_account
 from app.models.models import Rule, Transaction, User, Wallet
 
-router = APIRouter(prefix="/api/ai", tags=["ai"])
+# Like the other money routes, every AI request first asks the api-gateway if it is allowed.
+router = APIRouter(prefix="/api/ai", tags=["ai"], dependencies=[Depends(require_client)])
 
 
 def load_user_data(current_user: User = Depends(require_linked_account), db: Session = Depends(get_db)) -> str:

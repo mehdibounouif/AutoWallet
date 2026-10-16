@@ -109,3 +109,18 @@ class Transaction(Base):
     processed_at = Column(DateTime, nullable=True)
 
     owner = relationship("User", back_populates="transactions")
+    allocations = relationship("Allocation", back_populates="transaction", cascade="all, delete-orphan")
+
+
+class Allocation(Base):
+    """How much of one payment went into one envelope. Saved by the payment processor, read by analytics."""
+    __tablename__ = "allocations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    wallet_type = Column(SAEnum(WalletType), nullable=False)
+    amount = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    transaction = relationship("Transaction", back_populates="allocations")
