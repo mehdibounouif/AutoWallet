@@ -17,6 +17,7 @@ import { translations } from '../../i18n'
 import { writeSignupDraft } from '../../auth/signupDraft'
 import { clearGoogleReturnPath, rememberGoogleReturnPath, safeReturnPath } from '../../auth/returnPath'
 import { apiFetch } from '../../api/request'
+import { apiErrorDetail } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
 import { isValidEmail } from '../../auth/validation'
 import {
@@ -189,7 +190,7 @@ export function AuthCard({
         navigate(safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to')))
       } else if (res.status === 401) {
         const errData = await res.json().catch(() => ({}))
-        if (errData.detail === '2FA code required') {
+        if (apiErrorDetail(errData, '').message === '2FA code required') {
           setTwoFactorCredentials({ email: email.trim(), password })
           navigate(`/login/2fa?redirect=${encodeURIComponent(safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to')))}`)
           return

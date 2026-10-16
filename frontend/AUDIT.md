@@ -1,57 +1,97 @@
-# Frontend audit — October 15, 2026
+# Frontend audit — October 16, 2026
 
-Scope: application code, routes, styles, shared components, build output, dependency advisories, and responsive behavior. Backend and QA-owned test files were not changed. Existing uncommitted frontend work was preserved.
+## Scope and result
 
-## Changes completed
+Reviewed frontend source, imports, routes, styles, assets, dependencies, browser state, and requests against the current backend route handlers and schemas. Applied frontend cleanup while preserving the existing Analytics/live-update work. Backend code, QA test files, local design exports, and the local ZIP were not changed.
+
+**The implemented API features are connected in code. The project is not feature-complete or deployment-ready.** Some screens are intentionally local, and some controls await backend contracts. At this audit's runtime check, `docker compose ps` listed no running services and reported an unset `FRONTEND_GOOGLE_CALLBACK_URL`. These are environment findings, not missing frontend fetch calls.
+
+## Cleanup and fixes completed
 
 | Finding | Change |
 | --- | --- |
-| Dashboard screens and onboarding overflowed at 768px. The compact dashboard header also crowded the logo. | Added a tablet sidebar rail, corrected onboarding stepper breakpoints, allowed Home actions to wrap, and shortened the visible service label on phones. |
-| Fixed navigation and dialogs did not account consistently for phone safe areas or changing viewport height. | Added safe-area spacing and dynamic viewport sizing; improved small-screen inputs, verification-code cells, ribbon labels, and drawer controls. |
-| Dialogs repeated overlay markup and did not consistently trap focus, restore focus, close on Escape, or lock background interaction. | Added a shared Dialog for payment recording, simulation, payment details, rule editing, and backup-code entry. Saving dialogs cannot be dismissed mid-request. |
-| Menus had repeated document listeners or stayed open after outside clicks. | Added a shared dismissal hook used by Activity filters, rule menus, account menus, notifications, and mobile navigation. |
-| Dashboard navigation mixed local state with route state. Home also reused Activity's filtered payments. | Made the URL determine the active page and confined reference filtering to Activity. Browser navigation returns to the matching screen. |
-| An envelope URL such as `/app/envelopes/constructor` passed the object membership check. | Restricted lookup to the envelope map's own keys; invalid envelopes render the existing error screen. |
-| Currency/date formatting, amount validation, rule descriptions, and target lookup were repeated. | Consolidated these helpers. Rule descriptions now respect the actual comparison operator; progress targets use upper-bound conditions. |
-| The translation interface duplicated the entire English dictionary. | Inferred the type from the dictionary and removed its unused copy entry. |
-| Signup draft reads trusted arbitrary stored JSON, and draft cleanup was repeated. | Added a shared parser and storage helpers that allow only known non-secret fields. Passwords remain in memory and legacy stored passwords are stripped at startup. |
-| Two-factor login discarded the requested destination. Login and signup could also retain form state when switching modes. | Preserved the validated destination through two-factor entry and remounted auth screens when the mode changes. Added appropriate autocomplete hints. |
-| The signup simulation timer was not cleaned up. | Clear it when onboarding unmounts and prevent repeated simulation starts. |
-| Email verification resend only ran a countdown. | Marked sending verification links as unavailable rather than implying a message was sent. |
-| Secondary authentication and legal screens were in the initial application bundle. | Load these screens on demand. The main JS file decreased from approximately 326 KB to 243 KB; shared chunks are loaded separately, so this is not a 25% reduction in total first-load transfer. |
-| Activity grouping copied the growing group array for every transaction. | Append to groups instead; defer reference filtering while typing and reuse date formatters. |
-| History trusted API order and treated a missing envelope allocation as zero. | Sort dated transactions once and require explicit allocations for the envelope before reconstructing its history. Preserve server order when dates are incomplete. |
-| Dashboard reads could remain pending indefinitely. | Added a 15-second timeout while preserving cancellation. |
-| npm reported two high-severity vulnerable transitive packages. | Updated only `brace-expansion` 5.0.9 → 5.0.12 and `source-map-js` 1.2.1 → 1.2.2. npm reported zero vulnerabilities after the update. See the [brace-expansion advisory](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr) and [source-map-js advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q). |
+| Home markup, calculations, and payment rows made the dashboard shell difficult to maintain. | Extracted `HomeView.tsx` and its loading state. DashboardPage decreased from about 35.9 KB to 25.9 KB of source; this is an organization change, not a bundle-size claim. |
+| Analytics, Assistant, live-payment, and Settings clients were mixed into page folders. | Grouped those clients in `src/api/` and updated their consumers. Kept the dashboard's feature aggregator/public domain types in place. |
+| Wallet identifier lists and API error-detail parsing were repeated. | Added shared wallet types/validation and null-safe string/structured error parsing. Preserved domain-specific API errors and retry metadata. |
+| `fetchDashboard` had no callers. | Removed the unused wrapper; retained the account and resource reads used by the dashboard. |
+| Notification read state could remain stale in another open tab. | Added storage-event subscriptions, fresh reads when marking items, set-based lookup, and a memory fallback when persistence is blocked. |
+| Recovery's empty-email submit remained enabled, and email validation accepted multiple @ characters. | Disabled the empty submit and tightened the shared email check. Existing validation still displays errors before malformed input is sent. |
+| Analytics date validation allowed year 0000, which Python dates cannot accept. | Reject that year before making requests. |
+| Home could highlight a pending or failed payment as received income. | Highlight only the latest processed payment, while retaining all statuses in recent Activity. Distinguish an empty history from a history with no processed payments. |
+| Envelope summaries assumed every condition meant “below,” and comparison labels were duplicated. | Share comparison labels with the preview engine; describe the saved operator and the wallet whose balance is checked. Unknown conditions retain an explicit condition notice. |
+| README used a nonexistent Compose service name and described old integration behavior; architecture.md was a stale project-wide snapshot. | Corrected startup instructions and documented current frontend organization, live SSE, API coverage, and unsupported features. |
 
-All application source modules are reachable from the entry point, and the stylesheet class scan found no unused selectors after accounting for dynamic class names. No entire source file was deleted on an assumption that it was unused.
+All 73 current TypeScript source modules are reachable through static or lazy imports. All 10 source stylesheets are imported. No exact duplicate source files were found. Within individual stylesheets, no exact duplicate CSS rules with matching media/at-rule scopes were found. Those checks do not prove that every CSS declaration is necessary. No entire component or design asset was deleted merely because its filename looked obsolete. Dependency usage was reviewed against source and build configuration; no clearly unused package was identified.
 
-## Verification
+## Backend endpoint coverage
 
-- TypeScript/Vite production build, ESLint, and `git diff --check` passed.
-- A browser sweep checked 20 routes/states at 320, 390, 768, 1024, and 1440px: 100 combinations with no detected horizontal overflow or page errors after the changes.
-- Browser interactions passed at 320, 390, 768, and 1440px: Activity filters and clearing, mobile search focus, Home after searching, dialog Tab containment and Escape dismissal, background unlock, rule PATCH payloads, invalid envelope URLs, and two-factor return navigation.
-- A complete signup flow passed at 320px, including a duplicate bank-account rejection on the account step, successful registration, rule saving, payment simulation, dashboard navigation, and draft cleanup.
-- Browser checks used mocked API responses. They verify frontend behavior, not availability of the running backend, authorization service, Google provider, or WebSocket delivery. Real mobile keyboard and safe-area behavior still benefits from checking on physical devices.
-- Existing Vitest suite: **42 passed, 4 failed**, matching the four failures observed before this audit. No test files were edited.
+| Backend endpoint | Frontend consumer | Status / limit |
+| --- | --- | --- |
+| `POST /api/auth/register` | Onboarding account step | Connected; existing email/account errors appear at registration. Frontend requires a 3–50 digit ID. |
+| `POST /api/auth/login` | Login, two-factor, onboarding; security confirmation | Connected; two-factor and safe return paths supported. |
+| `GET /api/auth/me` | Dashboard and Settings | Connected; response lacks security-status metadata. |
+| `POST /api/auth/link-bank-account` | Dashboard link form | Connected; records an ID, does not verify bank ownership. |
+| `GET /api/auth/oauth/google/login` | Google sign-in button | Connected through browser redirect; needs provider/environment configuration. |
+| `GET /api/auth/oauth/google/callback` | Backend Google redirect handler | Indirectly used by the OAuth flow; frontend must not fetch it as a JSON API. |
+| `POST /api/auth/oauth/google/exchange` | Frontend Google callback page | Connected; exchanges the code once and restores destination. |
+| `POST /api/auth/2fa/setup`, `POST /api/auth/2fa/verify` | Security Settings | Connected; frontend checks existing status before setup. Backend must prevent concurrent replacement of an enabled secret. |
+| `GET /api/wallets/` | Home, Envelopes, details, previews | Connected; requires backend and gateway. |
+| `GET /api/transactions/`, `POST /api/transactions/` | Dashboard/Activity/details, Record payment | Connected; current response omits `created_at` and `allocations`. |
+| `GET /api/rules/`, `PATCH /api/rules/onboarding` | Dashboard Rules and onboarding | Connected; only existing starter-rule values are editable. |
+| `GET /api/analytics/summary`, `GET /api/analytics/timeseries` | Analytics | Connected; date, envelope, and interval filters use backend data. |
+| `GET /api/analytics/export?format=csv|pdf` | Analytics downloads | Connected; validates MIME/empty responses and releases object URLs. |
+| `GET /api/analytics/live` | Payment live-update hook | Connected using authenticated SSE, reconnect/backoff, and resynchronization. |
+| `POST /api/ai/chat/stream` | Assistant | Connected; external answers require a configured AI provider. |
+| `POST /api/ai/chat` | Optional alternative | Intentionally unused: the UI uses the streaming endpoint. |
+| `GET /api/gdpr/export?format=json|csv` | Privacy and data | Connected; JSON or ZIP download; security metadata also read from JSON. |
+| `POST /api/gdpr/delete-request`, `POST /api/gdpr/delete-confirm` | Account deletion dialog | Connected; handles code, cooldown, and service errors. Actual email delivery depends on SMTP. |
 
-The four existing test failures need QA updates: the tests expect the unavailable Move money action to be clickable, omit the Rules and Activity routes from their router harness, and submit an `MA`-prefixed bank ID despite the current numeric-ID validation. The browser checks cover the corresponding supported navigation and numeric account flow.
+Health checks and the gateway's authorization endpoint are infrastructure endpoints, not missing UI features. The gateway's `/ws` is still a placeholder; current live updates use the implemented SSE contract.
 
-## Remaining feature and deployment work
+## Remaining work by owner
 
-- Password recovery, email verification sending, and backup-code sign-in require backend support.
-- Settings connects authenticator setup/verification, JSON and CSV data exports, and account deletion with an emailed code. Profile/password updates, disabling 2FA, listing/revoking sessions, personal API keys, and most notification channels still need endpoints. Unsupported actions are visibly unavailable.
-- `/api/auth/me` does not return 2FA status. Before setting up an authenticator, password confirmation checks whether 2FA is already enabled; JSON exports also provide security metadata. The backend should expose status directly and reject setup for an already-enabled account atomically, so concurrent clients cannot replace an active key.
-- Settings keeps English as the only language. Light/Dark/System themes and payment alert preferences are saved in this browser. Payment alert preferences affect the bell, notification list and payment toast; Activity retains all payments. No account secrets are stored in browser preferences.
-- Creating, deleting, pausing, and reordering individual rules, spending, and transfers remain unavailable through the current frontend/API contract.
-- Payment detail, Analytics, Assistant, Notifications, and Sandbox have since been implemented from `frontend/design/`, along with the updated Record payment dialog. All seven Settings sections are now implemented from the supplied Settings export, with desktop navigation and a mobile index.
-- Analytics uses recorded payment data and local calculations. The health score and arbitrary suggested-rule creation still need backend support.
-- Assistant uses the existing streaming chat endpoint; external replies require a configured AI provider. The service always includes account context, so the UI does not offer a context-off switch or imply chat can apply rules.
-- Notifications currently derive from payments and save read state in this browser. Server notification storage, security/rule events, and WebSocket delivery need backend support.
-- Sandbox previews current rules locally. A separate test-payment contract is needed before saving simulated money into Activity.
-- Settings browser checks passed for the index and seven sections at 320, 390, 768 and 1440px. Mocked checks covered two-factor setup/verification, preserving an active authenticator, JSON/CSV downloads, deletion confirmation and cooldowns, email/service failures, Google setup after a security-status export, theme persistence/system changes, payment alert preferences, and expired sessions. Real accounts were not changed.
-- The new page work passes build and lint. The unchanged Vitest suite now has 40 passing and 6 failing tests: the four existing failures plus two outdated expectations for a payment detail modal and a numeric spinbutton. Payment detail is now a route, and formatted payment amounts use a text input with a decimal keyboard.
-- Live WebSocket updates are not connected. The dashboard refreshes after supported writes, reconnection, and returning to the tab.
-- Historical dates and splits depend on the fields returned by the API; the UI does not fabricate them.
-- `frontend/Dockerfile` remains empty; a production frontend container and reverse-proxy deployment need a separate implementation and deployment check.
-- `architecture.md` is a historical repository snapshot. Use the frontend README and this audit for current frontend status.
+### Frontend/backend calculation agreement
+
+The signup payment preview rounds each allocation to cents, while `dashboardSplit.ts` and the backend rule engine retain fractional cents until display. For example, an 8,500.05 payment with Rent 3,500, Tax 15%, and Savings 15% previews Free as 3,612.53 during signup but displays 3,612.54 using the backend calculation. Agree where currency rounding occurs, then use the same rule for signup, Sandbox, actual processing, and receipts. The signup preview still has a separate fixed starter-rule calculation; this is a remaining duplication and contract discrepancy, even though the source files themselves are not duplicates.
+
+### Backend contracts
+
+1. Include payment timestamps and persisted allocations in transaction responses. Current historical split bars, envelope ledgers, receipt detail, and per-payment analytics cannot be complete without them. Analytics aggregate endpoints do work independently; old payments without saved allocations are not automatically backfilled by the new table.
+2. Expose 2FA/sign-in status directly on an account read, and atomically reject setup that would overwrite an active authenticator. The frontend's confirmation workaround cannot protect against another client racing it.
+3. Add password recovery/reset, email verification/resend, and backup-code verification. Recovery requests currently receive 404 and display unavailable messaging; no email is falsely reported as sent on 404.
+4. Add profile/password updates, 2FA disable, session listing/revocation, personal API keys, and server notification/preferences endpoints if these planned Settings features are required.
+5. Add custom rule creation/deletion, pause/reorder, and transfer/spend contracts before enabling those actions. Starter-rule edits already save through PATCH.
+6. Review global transaction-reference uniqueness/lookup across users. The processor currently searches by reference without user scope, so different users can collide.
+7. Enforce the agreed numeric bank-ID rule server-side as well; current schemas only constrain string length. Real bank ownership verification is a separate missing integration.
+8. Review gateway role-check consistency: Rules uses authenticated linked-account dependencies but currently omits the gateway `require_client` guard present on other money endpoints.
+
+### Deployment and product decisions
+
+- Configure Google credentials and both callback URLs. The local frontend callback environment variable is currently unset.
+- Supply SMTP and AI provider configuration to the backend deployment. Current Compose does not forward those settings or start a mail service.
+- Implement the production frontend container/hosting, SPA route fallback, HTTPS and `/api` reverse proxy. Disable response buffering for SSE and allow long-lived streams. `frontend/Dockerfile` is still empty and its Compose service is commented out.
+- Sandbox and onboarding previews do not record money. Define a separate backend test-payment contract if persistent sandbox data is wanted.
+- Notification lists derive from payment reads; read IDs/theme/payment alerts are local browser preferences, not cross-device account data. Security/rule notification events require a server contract.
+- Historical data limits, legal content review, and whether to move Bearer tokens from local storage to HttpOnly cookies need coordinated product/backend decisions. Arbitrary suggested-rule creation and a health score are not supported by current contracts.
+
+## Verification and limits
+
+- Production TypeScript/Vite build, ESLint, and whitespace validation pass.
+- Current npm audit: **0 known vulnerabilities**. This is the registry scan for the installed lockfile, not a guarantee of application security.
+- Source/import and duplicate scans: no unreachable TS modules, unimported source stylesheets, or exact duplicate source files.
+- Browser checks: **14/14** existing regression scenarios passed using API fixtures: Settings independence, cached dashboard errors, notification pagination, password/two-factor/Google destinations, session expiry, cancellation/timeouts, rule and bank-link recovery, Assistant context, and 320px layout.
+- Additional browser checks: **5/5** passed, covering cross-tab notification synchronization and merging, blocked-storage fallback, malformed error bodies and input validation, moved Analytics/Assistant clients, and **54 route/viewport combinations** at 320/768/1440px with no detected horizontal overflow or uncaught page errors.
+- Follow-up audit: **2/2** focused browser scenarios passed for processed/pending/failed/empty Home states and all five rule comparisons, including conditions on another wallet and unknown operators. Build/lint passed again; the QA suite remained at **51 passed, 12 failed**, with no new failures. Backend route coverage and source reachability were rechecked against the same local revision.
+- Existing unchanged QA suite: **51 passed, 12 failed** after cleanup, compared with **50 passed, 13 failed** before cleanup. Empty recovery-email submission now passes. The remaining failures are listed below; the suite is not green.
+- This audit's browser checks use controlled API responses and verify frontend behavior/contracts. They do not establish current availability of the stopped local backend, Google, SMTP, or an external AI provider. Earlier Analytics integration work in this workspace also passed 12 scenarios against isolated PostgreSQL/Redis/backend/gateway services, including real CSV/PDF generation and payment events; those services were cleaned up before this audit.
+
+### QA follow-up (test files unchanged)
+
+| Failing expectations | Count | Required QA update |
+| --- | --- | --- |
+| Dashboard route/action/input expectations | 6 | Account for unavailable Move money, routed payment details, missing Rules/Activity routes in the harness, numeric bank IDs, and formatted text amount input. |
+| Tests marked `it.fails` for already-fixed bank-ID/recovery validation | 3 | Convert to ordinary passing tests; the negative-case assertions now succeed. |
+| Exact fetch argument assertions | 2 | Allow the AbortSignal added for cancellation/timeouts in Google exchange and onboarding login. |
+| Onboarding rules Continue expects an immediate local transition | 1 | Mock and await successful login and rule PATCH before expecting the preview. |
+
+Temporary browser audit scripts/results stay under `/tmp`; no QA-owned test or configuration file was edited.

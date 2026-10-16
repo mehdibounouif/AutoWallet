@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { Dialog } from '../../components/common/Dialog'
 import { parseAmount } from '../../utils/format'
 import { apiFetch } from '../../api/request'
+import { apiErrorDetail } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 export function RecordPaymentDialog({ onClose, onRecorded, onSessionEnded, available }: { onClose: () => void; onRecorded: (reference: string) => void; onSessionEnded: () => void; available: boolean }) {
@@ -40,7 +41,7 @@ export function RecordPaymentDialog({ onClose, onRecorded, onSessionEnded, avail
       if (response.status === 401) { onSessionEnded(); return }
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
-        setError(response.status === 409 ? 'Another payment is processing. Wait a moment, then try again with this same reference.' : typeof payload.detail === 'string' ? payload.detail : 'Could not record this payment. Please try again.')
+        setError(response.status === 409 ? 'Another payment is processing. Wait a moment, then try again with this same reference.' : apiErrorDetail(payload, 'Could not record this payment. Please try again.').message)
         return
       }
       onRecorded(reference.trim())

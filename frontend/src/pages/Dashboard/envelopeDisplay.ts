@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import { House, Landmark, PiggyBank, ShoppingBag, Wallet } from 'lucide-react'
 import type { DashboardRule, WalletType } from './dashboardApi'
 import { money } from '../../utils/format'
+import { ruleComparisonLabel } from './dashboardSplit'
 export { money } from '../../utils/format'
 
 export const envelopeOrder: WalletType[] = ['rent', 'tax', 'savings', 'main']
@@ -31,16 +32,23 @@ export function ruleDescription(rule: DashboardRule) {
   const allocation = rule.rule_type === 'lock_fixed'
     ? `Lock ${money.format(rule.fixed_amount ?? 0)} MAD into ${target}`
     : `Put ${rule.percentage ?? 0}% of what's left into ${target}`
-  const comparisons: Record<string, string> = { '<': 'below', '<=': 'at or below', '>': 'above', '>=': 'at or above', '==': 'equal to' }
-  const comparison = comparisons[rule.condition_operator ?? '']
-  return rule.condition_field === `${rule.target_wallet}_balance` && rule.condition_value !== null && comparison
-    ? `${allocation}, only while ${target} is ${comparison} ${money.format(rule.condition_value)}`
-    : allocation
+  if (rule.condition_field === null) return allocation
+  const conditionWallet = walletOrder.find(type => rule.condition_field === `${type}_balance`)
+  const comparison = ruleComparisonLabel(rule.condition_operator)
+  return conditionWallet && rule.condition_value !== null && comparison
+    ? `${allocation}, only while ${envelopeMeta[conditionWallet].name} is ${comparison} ${money.format(rule.condition_value)}`
+    : `${allocation}, only when its saved condition is met`
 }
 
 export function envelopeDescription(type: WalletType, rules: DashboardRule[]): string {
   const rule = rules.find((item) => item.is_active && item.target_wallet === type)
   if (!rule) return type === 'main' ? "Anything the rules don't take" : 'No active rule'
+  // The compact starter-rule copy below describes an own-wallet "below"
+  // condition. Other conditions need the actual saved comparison and wallet.
+  if (rule.condition_field !== null &&
+      (rule.condition_field !== `${type}_balance` || rule.condition_operator !== '<' || rule.condition_value === null)) {
+    return ruleDescription(rule)
+  }
   const previous = rules.filter((item) => item.is_active && item.priority < rule.priority).at(-1)
   const after = previous ? ` after ${envelopeMeta[previous.target_wallet].name}` : ''
   if (rule.rule_type === 'lock_fixed' && rule.fixed_amount !== null) {

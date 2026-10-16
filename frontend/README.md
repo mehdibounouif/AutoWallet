@@ -1,37 +1,44 @@
 # AutoWallet frontend
 
-React, TypeScript, Vite, Tailwind CSS, and React Router. The English-only app covers email login and sign-up, Google sign-in callback, two-factor entry, password recovery screens, five onboarding steps, Terms and Privacy information pages, and a dashboard backed by the existing API.
+English-only React application built with TypeScript, Vite, Tailwind CSS, and React Router. It includes authentication, onboarding, Home, Envelopes and envelope details, Rules, Activity and payment details, Analytics, Assistant, Notifications, Sandbox, and seven Settings sections.
 
 ## Run locally
 
+From the repository root, configure the existing backend environment variables, then run:
+
 ```bash
-docker compose up -d --build backend bank-simulator authorization
+docker compose up -d --build backend bank-simulator api-gateway
 npm ci --prefix frontend
 npm run dev --prefix frontend
 ```
 
-Open `http://localhost:5173`. The development server proxies `/api` to the FastAPI backend at `http://127.0.0.1:8000`. Set `API_PROXY_TARGET` when the backend uses another address, for example `API_PROXY_TARGET=http://127.0.0.1:8002 npm run dev --prefix frontend`. In production, the server that hosts the frontend must also forward `/api` to the backend. `npm run build` runs TypeScript and Vite; `npm run lint` runs ESLint.
+Open `http://localhost:5173`. Vite proxies `/api` to `http://127.0.0.1:8000`. To use another backend address:
 
-## Current API integration
+```bash
+API_PROXY_TARGET=http://127.0.0.1:8002 npm run dev --prefix frontend
+```
 
-- Email login calls `POST /api/auth/login`. Sign-up calls `POST /api/auth/register` when the bank account step is submitted, so duplicate email and account errors appear there. The final onboarding action logs the registered user in.
-- Two-factor entry calls the login endpoint with `totp_code` and preserves the requested destination. The Google button starts `/api/auth/oauth/google/login`; the backend redirects to the frontend callback with a one-time code, which is exchanged through `/api/auth/oauth/google/exchange`.
-- Password recovery screens call `/api/auth/password/forgot` and `/api/auth/password/reset`. Those endpoints are not implemented by the current backend, so they show an error until the backend adds them.
-- The two-factor backup-code form has no backend verification endpoint yet, so it cannot complete sign-in.
-- Email verification sending is marked as unavailable until the backend supports it. Terms and Privacy links open prototype information pages. Their text needs legal review before public release.
-- The payment split on the final onboarding step is a local simulation. Edited onboarding rule values are saved through `PATCH /api/rules/onboarding` before moving to that step.
-- The protected `/dashboard` route loads `/api/auth/me`, `/api/wallets/`, `/api/transactions/`, and `/api/rules/`. Its Home screen follows the Figma free-to-spend, set-aside, payment-ribbon, and recent-payments layout. Users can record a payment through `POST /api/transactions/`, preview a split locally using their current rules, and link a bank account ID if needed. `/maintenance` redirects to `/dashboard` for older links.
-- Wallet and transaction reads require the `authorization` service in Docker Compose. The transaction API does not yet return payment dates or allocation breakdowns. The dashboard shows a clearly labeled next-payment preview when a historical split is unavailable, and it only shows dates and historical split bars when those fields are supplied. It refreshes after recording a payment, when the browser reconnects, and when the tab becomes visible; WebSocket events are not connected yet.
+Wallets, transactions, analytics, and Assistant require the API gateway as well as the backend. Google sign-in also requires valid provider credentials, a registered backend callback URI, and `FRONTEND_GOOGLE_CALLBACK_URL` set to the frontend origin plus `/auth/google/callback`. Restart/recreate the backend after changing its environment. Assistant replies require the backend AI provider configuration; account-deletion emails require SMTP configuration.
 
-Signup and two-factor passwords are kept only in page memory while those flows are open. Refreshing the page loses them and returns the user to sign-up or login; after registration, a refresh returns to login. Non-secret signup draft details stay in session storage. The app removes passwords left in session storage by older frontend versions at startup. API failures stay on the current screen; they do not create a session or report success.
+## Checks
 
-## Integration work before release
+```bash
+npm run build --prefix frontend
+npm run lint --prefix frontend
+npm test --prefix frontend
+npm audit --prefix frontend
+```
 
-- Verify Google OAuth provider credentials and deployed callback URLs in the target environment.
-- Add backend endpoints for password recovery, email verification, and backup-code sign-in before presenting those controls as available.
-- Add endpoints for creating, deleting, pausing, and reordering individual rules. Edited starter-rule values already save through `PATCH /api/rules/onboarding`.
-- Registration requires a bank account ID, so onboarding requires an ID containing 3 to 50 digits. Entering an ID does not verify ownership or connect to a bank.
-- Replace the prototype Terms and Privacy text with reviewed legal documents before public release.
-- Consider a short-lived server-side challenge if the signup or two-factor flows must survive a page refresh without asking for credentials again.
+The current QA suite has known outdated expectations; see [AUDIT.md](AUDIT.md) for results and ownership. Build and lint are separate checks and currently pass.
 
-The dashboard also includes Envelopes at `/app/envelopes`, envelope details at `/app/envelopes/:walletType`, Rules at `/app/rules`, and Activity at `/app/activity`. See [AUDIT.md](AUDIT.md) for the frontend audit, mobile checks, and remaining work.
+## Backend connection
+
+Authentication, registration, bank account ID linking, wallet and payment reads, payment recording, saved starter-rule edits, analytics reads/downloads, streaming Assistant, authenticator setup/verification, data exports, and account deletion use the backend APIs. Live payment refresh uses authenticated **Server-Sent Events** at `/api/analytics/live`, with reconnect and resynchronization. Settings loads account data independently of payment services.
+
+Sandbox and onboarding payment simulation calculate local previews. Themes, payment-alert preferences, and notification read IDs are browser preferences. Entering a bank account ID records that ID; it does not verify ownership or connect a real bank. Historical payment details display only data actually supplied by the API.
+
+Password recovery and reset have frontend request handlers, but their backend routes are missing. Email verification, backup-code login, custom rule management, profile/password changes, session revocation, personal API keys, and disabling two-factor login also need backend support. The UI identifies unsupported actions. See the [endpoint matrix and remaining work](AUDIT.md#backend-endpoint-coverage).
+
+Signup and two-factor passwords remain in memory; refreshing those flows requires signing in again. Non-secret signup drafts use session storage. Sign-in tokens currently use local storage. Moving tokens to HttpOnly cookies would require a coordinated backend authentication change.
+
+See [architecture.md](architecture.md) for file organization and data flow. Production hosting must serve the SPA fallback and proxy `/api`, including streaming responses; the frontend Dockerfile is still an empty deployment placeholder.

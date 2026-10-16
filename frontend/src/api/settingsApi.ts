@@ -1,4 +1,5 @@
-import { apiFetch } from '../../api/request'
+import { apiFetch } from './request'
+import { apiErrorDetail } from './errors'
 
 export class SettingsApiError extends Error {
   status: number
@@ -21,9 +22,9 @@ export async function settingsRequest(path: string, options: RequestInit = {}) {
   })
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}))
-    const message = typeof payload.detail === 'string' ? payload.detail : typeof payload.detail?.message === 'string' ? payload.detail.message : 'This action is unavailable right now. Please try again.'
+    const { message, code } = apiErrorDetail(payload, 'This action is unavailable right now. Please try again.')
     const retry = Number(response.headers.get('Retry-After'))
-    throw new SettingsApiError(response.status, message, Number.isFinite(retry) ? Math.max(0, Math.min(900, retry)) : 0, typeof payload.detail?.code === 'string' ? payload.detail.code : null)
+    throw new SettingsApiError(response.status, message, Number.isFinite(retry) ? Math.max(0, Math.min(900, retry)) : 0, code)
   }
   return response
 }

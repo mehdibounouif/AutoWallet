@@ -3,8 +3,8 @@ import { Check, Copy, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { OTPInput } from '../../components/common/OTPInput'
 import { AuthenticatorCode } from './AuthenticatorCode'
-import { SettingsApiError, settingsRequest } from './settingsApi'
-import type { SecurityInfo } from './settingsApi'
+import { SettingsApiError, settingsRequest } from '../../api/settingsApi'
+import type { SecurityInfo } from '../../api/settingsApi'
 
 export function SecuritySettings({ email, info, onEnabled, onSessionEnded, online }: {
   email: string; info: SecurityInfo; onEnabled: (enabled: boolean) => void; onSessionEnded: () => void; online: boolean

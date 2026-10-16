@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, Download, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Dialog } from '../../components/common/Dialog'
-import { SettingsApiError, securityFromExport, settingsRequest } from './settingsApi'
-import type { SecurityInfo } from './settingsApi'
+import { SettingsApiError, securityFromExport, settingsRequest } from '../../api/settingsApi'
+import type { SecurityInfo } from '../../api/settingsApi'
 
 interface Props {
   email: string

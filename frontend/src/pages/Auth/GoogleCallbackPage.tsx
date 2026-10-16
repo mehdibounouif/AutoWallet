@@ -4,6 +4,7 @@ import { Loader2, AlertCircle } from 'lucide-react'
 import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
 import { apiFetch } from '../../api/request'
+import { apiErrorDetail } from '../../api/errors'
 import { clearGoogleReturnPath, loginPath, readGoogleReturnPath } from '../../auth/returnPath'
 
 interface ExchangeResult {
@@ -77,9 +78,7 @@ export function GoogleCallbackPage() {
           clearGoogleReturnPath()
           navigate(returnPath, { replace: true })
         } else {
-          const detail = typeof result.data.detail === 'string'
-            ? result.data.detail.toLowerCase()
-            : ''
+          const detail = apiErrorDetail(result.data, '').message.toLowerCase()
 
           if (detail.includes('already has a password') || detail.includes('existing')) {
             const emailQuery = email ? `&email=${encodeURIComponent(email)}` : ''

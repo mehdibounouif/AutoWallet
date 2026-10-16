@@ -1,7 +1,8 @@
 import { newestPaymentsFirst } from './paymentUtils'
 import { apiFetch } from '../../api/request'
-
-export type WalletType = 'main' | 'rent' | 'tax' | 'savings' | 'free'
+import { isWalletType } from '../../api/walletTypes'
+import type { WalletType } from '../../api/walletTypes'
+export type { WalletType } from '../../api/walletTypes'
 
 export interface DashboardUser {
   id: string
@@ -55,15 +56,10 @@ export class DashboardApiError extends Error {
   }
 }
 
-const walletTypes = new Set<WalletType>(['main', 'rent', 'tax', 'savings', 'free'])
 const transactionStatuses = new Set(['pending', 'processed', 'failed'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isWalletType(value: unknown): value is WalletType {
-  return typeof value === 'string' && walletTypes.has(value as WalletType)
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -178,8 +174,4 @@ export async function fetchDashboardResources(user: DashboardUser, token: string
     transactions: newestPaymentsFirst(parseArray(transactions, parseTransaction)),
     rules: parseArray(rules, parseRule).sort((a, b) => a.priority - b.priority),
   }
-}
-
-export async function fetchDashboard(token: string, signal: AbortSignal): Promise<DashboardData> {
-  return fetchDashboardResources(await fetchDashboardUser(token, signal), token, signal)
 }

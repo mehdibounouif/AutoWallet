@@ -1,9 +1,17 @@
 import type { DashboardRule, DashboardWallet, WalletType } from './dashboardApi'
 import { money } from '../../utils/format'
+import { walletTypes } from '../../api/walletTypes'
 
 export type SplitAmounts = Record<WalletType, number>
 
-const walletTypes: WalletType[] = ['main', 'rent', 'tax', 'savings', 'free']
+const comparisonLabels = new Map([
+  ['<', 'below'], ['<=', 'at or below'], ['>', 'above'],
+  ['>=', 'at or above'], ['==', 'equal to'],
+])
+
+export function ruleComparisonLabel(operator: string | null) {
+  return comparisonLabels.get(operator ?? '')
+}
 
 export interface PreviewStep {
   rule: DashboardRule
@@ -32,8 +40,7 @@ export function previewPayment(amount: number, rules: DashboardRule[], wallets: 
             : rule.condition_operator === '>=' ? balance >= threshold
               : rule.condition_operator === '==' ? balance === threshold : false
       if (!matches) {
-        const comparisons: Record<string, string> = { '<': 'below', '<=': 'at or below', '>': 'above', '>=': 'at or above', '==': 'equal to' }
-        const comparison = comparisons[rule.condition_operator ?? '']
+        const comparison = ruleComparisonLabel(rule.condition_operator)
         skip(comparison ? `Current ${rule.condition_field.replaceAll('_', ' ')} is ${money.format(balance)}; this rule requires ${comparison} ${money.format(threshold)}.` : 'Balance condition not met')
         continue
       }

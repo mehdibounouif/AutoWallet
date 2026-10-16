@@ -17,6 +17,7 @@ import { isValidRuleValue } from '../../utils/format'
 import { clearSignupDraft, parseSignupDraft, readSignupDraft, writeSignupDraft } from '../../auth/signupDraft'
 import type { SignupDraft } from '../../auth/signupDraft'
 import { apiFetch } from '../../api/request'
+import { apiErrorDetail } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
@@ -164,7 +165,7 @@ export function OnboardingPage() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}))
-        const detail = typeof error.detail === 'string' ? error.detail.toLowerCase() : ''
+        const detail = apiErrorDetail(error, '').message.toLowerCase()
         if (detail.includes('email')) {
           setErrorMessage(t.emailExists)
         } else if (detail.includes('bank account')) {
