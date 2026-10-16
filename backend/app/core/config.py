@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     google_client_secret: str
     google_redirect_uri: str
     frontend_google_callback_url: str
-    
+    frontend_email_verify_url: str = ("http://localhost:5173/auth/verify-email")
 
     # AI assistant (app/ai): any OpenAI-compatible API (Gemini, OpenRouter, OpenAI...)
     ai_api_key: str | None = None

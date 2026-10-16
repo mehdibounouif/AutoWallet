@@ -91,3 +91,16 @@ class OnboardingRulesUpdate(BaseModel):
 
 class OAuthExchangeRequest(BaseModel):
     code: str
+
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class MessageResponse(BaseModel):
+    message: str
