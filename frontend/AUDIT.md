@@ -40,8 +40,17 @@ The four existing test failures need QA updates: the tests expect the unavailabl
 ## Remaining feature and deployment work
 
 - Password recovery, email verification sending, and backup-code sign-in require backend support.
+- Settings connects authenticator setup/verification, JSON and CSV data exports, and account deletion with an emailed code. Profile/password updates, disabling 2FA, listing/revoking sessions, personal API keys, and most notification channels still need endpoints. Unsupported actions are visibly unavailable.
+- `/api/auth/me` does not return 2FA status. Before setting up an authenticator, password confirmation checks whether 2FA is already enabled; JSON exports also provide security metadata. The backend should expose status directly and reject setup for an already-enabled account atomically, so concurrent clients cannot replace an active key.
+- Settings keeps English as the only language. Light/Dark/System themes and payment alert preferences are saved in this browser. Payment alert preferences affect the bell, notification list and payment toast; Activity retains all payments. No account secrets are stored in browser preferences.
 - Creating, deleting, pausing, and reordering individual rules, spending, and transfers remain unavailable through the current frontend/API contract.
-- Analytics, Assistant, Settings, and the full Notifications design remain to be implemented. Payment details and payment recording/sandbox still use the existing dialogs.
+- Payment detail, Analytics, Assistant, Notifications, and Sandbox have since been implemented from `frontend/design/`, along with the updated Record payment dialog. All seven Settings sections are now implemented from the supplied Settings export, with desktop navigation and a mobile index.
+- Analytics uses recorded payment data and local calculations. The health score and arbitrary suggested-rule creation still need backend support.
+- Assistant uses the existing streaming chat endpoint; external replies require a configured AI provider. The service always includes account context, so the UI does not offer a context-off switch or imply chat can apply rules.
+- Notifications currently derive from payments and save read state in this browser. Server notification storage, security/rule events, and WebSocket delivery need backend support.
+- Sandbox previews current rules locally. A separate test-payment contract is needed before saving simulated money into Activity.
+- Settings browser checks passed for the index and seven sections at 320, 390, 768 and 1440px. Mocked checks covered two-factor setup/verification, preserving an active authenticator, JSON/CSV downloads, deletion confirmation and cooldowns, email/service failures, Google setup after a security-status export, theme persistence/system changes, payment alert preferences, and expired sessions. Real accounts were not changed.
+- The new page work passes build and lint. The unchanged Vitest suite now has 40 passing and 6 failing tests: the four existing failures plus two outdated expectations for a payment detail modal and a numeric spinbutton. Payment detail is now a route, and formatted payment amounts use a text input with a decimal keyboard.
 - Live WebSocket updates are not connected. The dashboard refreshes after supported writes, reconnection, and returning to the tab.
 - Historical dates and splits depend on the fields returned by the API; the UI does not fabricate them.
 - `frontend/Dockerfile` remains empty; a production frontend container and reverse-proxy deployment need a separate implementation and deployment check.

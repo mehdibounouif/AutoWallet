@@ -14,8 +14,8 @@ export function formatDate(value?: string, includeYear = false) {
 
 export function parseAmount(value: string) {
   const trimmed = value.trim()
-  if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(trimmed)) return NaN
-  return Number(trimmed.replaceAll(',', ''))
+  if (!/^(?:\d+|\d{1,3}(?:,\d{3})+|\d{1,3}(?:[ \u00a0\u202f]\d{3})+)(?:\.\d{1,2})?$/.test(trimmed)) return NaN
+  return Number(trimmed.replace(/[, \u00a0\u202f]/g, ''))
 }
 
 export function isValidRuleValue(value: string, maximum = Infinity) {
