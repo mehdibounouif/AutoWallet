@@ -1,3 +1,5 @@
+import { apiFetch } from '../../api/request'
+
 export class SettingsApiError extends Error {
   status: number
   retryAfter: number
@@ -13,10 +15,9 @@ export class SettingsApiError extends Error {
 export async function settingsRequest(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('autowallet_token')
   if (!token) throw new SettingsApiError(401, 'Please sign in again.')
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     ...options,
     headers: { Authorization: `Bearer ${token}`, ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
-    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
   })
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}))

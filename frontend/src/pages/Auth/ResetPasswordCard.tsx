@@ -12,10 +12,13 @@ import {
   Loader2,
 } from 'lucide-react'
 import { translations } from '../../i18n'
+import { apiFetch } from '../../api/request'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 export function ResetPasswordCard() {
   const t = translations
   const navigate = useNavigate()
+  const requestSignal = useRequestSignal()
   const [searchParams] = useSearchParams()
 
   const isExpired = searchParams.get('status') === 'expired' || !searchParams.get('token')
@@ -30,14 +33,16 @@ export function ResetPasswordCard() {
     e.preventDefault()
     if (password.length < 8 || loading) return
 
+    const signal = requestSignal()
     setLoading(true)
 
     setErrorMessage(null)
     try {
-      const response = await fetch('/api/auth/password/reset', {
+      const response = await apiFetch('/api/auth/password/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password, token: searchParams.get('token') }),
+        signal,
       })
       if (response.status === 404) {
         setErrorMessage(t.passwordRecoveryUnavailable)
@@ -46,9 +51,9 @@ export function ResetPasswordCard() {
       if (!response.ok) throw new Error('Password reset failed')
       setIsSuccess(true)
     } catch {
-      setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 

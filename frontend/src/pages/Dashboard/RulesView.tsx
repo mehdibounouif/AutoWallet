@@ -8,6 +8,8 @@ import { envelopeMeta, money, ruleDescription } from './envelopeDisplay'
 import { Dialog } from '../../components/common/Dialog'
 import { useDismissibleLayer } from '../../hooks/useDismissibleLayer'
 import { isValidRuleValue } from '../../utils/format'
+import { apiFetch } from '../../api/request'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 import './rules.css'
 
 const previewAmount = 8500
@@ -36,6 +38,7 @@ interface RulesViewProps {
 }
 
 export function RulesView({ data, onSaved, onSessionEnded }: RulesViewProps) {
+  const requestSignal = useRequestSignal()
   const MainIcon = envelopeMeta.main.icon
   const rules = [...data.rules].sort((left, right) => left.priority - right.priority)
   const defaultRules = starterNames.map((name) => rules.find((rule) => rule.name === name))
@@ -86,13 +89,15 @@ export function RulesView({ data, onSaved, onSessionEnded }: RulesViewProps) {
     }
     const token = localStorage.getItem('autowallet_token')
     if (!token) { onSessionEnded(); return }
+    const signal = requestSignal()
     setSaving(true)
     setError(null)
     try {
-      const response = await fetch('/api/rules/onboarding', {
+      const response = await apiFetch('/api/rules/onboarding', {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal,
       })
       if (response.status === 401) { onSessionEnded(); return }
       if (!response.ok) {
@@ -103,9 +108,9 @@ export function RulesView({ data, onSaved, onSessionEnded }: RulesViewProps) {
       setNotice('Rule saved. Future payments use the updated value.')
       await onSaved()
     } catch {
-      setError('Could not reach the backend. Please try again.')
+      if (!signal.aborted) setError('The rule update could not be confirmed. Close this editor and refresh Rules before trying again.')
     } finally {
-      setSaving(false)
+      if (!signal.aborted) setSaving(false)
     }
   }
 

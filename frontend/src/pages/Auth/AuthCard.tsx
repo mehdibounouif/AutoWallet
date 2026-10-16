@@ -15,7 +15,9 @@ import { GoogleIcon } from '../../components/icons'
 import { SessionEndedCard } from './SessionEndedCard'
 import { translations } from '../../i18n'
 import { writeSignupDraft } from '../../auth/signupDraft'
-import { safeReturnPath } from '../../auth/returnPath'
+import { clearGoogleReturnPath, rememberGoogleReturnPath, safeReturnPath } from '../../auth/returnPath'
+import { apiFetch } from '../../api/request'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 import { isValidEmail } from '../../auth/validation'
 import {
   clearSignupCredentials,
@@ -65,6 +67,7 @@ export function AuthCard({
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const requestSignal = useRequestSignal()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -168,13 +171,15 @@ export function AuthCard({
       return
     }
 
+    const signal = requestSignal()
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
+        signal,
       })
 
       if (res.ok) {
@@ -197,9 +202,9 @@ export function AuthCard({
         setErrorMessage(t.wrongCredentials)
       }
     } catch {
-      setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 
@@ -217,12 +222,14 @@ export function AuthCard({
 
     // Give user brief moment to see the Figma Opening Google state, then redirect
     redirectTimerRef.current = setTimeout(() => {
+      rememberGoogleReturnPath(searchParams.get('redirect') || searchParams.get('return_to'))
       window.location.href = '/api/auth/oauth/google/login'
     }, 1800)
   }
 
   // Handle Cancel from Google Redirecting Card (Figma #114:696 -> #114:734)
   const handleCancelGoogle = () => {
+    clearGoogleReturnPath()
     if (redirectTimerRef.current) {
       clearTimeout(redirectTimerRef.current)
       redirectTimerRef.current = null

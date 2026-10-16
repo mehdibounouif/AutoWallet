@@ -107,6 +107,8 @@
 .notifications-view > footer button { display: flex; align-items: center; gap: 5px; width: fit-content; color: #5963b6; font-size: 12px; }
 .notifications-view:not(.notifications-view--compact) { overflow: hidden; border: 1px solid var(--aw-border, #dce3eb); border-radius: 14px; background: var(--aw-surface, #fff); }
 .notifications-view:not(.notifications-view--compact) .notifications-list { max-height: none; }
+.notifications-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px 20px; }
+.notifications-pagination p { color: var(--aw-muted, #66758d); font-size: 12px; }
 
 .analytics-period select { min-height: 36px; padding: 6px 12px; border: 1px solid var(--aw-border, #dce3eb); border-radius: 8px; background: var(--aw-surface, #fff); color: var(--aw-muted, #65748c); font-size: 12px; }
 .analytics-overview { display: grid; grid-template-columns: minmax(220px, .85fr) minmax(0, 2fr); gap: 22px; }

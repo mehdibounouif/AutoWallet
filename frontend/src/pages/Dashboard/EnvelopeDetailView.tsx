@@ -10,6 +10,7 @@ interface Props {
   data: DashboardData
   onBack: () => void
   onViewRules: () => void
+  onAsk: (question: string) => void
   onSelectPayment: (payment: DashboardTransaction) => void
 }
 
@@ -19,7 +20,7 @@ function GlanceRow({ label, value }: { label: string; value: string }) {
   return <div className="envelope-detail-glance-row"><dt>{label}</dt><dd>{value}</dd></div>
 }
 
-export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPayment }: Props) {
+export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPayment, onAsk }: Props) {
   const meta = envelopeMeta[type]
   const Icon = meta.icon
   const wallet = data.wallets.find((item) => item.wallet_type === type)
@@ -98,7 +99,7 @@ export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPa
       </section>
     </div>
 
-    {type === 'tax' && <div className="envelope-detail-insight"><MessageSquareText className="h-4 w-4" aria-hidden="true" /><div><p>{reserveVsGross !== null ? `Tax received ${reserveVsGross.toFixed(1)}% of a full ${rule?.percentage ?? 0}% gross allocation because earlier rules ran first.` : 'Tax receives a share of what remains after higher-priority rules run.'}</p><button type="button" disabled title="Coming soon">Ask why <span className="dashboard-soon-badge">Soon</span></button></div></div>}
+    {type === 'tax' && <div className="envelope-detail-insight"><MessageSquareText className="h-4 w-4" aria-hidden="true" /><div><p>{reserveVsGross !== null ? `Tax received ${reserveVsGross.toFixed(1)}% of a full ${rule?.percentage ?? 0}% gross allocation because earlier rules ran first.` : 'Tax receives a share of what remains after higher-priority rules run.'}</p><button type="button" onClick={() => onAsk('Explain my Tax envelope balance and how higher-priority rules affect the amount set aside for Tax.')}>Ask why</button></div></div>}
 
     <section className="envelope-detail-panel envelope-detail-history" aria-labelledby="envelope-history-heading">
       <h2 id="envelope-history-heading">History</h2>

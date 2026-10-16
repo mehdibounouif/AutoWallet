@@ -6,10 +6,13 @@ import { useNavigate } from 'react-router-dom'
 import { KeyRound, MailCheck, ArrowLeft, Loader2 } from 'lucide-react'
 import { translations } from '../../i18n'
 import { isValidEmail } from '../../auth/validation'
+import { apiFetch } from '../../api/request'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 export function ForgotPasswordCard() {
   const t = translations
   const navigate = useNavigate()
+  const requestSignal = useRequestSignal()
 
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -23,13 +26,15 @@ export function ForgotPasswordCard() {
     setEmailTouched(true)
     if (!isValidEmail(email)) return
 
+    const signal = requestSignal()
     setLoading(true)
     setErrorMessage(null)
     try {
-      const response = await fetch('/api/auth/password/forgot', {
+      const response = await apiFetch('/api/auth/password/forgot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
+        signal,
       })
       if (response.status === 404) {
         setErrorMessage(t.passwordRecoveryUnavailable)
@@ -39,9 +44,9 @@ export function ForgotPasswordCard() {
       setSubmitted(true)
       startCountdown(60)
     } catch {
-      setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 

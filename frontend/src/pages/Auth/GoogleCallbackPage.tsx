@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
+import { apiFetch } from '../../api/request'
+import { clearGoogleReturnPath, loginPath, readGoogleReturnPath } from '../../auth/returnPath'
 
 interface ExchangeResult {
   ok: boolean
@@ -14,6 +16,7 @@ export function GoogleCallbackPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [returnPath] = useState(readGoogleReturnPath)
   const exchangeRef = useRef<{ code: string; promise: Promise<ExchangeResult> } | null>(null)
 
   useEffect(() => {
@@ -24,20 +27,23 @@ export function GoogleCallbackPage() {
 
     // Handled cancelled or access_denied from Google
     if (error === 'access_denied' || error === 'cancelled' || status === 'cancelled') {
-      navigate('/login?google_status=cancelled', { replace: true })
+      clearGoogleReturnPath()
+      navigate(`${loginPath(returnPath)}&google_status=cancelled`, { replace: true })
       return
     }
 
     // Handled existing password status redirect
     if (status === 'existing_password') {
       const emailQuery = email ? `&email=${encodeURIComponent(email)}` : ''
-      navigate(`/login?google_status=existing_password${emailQuery}`, { replace: true })
+      clearGoogleReturnPath()
+      navigate(`${loginPath(returnPath)}&google_status=existing_password${emailQuery}`, { replace: true })
       return
     }
 
     if (!code) {
       // If visited without parameters, return to login
-      navigate('/login', { replace: true })
+      clearGoogleReturnPath()
+      navigate(loginPath(returnPath), { replace: true })
       return
     }
 
@@ -47,7 +53,9 @@ export function GoogleCallbackPage() {
     if (exchangeRef.current?.code !== code) {
       exchangeRef.current = {
         code,
-        promise: fetch('/api/auth/oauth/google/exchange', {
+        // The bounded exchange is shared across Strict Mode effect replays:
+        // aborting that replay could consume the one-time code before retrying.
+        promise: apiFetch('/api/auth/oauth/google/exchange', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code }),
@@ -66,7 +74,8 @@ export function GoogleCallbackPage() {
         if (result.ok) {
           if (typeof result.data.access_token !== 'string') throw new Error('Missing access token')
           localStorage.setItem('autowallet_token', result.data.access_token)
-          navigate('/dashboard', { replace: true })
+          clearGoogleReturnPath()
+          navigate(returnPath, { replace: true })
         } else {
           const detail = typeof result.data.detail === 'string'
             ? result.data.detail.toLowerCase()
@@ -74,7 +83,8 @@ export function GoogleCallbackPage() {
 
           if (detail.includes('already has a password') || detail.includes('existing')) {
             const emailQuery = email ? `&email=${encodeURIComponent(email)}` : ''
-            navigate(`/login?google_status=existing_password${emailQuery}`, { replace: true })
+            clearGoogleReturnPath()
+            navigate(`${loginPath(returnPath)}&google_status=existing_password${emailQuery}`, { replace: true })
           } else {
             setErrorMessage(t.googleSignInFailed)
           }
@@ -90,7 +100,7 @@ export function GoogleCallbackPage() {
     return () => {
       isMounted = false
     }
-  }, [navigate, searchParams, t.googleSignInFailed, t.serviceUnavailable])
+  }, [navigate, returnPath, searchParams, t.googleSignInFailed, t.serviceUnavailable])
 
   return (
     <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col">
@@ -110,7 +120,7 @@ export function GoogleCallbackPage() {
               <div className="flex flex-col gap-2.5 w-full">
                 <button
                   type="button"
-                  onClick={() => navigate('/login')}
+                  onClick={() => { clearGoogleReturnPath(); navigate(loginPath(returnPath)) }}
                   className="w-full h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white hover:bg-[#F3F6FA] text-[#3B495D] font-medium text-sm transition cursor-pointer"
                 >
                   {t.loginButton}

@@ -16,6 +16,8 @@ import { isValidBankAccountId } from '../../auth/validation'
 import { isValidRuleValue } from '../../utils/format'
 import { clearSignupDraft, parseSignupDraft, readSignupDraft, writeSignupDraft } from '../../auth/signupDraft'
 import type { SignupDraft } from '../../auth/signupDraft'
+import { apiFetch } from '../../api/request'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
   value ? value.replaceAll(',', '').trim() || fallback : fallback
@@ -24,6 +26,7 @@ export function OnboardingPage() {
   const t = translations
   const navigate = useNavigate()
   const location = useLocation()
+  const requestSignal = useRequestSignal()
 
   // Derive step directly from URL route
   const step = onboardingPaths.indexOf(location.pathname as typeof onboardingPaths[number]) + 1
@@ -144,9 +147,10 @@ export function OnboardingPage() {
       return
     }
 
+    const signal = requestSignal()
     setLoading(true)
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -155,6 +159,7 @@ export function OnboardingPage() {
           password: draftPassword,
           bank_account_id: cleanAcc,
         }),
+        signal,
       })
 
       if (!response.ok) {
@@ -175,9 +180,9 @@ export function OnboardingPage() {
       setRegistered(true)
       navigate('/welcome/envelopes')
     } catch {
-      setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 
@@ -209,12 +214,14 @@ export function OnboardingPage() {
       return
     }
 
+    const signal = requestSignal()
     setLoading(true)
     try {
-      const loginResponse = await fetch('/api/auth/login', {
+      const loginResponse = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: draftEmail.trim(), password: draftPassword }),
+        signal,
       })
       if (!loginResponse.ok) {
         setErrorMessage(t.rulesSaveFailed)
@@ -227,7 +234,7 @@ export function OnboardingPage() {
         return
       }
 
-      const rulesResponse = await fetch('/api/rules/onboarding', {
+      const rulesResponse = await apiFetch('/api/rules/onboarding', {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${loginData.access_token}`,
@@ -239,6 +246,7 @@ export function OnboardingPage() {
           savings_percent: Number(savingsPercent),
           savings_cap: Number(savingsCap),
         }),
+        signal,
       })
       if (!rulesResponse.ok) {
         setErrorMessage(t.rulesSaveFailed)
@@ -247,9 +255,9 @@ export function OnboardingPage() {
 
       navigate('/welcome/try')
     } catch {
-      setErrorMessage(t.rulesSaveFailed)
+      if (!signal.aborted) setErrorMessage(t.rulesSaveFailed)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 
@@ -280,13 +288,15 @@ export function OnboardingPage() {
       return
     }
 
+    const signal = requestSignal()
     setLoading(true)
 
     try {
-      const loginRes = await fetch('/api/auth/login', {
+      const loginRes = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        signal,
       })
       if (loginRes.ok) {
         const tokenData = await loginRes.json()
@@ -300,12 +310,15 @@ export function OnboardingPage() {
       clearSignupDraft()
       navigate('/login', { replace: true })
     } catch {
+      if (signal.aborted) return
       // The account exists; sign-in can be retried without registering again.
       clearSignupDraft()
       navigate('/login', { replace: true })
     } finally {
-      clearSignupCredentials()
-      setLoading(false)
+      if (!signal.aborted) {
+        clearSignupCredentials()
+        setLoading(false)
+      }
     }
   }
 
@@ -317,7 +330,7 @@ export function OnboardingPage() {
       <TopBar variant="onboarding" finalStep={step === 5}>
         <Stepper
           currentStep={step}
-          onStepClick={registered ? undefined : handleStepClick}
+          onStepClick={registered || loading ? undefined : handleStepClick}
           expanded={step === 5}
           t={t}
         />

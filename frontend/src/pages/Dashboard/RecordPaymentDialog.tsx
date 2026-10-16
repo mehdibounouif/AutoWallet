@@ -2,8 +2,11 @@ import { useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { Dialog } from '../../components/common/Dialog'
 import { parseAmount } from '../../utils/format'
+import { apiFetch } from '../../api/request'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 export function RecordPaymentDialog({ onClose, onRecorded, onSessionEnded, available }: { onClose: () => void; onRecorded: (reference: string) => void; onSessionEnded: () => void; available: boolean }) {
+  const requestSignal = useRequestSignal()
   const [amount, setAmount] = useState('')
   const [reference, setReference] = useState('')
   const [saving, setSaving] = useState(false)
@@ -23,16 +26,17 @@ export function RecordPaymentDialog({ onClose, onRecorded, onSessionEnded, avail
     if (!reference.trim()) { referenceRef.current?.focus(); return }
     const token = localStorage.getItem('autowallet_token')
     if (!token) { onSessionEnded(); return }
+    const signal = requestSignal()
     inFlight.current = true
     setSaving(true)
     setError(null)
     try {
-      const response = await fetch('/api/transactions/', {
+      const response = await apiFetch('/api/transactions/', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ reference: reference.trim(), amount: value }),
-        signal: AbortSignal.timeout(60000),
-      })
+        signal,
+      }, 60000)
       if (response.status === 401) { onSessionEnded(); return }
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
@@ -40,8 +44,8 @@ export function RecordPaymentDialog({ onClose, onRecorded, onSessionEnded, avail
         return
       }
       onRecorded(reference.trim())
-    } catch { setError('The payment result could not be confirmed. Check Activity before trying again, and keep the same reference to avoid a duplicate.') }
-    finally { inFlight.current = false; setSaving(false) }
+    } catch { if (!signal.aborted) setError('The payment result could not be confirmed. Check Activity before trying again, and keep the same reference to avoid a duplicate.') }
+    finally { inFlight.current = false; if (!signal.aborted) setSaving(false) }
   }
 
   return <Dialog labelledBy="record-title" onClose={onClose} dismissible={!saving} panelClassName="dashboard-modal record-payment-dialog">

@@ -5,7 +5,9 @@ import type { FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, AlertCircle, Loader2, KeyRound } from 'lucide-react'
 import { OTPInput } from '../../components/common/OTPInput'
-import { safeReturnPath } from '../../auth/returnPath'
+import { loginPath, safeReturnPath } from '../../auth/returnPath'
+import { apiFetch } from '../../api/request'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 import { translations } from '../../i18n'
 import { clearTwoFactorCredentials, getTwoFactorCredentials } from '../../auth/pendingCredentials'
 
@@ -14,10 +16,12 @@ export function TwoFactorCard() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [pendingData] = useState(() => getTwoFactorCredentials() ?? { email: '', password: '' })
+  const requestSignal = useRequestSignal()
+  const returnTo = safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to'))
 
   useEffect(() => {
-    if (!pendingData.email || !pendingData.password) navigate('/login', { replace: true })
-  }, [navigate, pendingData.email, pendingData.password])
+    if (!pendingData.email || !pendingData.password) navigate(loginPath(returnTo), { replace: true })
+  }, [navigate, pendingData.email, pendingData.password, returnTo])
 
   const [code, setCode] = useState('')
   const [verifying, setVerifying] = useState(false)
@@ -35,6 +39,7 @@ export function TwoFactorCard() {
     const finalCode = (codeToVerify || code).replace(/\s/g, '')
     if (finalCode.length !== 6 || verifying || !pendingData.email || !pendingData.password) return
 
+    const signal = requestSignal()
     setVerifying(true)
     setWrongCode(false)
     setServiceError(null)
@@ -47,10 +52,11 @@ export function TwoFactorCard() {
         totp_code: finalCode,
       }
 
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal,
       })
 
       if (res.ok) {
@@ -58,7 +64,7 @@ export function TwoFactorCard() {
         if (typeof data.access_token !== 'string') throw new Error('Missing access token')
         localStorage.setItem('autowallet_token', data.access_token)
         clearTwoFactorCredentials()
-        navigate(safeReturnPath(searchParams.get('redirect')))
+        navigate(returnTo)
       } else if (res.status === 401) {
         setWrongCode(true)
       } else if (res.status === 503) {
@@ -67,9 +73,9 @@ export function TwoFactorCard() {
         setWrongCode(true)
       }
     } catch {
-      setServiceError(t.serviceUnavailable)
+      if (!signal.aborted) setServiceError(t.serviceUnavailable)
     } finally {
-      setVerifying(false)
+      if (!signal.aborted) setVerifying(false)
     }
   }
 
@@ -80,7 +86,7 @@ export function TwoFactorCard() {
 
   const handleLogout = () => {
     clearTwoFactorCredentials()
-    navigate('/login')
+    navigate(loginPath(returnTo))
   }
 
   const handleBackupSubmit = (e: FormEvent) => {
