@@ -61,6 +61,7 @@ export function Step1About({
             </label>
             <input
               id="first-name-input"
+              autoComplete="given-name"
               type="text"
               required
               autoFocus
@@ -93,6 +94,7 @@ export function Step1About({
             </label>
             <input
               id="last-name-input"
+              autoComplete="family-name"
               type="text"
               required
               value={lastName}

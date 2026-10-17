@@ -6,7 +6,8 @@ Sections:
                                re-pinned to the state dance after PR #51)
     3. Acceptance tests        (finding #10 legs; xfail-strict while open)
     4. Provisioning parity     (OAuth signup promises the same 5+4)
-    5. OAuth security acceptance — cycle-2 findings (xfail-strict)
+    5. OAuth security          (#17/#18/#19 CLOSED and pinned as plain
+                               tests; #20 still xfail-strict)
 
 Report-only findings referenced below (owners hold the fixes):
     #9   OAuth config hard-requires 3 Google secrets — verified live via
@@ -15,11 +16,13 @@ Report-only findings referenced below (owners hold the fixes):
     #10  transactions must be gated by require_linked_account like
          wallets/rules are — POST leg FIXED, GET leg REOPENED (see §3).
     #17  the OAuth state is not bound to the browser that requested it —
-         login-CSRF / authorization-code injection (see §5).
+         login-CSRF / authorization-code injection (see §5). FIXED by
+         Mehdi's OAuth hardening; the acceptance test is now a plain pin.
     #18  Google's email is linked onto existing password accounts without
          checking email_verified — the classic OAuth ATO pattern (see §5).
+         FIXED (email_verified required; silent linking removed entirely).
     #19  a userinfo answer without "sub" crashes with KeyError/500 instead
-         of the intended clean 401 (see §5).
+         of the intended clean 401 (see §5). FIXED (.get() + explicit 401).
     #20  the 4 required settings PR #51 added are missing from the
          committed .env.example, so the app can't boot from it (see §5).
 
@@ -237,7 +240,8 @@ def test_google_callback_bad_code_is_handled(client: TestClient, monkeypatch):
 def test_google_callback_garbage_userinfo_response(client: TestClient, monkeypatch):
     """SCENARIO:   token exchange SUCCEEDS but the userinfo call comes back
                 hostile (403).
-    EXPECTED:   a clean 401 mentioning "user info" — not a KeyError/500."""
+    EXPECTED:   a clean 401 with a safe, generic error — not a KeyError/500
+                and not a leak of what went wrong."""
     state = _login_state(client)
     _fake_google(monkeypatch, userinfo_status=403)
 
@@ -247,7 +251,8 @@ def test_google_callback_garbage_userinfo_response(client: TestClient, monkeypat
     )
 
     assert response.status_code == 401
-    assert "user info" in response.json()["detail"]
+    # The app deliberately answers with a generic message; pin it.
+    assert response.json()["detail"] == "Could not verify Google identity"
 
 
 # ---------------------------------------------------------------------------
@@ -309,34 +314,34 @@ def test_oauth_user_provisioning_matches_promise(db_session, oauth_user_id):
 
 
 # ---------------------------------------------------------------------------
-# 5. OAUTH SECURITY ACCEPTANCE — cycle-2 findings (owner of all four: MEHDI)
+# 5. OAUTH SECURITY — findings #17/#18/#19 CLOSED, #20 open
 #
-# PR #51's state/exchange rewrite hardened the flow (single-use state,
-# timeouts, error param, JWT out of URLs) but left three cracks plus one
-# boot blocker. Each is pinned here xfail-strict: the test asserts the
-# DESIRED (post-fix) behavior, fails today because of the finding, and
-# XPASSes (turning the suite red ON PURPOSE) the moment the fix lands.
+# #17, #18 and #19 were filed from the QA review of PR #51 and FIXED by
+# Mehdi's OAuth hardening: their acceptance tests XPASSed (strict) in the
+# worktree against his branch, so the markers were removed here — they are
+# now plain contract pins. #20 (required settings can't boot from the
+# committed .env.example) is still open and stays xfail-strict: it
+# converts the same way the moment its fix lands.
 # The full analysis is the OAuth security review document, kept outside
 # the repo (QA's shared documents) — ask QA for it.
+#
+# STATUS: findings #17/#18/#19 (cycle-2 OAuth) are FIXED on main — the
+# /login flow now issues an httpOnly autowallet_google_oauth_nonce cookie
+# and the Redis key binds hash(nonce:state); email_verified is checked
+# before the link branch; userinfo payloads are read with .get() and a
+# clean 401. The xfail-strict tripwires XPASSed (suite red as designed),
+# so the markers were removed in the PR #52 refresh — the tests below are
+# plain regression pins now. A regression is a green-to-red change, not
+# an xfail.
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #17 (owner: MEHDI): login-CSRF — the OAuth state is not "
-           "bound to the browser that requested it (app/api/oauth.py:31 stores "
-           "the raw state in Redis; nothing ties it to the /login caller). An "
-           "attacker completes his own /login, replays HIS code+state into the "
-           "victim's browser, and the victim lands in the ATTACKER's account. "
-           "Fix: bind the state to a browser-held secret (httpOnly "
-           "SameSite=Lax cookie with a nonce; store hash(nonce+state)).",
-)
 def test_a_state_issued_to_another_browser_is_rejected(client: TestClient, monkeypatch):
     """SCENARIO:   the ATTACKER's browser does /login (state S lands in Redis,
                 unused), then the VICTIM's browser — which never requested
                 anything — opens /callback?code=<attacker's code>&state=S.
-    EXPECTED:   400 — a state this browser never requested must not open the
-                door for it (login-CSRF / authorization-code injection)."""
+    EXPECTED:   400 — the cookie-bound state means a browser that never
+                started the flow cannot complete one (finding #17, FIXED)."""
     from app.main import app as fastapi_app
 
     state = _login_state(client)  # the attacker's browser starts the flow
@@ -358,23 +363,16 @@ def test_a_state_issued_to_another_browser_is_rejected(client: TestClient, monke
     )
 
     assert response.status_code == 400, \
-        "finding #17: a state from ANOTHER browser completed the login"
+        "a state from ANOTHER browser must not complete a login"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #18 (owner: MEHDI): the callback links Google onto an "
-           "EXISTING password account by email alone (app/api/oauth.py:143) "
-           "without checking Google's email_verified claim — the classic "
-           "OAuth account-takeover pattern. Fix: refuse with 401 unless "
-           "profile.get('email_verified') is true, BEFORE the link branch.",
-)
 def test_unverified_google_email_never_links_onto_an_existing_account(
     client: TestClient, monkeypatch, db_session
 ):
     """SCENARIO:   Google answers with an identity that CLAIMS the victim's
                 email but carries email_verified: false.
-    EXPECTED:   401, and the victim's password account stays un-linked."""
+    EXPECTED:   401, and the victim's password account stays un-linked
+                (finding #18, FIXED — emailed-linked accounts are refused)."""
     from tests.helpers import make_user
 
     victim_id = make_user(db_session, "oauth-victim@autowallet.dev",
@@ -396,27 +394,20 @@ def test_unverified_google_email_never_links_onto_an_existing_account(
     )
 
     assert response.status_code == 401, \
-        "finding #18: an unverified email completed an OAuth login"
+        "an unverified email must never complete an OAuth login"
 
     db_session.expire_all()
     victim = db_session.query(User).filter(User.id == victim_id).first()
     assert victim.oauth_provider is None, \
-        "finding #18: the attacker's Google identity was LINKED onto the victim's account"
+        "the Google identity must NOT be linked onto the victim's account"
     assert victim.oauth_id is None
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #19 (owner: MEHDI): profile['sub'] and profile['email'] "
-           "use direct indexing (app/api/oauth.py:135-136), so a userinfo "
-           "answer missing those keys raises KeyError/500 BEFORE the "
-           "if-not-google_id 401 guard below it (dead code). Fix: .get() + "
-           "an explicit 401.",
-)
 def test_userinfo_without_sub_answers_401_not_500(client: TestClient, monkeypatch):
     """SCENARIO:   token exchange succeeds, but the userinfo answer is 200
                 with a malformed body (no 'sub').
-    EXPECTED:   the intended clean 401 — never an unhandled KeyError/500."""
+    EXPECTED:   the clean 401 — never an unhandled KeyError/500
+                (finding #19, FIXED)."""
     state = _login_state(client)
     _fake_google(monkeypatch, userinfo_body={"email": "who@autowallet.dev"})
 
@@ -426,7 +417,7 @@ def test_userinfo_without_sub_answers_401_not_500(client: TestClient, monkeypatc
     )
 
     assert response.status_code == 401, \
-        "finding #19: malformed userinfo must answer 401, not crash"
+        "malformed userinfo must answer 401, not crash"
 
 
 @pytest.mark.xfail(

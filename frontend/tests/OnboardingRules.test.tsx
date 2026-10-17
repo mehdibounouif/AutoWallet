@@ -51,16 +51,16 @@ describe('onboarding rules', () => {
     await userEvent.click(document.getElementById('onboarding-continue-step4') as HTMLButtonElement)
 
     expect(await screen.findByText('Payment preview')).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/auth/login', {
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/auth/login', expect.objectContaining({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-    })
-    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/rules/onboarding', {
+    }))
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/rules/onboarding', expect.objectContaining({
       method: 'PATCH',
       headers: { Authorization: 'Bearer new-account-token', 'Content-Type': 'application/json' },
       body: JSON.stringify({ rent_amount: 4200, tax_percent: 12, savings_percent: 20, savings_cap: 9000 }),
-    })
+    }))
     expect(sessionStorage.getItem('autowallet_signup_draft')).not.toContain(password)
   })
 

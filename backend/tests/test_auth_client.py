@@ -20,12 +20,15 @@ Sections:
     2. Status mapping         (service answer -> endpoint status)
     3. Request contract       (what the middleware sends to the service)
     4. Real-service behavior  (acceptance tests for open findings)
+    5. Router coverage        (findings #24/#25 — rules & gdpr must hop)
 
 Report-only findings referenced below (owners hold the fixes):
     #11  hardcoded AUTHORIZATION_URL        (auth_client.py)
     #12  backend JWT missing `role` claim   (HOMIE)
     #13  authorize route missing leading slash (ZRAY9A)
     #14  ADMIN missing client:access        (ZRAY9A)
+    #24  rules router has no gateway hop    (MEHDI)
+    #25  gdpr router has no gateway hop     (MTARZA)
 """
 import jwt as pyjwt
 import pytest
@@ -226,3 +229,60 @@ def test_real_service_accepts_backend_token_once_role_claim_exists(
     resp = client.get(GUARDED, headers=auth_headers)
 
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# 5. ROUTER COVERAGE — every business router must cross the hop
+#    (findings #24 rules / #25 gdpr; owners: MEHDI / MTARZA)
+#
+# transactions, wallets (and the merged analytics module) apply
+# `dependencies=[Depends(require_client)]` at the router level. rules and
+# gdpr do NOT — they authenticate locally (get_current_user) but never ask
+# the api-gateway whether the request is allowed. Same class as #15 (AI,
+# filed on PR #52); pinned here xfail-strict, one test per router: each
+# XPASSes (turning the suite red ON PURPOSE) when the hop lands and must
+# then be converted to a plain test with the finding closed in TESTS.md.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="finding #24 (owner: MEHDI): the rules router has no gateway hop "
+           "— app/api/rules.py:13 creates the APIRouter without "
+           "dependencies=[Depends(require_client)] (the import even sits "
+           "commented out in the file). Requests are authenticated locally "
+           "but never authorized by the api-gateway, unlike wallets/"
+           "transactions. Fix: add the dependency like the other routers.",
+)
+def test_rules_routes_go_through_the_gateway_hop(
+    client, auth_headers, authorization_service
+):
+    """SCENARIO:   GET /api/rules/ with a valid backend token.
+    EXPECTED:   the request crosses the authorization hop exactly once
+                before the endpoint answers (the seam records the call) —
+                the same contract wallets and transactions honor."""
+    resp = client.get("/api/rules/", headers=auth_headers)
+
+    assert resp.status_code == 200
+    assert len(authorization_service.calls) == 1, \
+        "finding #24: rules answered WITHOUT crossing the gateway hop"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="finding #25 (owner: MTARZA): the gdpr router has no gateway hop "
+           "— app/gdpr/router.py:22 creates the APIRouter without "
+           "dependencies=[Depends(require_client)]. Same gap as #24/#15; "
+           "the export/delete paths are as sensitive as any money endpoint.",
+)
+def test_gdpr_routes_go_through_the_gateway_hop(
+    client, auth_headers, authorization_service
+):
+    """SCENARIO:   GET /api/gdpr/export with a valid backend token.
+    EXPECTED:   the request crosses the authorization hop exactly once
+                before the export answers."""
+    resp = client.get("/api/gdpr/export", headers=auth_headers)
+
+    assert resp.status_code == 200
+    assert len(authorization_service.calls) == 1, \
+        "finding #25: gdpr answered WITHOUT crossing the gateway hop"

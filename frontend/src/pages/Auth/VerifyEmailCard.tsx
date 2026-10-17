@@ -1,8 +1,8 @@
-import { useCountdown } from '../../hooks/useCountdown'
 import { LegalFooter } from '../../components/common/LegalFooter'
 
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Mail } from 'lucide-react'
+import { readSignupDraft } from '../../auth/signupDraft'
 import { translations } from '../../i18n'
 
 export function VerifyEmailCard() {
@@ -10,23 +10,7 @@ export function VerifyEmailCard() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const emailParam = searchParams.get('email') || (() => {
-    try {
-      const stored = sessionStorage.getItem('autowallet_signup_draft')
-      const email = stored ? (JSON.parse(stored) as { email?: unknown }).email : null
-      return typeof email === 'string' && email ? email : 'your email address'
-    } catch {
-      return 'your email address'
-    }
-  })()
-
-  const { countdown, startCountdown } = useCountdown()
-
-
-  const handleResend = () => {
-    if (countdown > 0) return
-    startCountdown(60)
-  }
+  const emailParam = searchParams.get('email') || readSignupDraft().email || 'your email address'
 
   return (
     <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10 animate-in fade-in duration-200">
@@ -38,7 +22,7 @@ export function VerifyEmailCard() {
 
         <div className="space-y-1.5">
           <h1 className="text-2xl font-semibold text-[#1A2330] tracking-tight">
-            {t.checkInboxTitle}
+            Verify your email
           </h1>
           <p className="text-[15px] text-[#5E6B7E] leading-relaxed max-w-[340px]">
             {t.verifyEmailSubtitle.replace('{email}', emailParam)}
@@ -58,13 +42,11 @@ export function VerifyEmailCard() {
           {/* Secondary Action: Send the link again */}
           <button
             type="button"
-            onClick={handleResend}
-            disabled={countdown > 0}
+            disabled
+            title="Sending verification links is coming soon"
             className="w-full h-11 sm:h-12 px-4 rounded-[10px] border border-[#DDE3EA] bg-white hover:bg-[#F3F6FA] active:bg-[#EDF0F4] disabled:opacity-60 disabled:hover:bg-white text-[#3B495D] font-medium text-sm transition flex items-center justify-center cursor-pointer"
           >
-            {countdown > 0
-              ? `${t.sendLinkAgainIn} (${countdown}s)`
-              : t.sendLinkAgain}
+            {t.sendLinkAgain} · Soon
           </button>
         </div>
       </div>

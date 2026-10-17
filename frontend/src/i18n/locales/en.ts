@@ -1,6 +1,4 @@
-import type { Translations } from '../types'
-
-export const en: Translations = {
+export const en = {
   loginTitle: 'Log in',
   loginSubtitle: 'Welcome back to AutoWallet.',
   signupTitle: 'Create your account',
@@ -69,7 +67,7 @@ export const en: Translations = {
   askForNewLink: 'Ask for a new link',
   passwordChangedTitle: 'Password changed',
   passwordChangedSubtitle: 'Log in with your new password.',
-  verifyEmailSubtitle: 'We sent a link to {email} to confirm it is yours. You can keep setting up while you wait.',
+  verifyEmailSubtitle: 'Email verification for {email} is coming soon. You can continue setting up.',
   continueSettingUp: 'Continue setting up',
   emailExists: 'An account with this email already exists. Log in instead, or reset your password.',
   changeEmail: 'Use another email',
@@ -80,7 +78,7 @@ export const en: Translations = {
   firstNameRequired: 'Please enter your first name (at least 2 characters).',
   lastNameRequired: 'Please enter your last name (at least 2 characters).',
   bankAccountRequired: 'Please enter your bank account ID / RIB to continue.',
-  bankAccountInvalid: 'Account number / RIB must be between 3 and 50 characters.',
+  bankAccountInvalid: 'Account number / RIB must contain only digits (3 to 50 digits).',
   bankAccountExists: 'This bank account is already linked to another user.',
 
   // A7 Onboarding
@@ -163,5 +161,4 @@ export const en: Translations = {
   checksOutBadge: 'Checks out',
   skipToHomeButton: 'Skip to Home',
   goToHomeButton: 'Go to Home',
-  backToAuthScreen: 'Log out',
 }

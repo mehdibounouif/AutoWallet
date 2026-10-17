@@ -8,7 +8,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -21,6 +21,9 @@ services:
       timeout: 3s
       retries: 10
 
+  # DEV MOCK — never expose in a real deployment: it has no auth and
+  # publishes 8001. The backend poller depends on it locally, so it stays
+  # in this dev stack, but a production compose must not carry it.
   bank-simulator:
     build: bank-simulator/
     ports:
@@ -81,10 +84,33 @@ services:
       retries: 5
       start_period: 10s
 
-  # frontend:
-  #   build: frontend/
-  #   ports:
-  #     - "5173:5173"
+  frontend:
+    build: frontend/
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - proxy-caddy-data:/data
+      - proxy-caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  proxy-caddy-data:
+  proxy-caddy-config:

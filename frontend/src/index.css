@@ -66,4 +66,16 @@ body {
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--color-action-primary); outline-offset: 3px; }
+
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="range"]):not([maxlength="1"]), select, textarea { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }

@@ -14,6 +14,12 @@ import {
 import { GoogleIcon } from '../../components/icons'
 import { SessionEndedCard } from './SessionEndedCard'
 import { translations } from '../../i18n'
+import { writeSignupDraft } from '../../auth/signupDraft'
+import { clearGoogleReturnPath, rememberGoogleReturnPath, safeReturnPath } from '../../auth/returnPath'
+import { apiFetch } from '../../api/request'
+import { apiErrorDetail } from '../../api/errors'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
+import { isValidEmail } from '../../auth/validation'
 import {
   clearSignupCredentials,
   clearTwoFactorCredentials,
@@ -23,19 +29,6 @@ import {
 
 interface AuthCardProps {
   mode: 'login' | 'signup'
-}
-
-function safeReturnPath(requestedPath: string | null): string {
-  if (!requestedPath?.startsWith('/') || requestedPath.startsWith('//') || requestedPath.includes('\\')) {
-    return '/dashboard'
-  }
-  try {
-    const url = new URL(requestedPath, window.location.origin)
-    if (url.origin !== window.location.origin) return '/dashboard'
-    return `${url.pathname}${url.search}${url.hash}`
-  } catch {
-    return '/dashboard'
-  }
 }
 
 export function AuthCard({
@@ -75,6 +68,7 @@ export function AuthCard({
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const requestSignal = useRequestSignal()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -130,7 +124,7 @@ export function AuthCard({
   const validateEmail = (val: string): string | null => {
     const trimmed = val.trim()
     if (!trimmed) return t.emailRequired
-    if (!/^\S+@\S+\.\S+$/.test(trimmed)) return t.emailInvalid
+    if (!isValidEmail(trimmed)) return t.emailInvalid
     return null
   }
 
@@ -142,6 +136,7 @@ export function AuthCard({
   // Handle Form Submission
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (loading) return
     setErrorMessage(null)
 
     if (mode === 'signup') {
@@ -167,11 +162,7 @@ export function AuthCard({
       // Keep the password in memory while non-secret draft details survive route changes.
       const draft = { email: email.trim() }
       setSignupCredentials({ ...draft, password })
-      try {
-        sessionStorage.setItem('autowallet_signup_draft', JSON.stringify(draft))
-      } catch {
-        // In-memory credentials still allow signup to continue.
-      }
+      writeSignupDraft(draft)
       navigate('/welcome/about', { state: draft })
       return
     }
@@ -181,13 +172,15 @@ export function AuthCard({
       return
     }
 
+    const signal = requestSignal()
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
+        signal,
       })
 
       if (res.ok) {
@@ -197,9 +190,9 @@ export function AuthCard({
         navigate(safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to')))
       } else if (res.status === 401) {
         const errData = await res.json().catch(() => ({}))
-        if (errData.detail === '2FA code required') {
+        if (apiErrorDetail(errData, '').message === '2FA code required') {
           setTwoFactorCredentials({ email: email.trim(), password })
-          navigate('/login/2fa')
+          navigate(`/login/2fa?redirect=${encodeURIComponent(safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to')))}`)
           return
         } else {
           setErrorMessage(t.wrongCredentials)
@@ -210,9 +203,9 @@ export function AuthCard({
         setErrorMessage(t.wrongCredentials)
       }
     } catch {
-      setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 
@@ -230,12 +223,14 @@ export function AuthCard({
 
     // Give user brief moment to see the Figma Opening Google state, then redirect
     redirectTimerRef.current = setTimeout(() => {
+      rememberGoogleReturnPath(searchParams.get('redirect') || searchParams.get('return_to'))
       window.location.href = '/api/auth/oauth/google/login'
     }, 1800)
   }
 
   // Handle Cancel from Google Redirecting Card (Figma #114:696 -> #114:734)
   const handleCancelGoogle = () => {
+    clearGoogleReturnPath()
     if (redirectTimerRef.current) {
       clearTimeout(redirectTimerRef.current)
       redirectTimerRef.current = null
@@ -395,6 +390,7 @@ export function AuthCard({
               id="email-input"
               ref={emailInputRef}
               type="email"
+              autoComplete="email"
               required
               autoFocus={!statusFromQuery}
               value={email}
@@ -448,6 +444,7 @@ export function AuthCard({
               <input
                 id="password-input"
                 ref={passwordInputRef}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}

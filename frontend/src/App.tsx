@@ -1,10 +1,13 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthPage } from './pages/Auth/AuthPage'
-import { GoogleCallbackPage } from './pages/Auth/GoogleCallbackPage'
+
+import { useDashboardTheme } from './pages/Settings/settingsPreferences'
 import { onboardingPaths } from './pages/Onboarding/routes'
-import { LegalPage } from './pages/Legal/LegalPage'
-import { RequireToken } from './components/account/RequireToken'
+
+
+const GoogleCallbackPage = lazy(() => import('./pages/Auth/GoogleCallbackPage').then(({ GoogleCallbackPage }) => ({ default: GoogleCallbackPage })))
+const LegalPage = lazy(() => import('./pages/Legal/LegalPage').then(({ LegalPage }) => ({ default: LegalPage })))
 
 const OnboardingPage = lazy(() =>
   import('./pages/Onboarding/OnboardingPage').then(({ OnboardingPage }) => ({
@@ -15,23 +18,6 @@ const OnboardingPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import('./pages/Dashboard/DashboardPage').then(({ DashboardPage }) => ({
     default: DashboardPage,
-  })),
-)
-
-// Signed-in pages: analytics dashboard, AI assistant, privacy & data (GDPR).
-const AnalyticsPage = lazy(() =>
-  import('./pages/Analytics/AnalyticsPage').then(({ AnalyticsPage }) => ({
-    default: AnalyticsPage,
-  })),
-)
-const AssistantPage = lazy(() =>
-  import('./pages/Assistant/AssistantPage').then(({ AssistantPage }) => ({
-    default: AssistantPage,
-  })),
-)
-const PrivacyDataPage = lazy(() =>
-  import('./pages/Account/PrivacyDataPage').then(({ PrivacyDataPage }) => ({
-    default: PrivacyDataPage,
   })),
 )
 
@@ -46,6 +32,7 @@ const authRoutes = {
 } as const
 
 export default function App() {
+  useDashboardTheme()
   return (
     <BrowserRouter>
       <Suspense
@@ -61,7 +48,7 @@ export default function App() {
               key={path}
               path={path}
               element={
-                <AuthPage mode={mode} />
+                <AuthPage key={mode} mode={mode} />
               }
             />
           ))}
@@ -88,12 +75,22 @@ export default function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
 
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/app/activity" element={<DashboardPage />} />
+          <Route path="/app/activity/:paymentId" element={<DashboardPage />} />
+          <Route path="/app/analytics" element={<DashboardPage />} />
+          <Route path="/app/assistant" element={<DashboardPage />} />
+          <Route path="/app/notifications" element={<DashboardPage />} />
+          <Route path="/app/sandbox" element={<DashboardPage />} />
+          <Route path="/app/settings" element={<DashboardPage />} />
+          <Route path="/app/settings/:section" element={<DashboardPage />} />
+          <Route path="/app/rules" element={<DashboardPage />} />
           <Route path="/app/envelopes" element={<DashboardPage />} />
           <Route path="/app/envelopes/:walletType" element={<DashboardPage />} />
           <Route path="/maintenance" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/analytics" element={<RequireToken><AnalyticsPage /></RequireToken>} />
-          <Route path="/assistant" element={<RequireToken><AssistantPage /></RequireToken>} />
-          <Route path="/account/privacy" element={<RequireToken><PrivacyDataPage /></RequireToken>} />
+          {/* Preserve links shared from the original account pages. */}
+          <Route path="/analytics" element={<Navigate to="/app/analytics" replace />} />
+          <Route path="/assistant" element={<Navigate to="/app/assistant" replace />} />
+          <Route path="/account/privacy" element={<Navigate to="/app/settings/privacy" replace />} />
           <Route path="/terms" element={<LegalPage document="terms" />} />
           <Route path="/privacy" element={<LegalPage document="privacy" />} />
           <Route path="*" element={<Navigate to="/login" replace />} />

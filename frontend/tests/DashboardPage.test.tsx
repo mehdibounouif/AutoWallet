@@ -30,6 +30,9 @@ function renderDashboard(path = '/dashboard') {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/app/envelopes" element={<DashboardPage />} />
         <Route path="/app/envelopes/:walletType" element={<DashboardPage />} />
+        <Route path="/app/rules" element={<DashboardPage />} />
+        <Route path="/app/activity" element={<DashboardPage />} />
+        <Route path="/app/activity/:paymentId" element={<DashboardPage />} />
         <Route path="/session-ended" element={<p>Session ended</p>} />
         <Route path="/login" element={<p>Login page</p>} />
       </Routes>
@@ -79,8 +82,7 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('heading', { name: 'At a glance' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Back to Envelopes' }))
     expect(await screen.findByRole('heading', { name: 'Envelopes' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Move money' }))
-    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Moving money is not available yet.')
+    expect(screen.getByRole('button', { name: 'Move money Soon' })).toBeDisabled()
   })
 
   it('shows a reconciled D3 Tax history and opens a payment', async () => {
@@ -115,7 +117,7 @@ describe('DashboardPage', () => {
     expect(within(history).getByRole('button', { name: 'View payment INV-2026-047' })).toBeInTheDocument()
     expect(within(history).getByText('+1,980.00')).toBeInTheDocument()
     await user.click(within(history).getByRole('button', { name: 'View payment INV-2026-047' }))
-    expect(screen.getByRole('dialog', { name: 'INV-2026-047' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'INV-2026-047', level: 1 })).toBeInTheDocument()
   })
 
   it('shows the D3 Rent target and the payment that filled it', async () => {
@@ -188,7 +190,7 @@ describe('DashboardPage', () => {
     expect(screen.getAllByRole('img', { name: 'Payment split by envelope' }).length).toBeGreaterThan(0)
     expect(screen.getAllByText('Sep 21').length).toBeGreaterThan(0)
     await userEvent.click(screen.getByRole('navigation', { name: 'Main navigation' }).querySelector('[title="Rules"]') as HTMLElement)
-    expect(screen.getByText('Rent lock')).toBeInTheDocument()
+    expect(await screen.findByText('Rent lock')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/wallets/', expect.objectContaining({
       headers: { Authorization: 'Bearer test-token', Accept: 'application/json' },
     }))
@@ -212,7 +214,7 @@ describe('DashboardPage', () => {
       if (url === '/api/auth/me') return response(200, { ...account, bank_account_id: linked ? account.bank_account_id : null })
       if (url === '/api/auth/link-bank-account') {
         expect(options?.method).toBe('POST')
-        expect(JSON.parse(String(options?.body))).toEqual({ bank_account_id: 'MA00001234567890' })
+        expect(JSON.parse(String(options?.body))).toEqual({ bank_account_id: '1234567890123' })
         linked = true
         return response(200, account)
       }
@@ -227,7 +229,7 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Link your bank account ID' })).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/api/wallets/', expect.anything())
-    await user.type(screen.getByRole('textbox', { name: 'Bank account ID' }), 'MA00001234567890')
+    await user.type(screen.getByRole('textbox', { name: 'Bank account ID' }), '1234567890123')
     await user.click(screen.getByRole('button', { name: 'Link account' }))
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Free to spend' })).toBeInTheDocument())
@@ -259,7 +261,7 @@ describe('DashboardPage', () => {
     await user.click(screen.getAllByRole('button', { name: 'Record payment' })[0])
     const dialog = screen.getByRole('dialog', { name: 'Record a payment' })
     await user.type(within(dialog).getByRole('textbox', { name: 'Reference' }), 'INV-NEW')
-    await user.type(within(dialog).getByRole('spinbutton', { name: 'Amount (MAD)' }), '2400')
+    await user.type(within(dialog).getByRole('textbox', { name: 'Amount (MAD)' }), '2400')
     await user.click(within(dialog).getByRole('button', { name: 'Record payment' }))
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Recent payments' })).toBeInTheDocument())

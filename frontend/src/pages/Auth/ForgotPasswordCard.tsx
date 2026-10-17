@@ -5,27 +5,36 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { KeyRound, MailCheck, ArrowLeft, Loader2 } from 'lucide-react'
 import { translations } from '../../i18n'
+import { isValidEmail } from '../../auth/validation'
+import { apiFetch } from '../../api/request'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 export function ForgotPasswordCard() {
   const t = translations
   const navigate = useNavigate()
+  const requestSignal = useRequestSignal()
 
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [emailTouched, setEmailTouched] = useState(false)
   const { countdown, startCountdown } = useCountdown()
 
   const sendResetLink = async () => {
-    if (!email.trim() || loading) return
+    if (loading) return
+    setEmailTouched(true)
+    if (!isValidEmail(email)) return
 
+    const signal = requestSignal()
     setLoading(true)
     setErrorMessage(null)
     try {
-      const response = await fetch('/api/auth/password/forgot', {
+      const response = await apiFetch('/api/auth/password/forgot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
+        signal,
       })
       if (response.status === 404) {
         setErrorMessage(t.passwordRecoveryUnavailable)
@@ -35,9 +44,9 @@ export function ForgotPasswordCard() {
       setSubmitted(true)
       startCountdown(60)
     } catch {
-      setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 
@@ -114,27 +123,31 @@ export function ForgotPasswordCard() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
               <div className="space-y-1.5">
                 <label htmlFor="reset-email" className="block text-sm font-medium text-[#1A2330]">
                   {t.emailLabel}
                 </label>
                 <input
                   id="reset-email"
-                  type="email"
+                  type="email" autoComplete="email"
                   required
                   autoFocus
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setEmailTouched(true)}
+                  aria-invalid={emailTouched && !isValidEmail(email)}
+                  aria-describedby={emailTouched && !isValidEmail(email) ? 'reset-email-error' : undefined}
                   placeholder="name@example.com"
                   className="w-full h-11 px-3.5 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20 transition"
                 />
+                {emailTouched && !isValidEmail(email) && <p id="reset-email-error" role="alert" className="text-xs text-[#C62F31]">{email.trim() ? t.emailInvalid : t.emailRequired}</p>}
               </div>
 
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={!email.trim() || loading}
+                  disabled={loading || !email.trim()}
                   className="w-full h-11 sm:h-12 px-4 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
                   {loading ? (

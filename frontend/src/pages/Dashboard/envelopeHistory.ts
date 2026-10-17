@@ -1,4 +1,5 @@
 import type { DashboardTransaction, WalletType } from './dashboardApi'
+import { newestPaymentsFirst } from './paymentUtils'
 
 export interface EnvelopeHistoryRow {
   payment: DashboardTransaction
@@ -10,7 +11,7 @@ export type EnvelopeHistory =
   | { status: 'empty' | 'unavailable'; rows: [] }
   | { status: 'ready'; rows: EnvelopeHistoryRow[] }
 
-/** Build a ledger only when the API supplies every processed split and it
+/** Build a ledger only when the API supplies each payment's envelope allocation and it
  * reconciles with the current wallet balance. Missing data must not become
  * an invented payment history. */
 export function buildEnvelopeHistory(
@@ -18,11 +19,11 @@ export function buildEnvelopeHistory(
   transactions: DashboardTransaction[],
   currentBalance: number,
 ): EnvelopeHistory {
-  const processed = transactions.filter((payment) => payment.status === 'processed')
+  const processed = newestPaymentsFirst(transactions.filter((payment) => payment.status === 'processed'))
   if (processed.length === 0) return currentBalance === 0
     ? { status: 'empty', rows: [] }
     : { status: 'unavailable', rows: [] }
-  if (processed.some((payment) => !payment.allocations)) return { status: 'unavailable', rows: [] }
+  if (processed.some((payment) => payment.allocations?.[type] === undefined)) return { status: 'unavailable', rows: [] }
 
   let runningBalance = 0
   const chronological = [...processed].reverse()

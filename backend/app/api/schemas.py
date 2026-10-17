@@ -12,6 +12,7 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
     totp_code: str | None = None
+    recovery_code: str | None = None
 
 # respond for registreation
 class UserOut(BaseModel):
@@ -91,3 +92,24 @@ class OnboardingRulesUpdate(BaseModel):
 
 class OAuthExchangeRequest(BaseModel):
     code: str
+
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+class RecoveryCodesOut(BaseModel):
+    message: str
+    recovery_codes: list[str]
+
+class RegenerateRecoveryCodesRequest(BaseModel):
+    password: str
+    totp_code: str

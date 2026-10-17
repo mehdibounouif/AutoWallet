@@ -1,45 +1,39 @@
-// Server-Sent Events read with fetch(), so the request can carry the Authorization header
-// (the browser's EventSource cannot) and can be a POST (the AI question).
-
-export interface ServerEvent {
+export interface StreamEvent {
   event: string
   data: string
 }
 
-function parseEvent(block: string): ServerEvent | null {
-  let event = 'message'
-  const data: string[] = []
-  for (const line of block.split('\n')) {
-    if (line.startsWith(':')) continue // a comment, like the server's keep-alive
-    const colon = line.indexOf(':')
-    const field = colon === -1 ? line : line.slice(0, colon)
-    let value = colon === -1 ? '' : line.slice(colon + 1)
-    if (value.startsWith(' ')) value = value.slice(1)
-    if (field === 'event') event = value
-    else if (field === 'data') data.push(value)
+// Return false from onEvent to stop after a terminal event, such as AI "done".
+export async function readEventStream(response: Response, onEvent: (event: StreamEvent) => boolean | void, onActivity?: () => void) {
+  if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
+    throw new Error('The service returned an unexpected stream response.')
   }
-  return data.length > 0 ? { event, data: data.join('\n') } : null
-}
-
-/** Calls onEvent for each event of a text/event-stream response, until the server closes it. */
-export async function readServerEvents(response: Response, onEvent: (event: ServerEvent) => void) {
-  if (!response.body) return
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-
-  for (;;) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-
-    // An event ends with an empty line.
-    let end = buffer.indexOf('\n\n')
-    while (end !== -1) {
-      const event = parseEvent(buffer.slice(0, end))
-      buffer = buffer.slice(end + 2)
-      if (event) onEvent(event)
-      end = buffer.indexOf('\n\n')
+  const consume = (block: string) => {
+    if (block.length > 262144) throw new Error('The service returned an oversized event.')
+    let event = 'message'
+    const data: string[] = []
+    for (const line of block.split(/\r?\n/)) {
+      if (line.startsWith('event:')) event = line.slice(6).trim()
+      if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''))
     }
+    return data.length ? onEvent({ event, data: data.join('\n') }) : undefined
   }
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      if (value?.length) onActivity?.()
+      buffer += decoder.decode(value, { stream: !done })
+      let separator: RegExpExecArray | null
+      while ((separator = /\r?\n\r?\n/.exec(buffer))) {
+        const block = buffer.slice(0, separator.index)
+        buffer = buffer.slice(separator.index + separator[0].length)
+        if (consume(block) === false) return
+      }
+      if (buffer.length > 262144) throw new Error('The service returned an oversized event.')
+      if (done) { if (buffer.trim()) consume(buffer); return }
+    }
+  } finally { await reader.cancel().catch(() => {}); reader.releaseLock() }
 }

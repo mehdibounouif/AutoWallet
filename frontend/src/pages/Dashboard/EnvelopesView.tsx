@@ -1,9 +1,9 @@
 import { ArrowLeftRight, Check } from 'lucide-react'
 import type { DashboardData, DashboardTransaction, WalletType } from './dashboardApi'
-import { envelopeDescription, envelopeMeta, money } from './envelopeDisplay'
+import { envelopeDescription, envelopeMeta, envelopeTarget, money, walletOrder } from './envelopeDisplay'
+import { paymentDate } from './paymentUtils'
 import './envelopes.css'
 
-const walletOrder: WalletType[] = ['rent', 'tax', 'savings', 'free', 'main']
 const setAsideTypes: WalletType[] = ['rent', 'tax', 'savings']
 
 function paymentChange(type: WalletType, transactions: DashboardTransaction[]) {
@@ -19,8 +19,7 @@ function EnvelopeCard({ type, data, onOpen }: {
   const meta = envelopeMeta[type]
   const Icon = meta.icon
   const balance = data.wallets.find((wallet) => wallet.wallet_type === type)?.balance ?? 0
-  const target = data.rules.find((rule) => rule.is_active && rule.target_wallet === type &&
-    rule.condition_field === `${type}_balance` && rule.condition_value !== null && rule.condition_value > 0)?.condition_value ?? null
+  const target = envelopeTarget(type, data.rules)
   const progress = target === null ? null : Math.max(0, Math.min(100, balance / target * 100))
   const latestChange = paymentChange(type, data.transactions)
   const change = latestChange?.allocations?.[type]
@@ -47,7 +46,7 @@ function EnvelopeCard({ type, data, onOpen }: {
       )}
       <span className="envelopes-card-footnote">
         {latestChange && change !== undefined
-          ? `Last change +${money.format(change)}${latestChange.created_at ? ` · ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(latestChange.created_at))}` : ''}`
+          ? `Last change +${money.format(change)}${latestChange.created_at ? ` · ${paymentDate(latestChange.created_at)}` : ''}`
           : type === 'main' && balance === 0 ? 'Nothing so far: your rules use every payment' : 'Payment changes will appear here when available'}
       </span>
     </button>
@@ -66,9 +65,8 @@ export function EnvelopesSkeleton() {
   </section>
 }
 
-export function EnvelopesView({ data, onMoveMoney, onOpen }: {
+export function EnvelopesView({ data, onOpen }: {
   data: DashboardData
-  onMoveMoney: () => void
   onOpen: (type: WalletType) => void
 }) {
   const balances = Object.fromEntries(walletOrder.map((type) => [type, data.wallets.find((wallet) => wallet.wallet_type === type)?.balance ?? 0])) as Record<WalletType, number>
@@ -78,7 +76,7 @@ export function EnvelopesView({ data, onMoveMoney, onOpen }: {
   return <section className="envelopes-view" aria-labelledby="envelopes-title">
     <div className="envelopes-page-heading">
       <div><h1 id="envelopes-title">Envelopes</h1><p>What each envelope holds and the rule that fills it.</p></div>
-      <button type="button" className="dashboard-primary-button envelopes-move-button" onClick={onMoveMoney}><ArrowLeftRight className="h-4 w-4" aria-hidden="true" />Move money</button>
+      <button type="button" className="dashboard-primary-button envelopes-move-button" disabled title="Coming soon"><ArrowLeftRight className="h-4 w-4" aria-hidden="true" />Move money <span className="dashboard-soon-badge">Soon</span></button>
     </div>
 
     <section className="envelopes-overview" aria-label="Envelope balance overview">
