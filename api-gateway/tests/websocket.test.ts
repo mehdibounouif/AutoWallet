@@ -19,7 +19,7 @@ describe("WebSocket", () => {
     });
 
     it("accepts an authenticated WebSocket connection", async () => {
-        const secret = process.env.JWT_SECRET;
+        const secret = process.env.JWT_SECRET ?? "test-secret-for-websocket";
         if (!secret) {
             throw new Error("JWT_SECRET is not configured for tests");
         }
