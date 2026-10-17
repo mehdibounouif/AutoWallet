@@ -27,7 +27,7 @@ Report-only findings referenced below (owners hold the fixes):
     #12  backend JWT missing `role` claim   (HOMIE)
     #13  authorize route missing leading slash (ZRAY9A)
     #14  ADMIN missing client:access        (ZRAY9A)
-    #24  rules router has no gateway hop    (MTARZA)
+    #24  rules router has no gateway hop    (MEHDI)
     #25  gdpr router has no gateway hop     (MTARZA)
 """
 import jwt as pyjwt
@@ -233,7 +233,7 @@ def test_real_service_accepts_backend_token_once_role_claim_exists(
 
 # ---------------------------------------------------------------------------
 # 5. ROUTER COVERAGE — every business router must cross the hop
-#    (findings #24 rules / #25 gdpr; owner: MTARZA)
+#    (findings #24 rules / #25 gdpr; owners: MEHDI / MTARZA)
 #
 # transactions, wallets (and the merged analytics module) apply
 # `dependencies=[Depends(require_client)]` at the router level. rules and
@@ -247,7 +247,7 @@ def test_real_service_accepts_backend_token_once_role_claim_exists(
 
 @pytest.mark.xfail(
     strict=True,
-    reason="finding #24 (owner: MTARZA): the rules router has no gateway hop "
+    reason="finding #24 (owner: MEHDI): the rules router has no gateway hop "
            "— app/api/rules.py:13 creates the APIRouter without "
            "dependencies=[Depends(require_client)] (the import even sits "
            "commented out in the file). Requests are authenticated locally "

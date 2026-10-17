@@ -125,7 +125,7 @@ The mapping contract (`service answer → endpoint status`):
 | `test_request_shape_contract` | one guarded request → exactly one call; path `/api/authorize`; Authorization header VERBATIM; body `{"permission":"client:access"}` — the interface the service is built against |
 | `test_real_service_grants_token_with_role_claim` | realish + token WITH role → 200 (the contract the backend must reach) |
 | `test_real_service_accepts_backend_token_once_role_claim_exists` ⚠️ xfail | realish + REAL backend token → DESIRED 200; fails today (403): finding **#12** (owner **HOMIE**) |
-| `test_rules_routes_go_through_the_gateway_hop` ⚠️ xfail | rules answers WITHOUT crossing the hop (0 seam calls): finding **#24** (owner **MTARZA**) — see §4 |
+| `test_rules_routes_go_through_the_gateway_hop` ⚠️ xfail | rules answers WITHOUT crossing the hop (0 seam calls): finding **#24** (owner **MEHDI**) — see §4 |
 | `test_gdpr_routes_go_through_the_gateway_hop` ⚠️ xfail | gdpr answers WITHOUT crossing the hop (0 seam calls): finding **#25** (owner **MTARZA**) — see §4 |
 
 ### `tests/test_oauth.py` — Google OAuth + linked-account gate (17 tests)
@@ -237,7 +237,7 @@ outside the repo, in QA's shared documents):
 | Test | Finding | Owner | The missing fix |
 |---|---|---|---|
 | `test_the_app_boots_from_the_committed_env_example` (test_oauth.py) | **#20** | MEHDI | 4 required settings (`frontend_google_callback_url`, `postgres_user/password/db`) with no defaults and incomplete `.env.example` — the app can't boot from `cp .env.example .env`; 3 CI jobs red at import. Fix: defaults or complete the example. |
-| `test_rules_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#24** | MTARZA | the rules router has no gateway hop — `app/api/rules.py:13` creates the APIRouter without `dependencies=[Depends(require_client)]` (the import sits commented out). Locally authenticated, never authorized by the api-gateway, unlike wallets/transactions. Fix: add the dependency like the other routers. |
+| `test_rules_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#24** | MEHDI | the rules router has no gateway hop — `app/api/rules.py:13` creates the APIRouter without `dependencies=[Depends(require_client)]` (the import sits commented out). Locally authenticated, never authorized by the api-gateway, unlike wallets/transactions. Fix: add the dependency like the other routers. |
 | `test_gdpr_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#25** | MTARZA | same gap on `app/gdpr/router.py:22` — export/delete paths never cross the hop. Fix: add the dependency. |
 
 (Finding #15 — AI routes bypass the api-gateway hop — is filed on the
