@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
+from sqlalchemy import UniqueConstraint
 
 from sqlalchemy import (
     Column, String, Float, Integer, Boolean,
@@ -47,6 +48,7 @@ class User(Base):
     role = Column(SAEnum(UserRole), default=UserRole.user, nullable=False)
     is_active = Column(Boolean, default=True)
     bank_account_id = Column(String, nullable=True, unique=True)
+    email_verified = Column(Boolean,nullable=False,default=False,)
 
     # OAuth login — filled in only if the user signs up via Google/GitHub/etc.
     oauth_provider = Column(String, nullable=True)
@@ -61,7 +63,44 @@ class User(Base):
     wallets = relationship("Wallet", back_populates="owner", cascade="all, delete-orphan")
     rules = relationship("Rule", back_populates="owner", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="owner", cascade="all, delete-orphan")
+    recovery_codes = relationship("TwoFactorRecoveryCode",back_populates="user",cascade="all, delete-orphan",)
 
+class TwoFactorRecoveryCode(Base):
+    __tablename__ = "two_factor_recovery_codes"
+
+    id = Column(
+        String,
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+    user_id = Column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    code_hash = Column(String(64), nullable=False)
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    user = relationship(
+        "User",
+        back_populates="recovery_codes",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "code_hash",
+            name="uq_recovery_code_user_hash",
+        ),
+    )
 
 class Wallet(Base):
     __tablename__ = "wallets"
@@ -109,18 +148,3 @@ class Transaction(Base):
     processed_at = Column(DateTime, nullable=True)
 
     owner = relationship("User", back_populates="transactions")
-    allocations = relationship("Allocation", back_populates="transaction", cascade="all, delete-orphan")
-
-
-class Allocation(Base):
-    """How much of one payment went into one envelope. Saved by the payment processor, read by analytics."""
-    __tablename__ = "allocations"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    wallet_type = Column(SAEnum(WalletType), nullable=False)
-    amount = Column(Float, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    transaction = relationship("Transaction", back_populates="allocations")

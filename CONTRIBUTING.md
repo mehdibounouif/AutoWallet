@@ -1,3 +1,4 @@
+
 # Contributing to AutoWallet
 
 This document explains how we work together on this repo. Read it once before your first pull request — it'll save everyone time later.
