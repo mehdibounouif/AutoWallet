@@ -3,12 +3,11 @@
  *
  * What this suite pins:
  *   RIB (Step2Account)       digits are the only legal content of a RIB —
- *                            FINDING #22: today the field checks LENGTH ONLY
- *                            (3-50), so "abcdefghij" is accepted and rides
- *                            into the register payload (the backend schema
- *                            accepts it too — same laxity, flagged in the
- *                            report). The xfail-style test below (it.fails)
- *                            goes green -> RED the moment the fix lands.
+ *                            FINDING #22, now FIXED (shared
+ *                            auth/validation.ts + `inputMode="numeric"`;
+ *                            the submit gate rejects too). Pinned here as
+ *                            plain tests: the field rejects letters, and
+ *                            the register payload never carries them.
  *   PAYMENT AMOUNT (Step5)   strict money grammar: digits + thousands
  *                            commas + max 2 decimals. Letters, negatives and
  *                            3-decimal values must disable the simulate
@@ -110,16 +109,12 @@ describe('PIN: RIB field (Step 2)', () => {
     expect(screen.getByText(t.bankAccountInvalid)).toBeInTheDocument()
   })
 
-  // ⚠️ TEMPORARY (it.fails) — expected to fail while finding #22 is open.
-  // Converts to a plain it() when the digits-only fix lands; the suite going
-  // RED on "expected fail but passed" is the intended signal, NOT a regression.
-  it.fails('finding #22: a letters-only RIB is never accepted', async () => {
+  it('finding #22 (FIXED): a letters-only RIB is never accepted', async () => {
     // SCENARIO: the user TYPES "abcdefghij" into the RIB field (char by
-    //           char, so an input-filtering fix is exercised too) and leaves it.
-    // EXPECTED: the field must reject it — EITHER the invalid message shows
-    //           OR the value was filtered so no letters remain. A RIB is
-    //           digits; letters must never reach the register payload.
-    //           (fails today: length-only check accepts it silently)
+    //           char, so input filtering is exercised too) and leaves it.
+    // EXPECTED: the field rejects it — the invalid message shows and/or no
+    //           letters remain in the value. Was an it.fails tripwire until
+    //           the digits-only validation landed; now a plain pin.
     render(<Step2Harness />)
     const user = userEvent.setup()
     const input = screen.getByLabelText(t.accountNumberLabel) as HTMLInputElement
@@ -130,14 +125,12 @@ describe('PIN: RIB field (Step 2)', () => {
     expect(rejected).toBe(true)
   })
 
-  // ⚠️ TEMPORARY (it.fails) — same lifecycle as the test above.
-  it.fails('finding #22: even ONE letter among digits is rejected (no MA-prefix IDs)', async () => {
+  it('finding #22 (FIXED): even ONE letter among digits is rejected (no MA-prefix IDs)', async () => {
     // SCENARIO: "MA64000100000042" typed — the simulator-style ID: digits
     //           with a two-letter prefix. PRODUCT RULE (decided by Zakaria):
     //           the RIB is ALL NUMBERS, not a single letter anywhere.
-    // EXPECTED: rejected — the message shows OR the letters were filtered
-    //           out of the value. MA-prefix IDs are no longer legal input.
-    //           (fails today: accepted silently, same as any other string)
+    // EXPECTED: rejected — the message shows or the letters were filtered
+    //           out of the value. MA-prefix IDs are not legal input.
     render(<Step2Harness />)
     const user = userEvent.setup()
     const input = screen.getByLabelText(t.accountNumberLabel) as HTMLInputElement
@@ -243,13 +236,29 @@ describe('PIN: rules gate (Step 4)', () => {
   })
 
   it('valid rule values continue to the payment preview', async () => {
-    // SCENARIO: the defaults (3500 / 15% / 15% / 10000) are valid.
-    // EXPECTED: Continue moves the flow to the payment preview step.
+    // SCENARIO: the defaults (3500 / 15% / 15% / 10000) are valid. Step 4
+    //           now SAVES the rules before the preview (login ->
+    //           PATCH /api/rules/onboarding), so the network is stubbed.
+    // EXPECTED: Continue crosses both calls and lands on the payment preview.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ access_token: 'qa-token' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+
     renderOnboardingAt('/welcome/rules')
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: t.continueButton }))
 
-    expect(screen.getByLabelText(t.amountInputLabel)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText(t.amountInputLabel)).toBeInTheDocument())
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', expect.objectContaining({ method: 'POST' }))
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/rules/onboarding',
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: expect.objectContaining({ Authorization: 'Bearer qa-token' }),
+      }),
+    )
   })
 })
 
@@ -287,17 +296,12 @@ describe('PIN: register payload (Step 2 -> POST /api/auth/register)', () => {
     return fetchMock
   }
 
-  // ⚠️ TEMPORARY (it.fails) — expected to fail while finding #22 is open.
-  // Converts to a plain it() when the digits-only fix lands; the suite going
-  // RED on "expected fail but passed" is the intended signal, NOT a regression.
-  it.fails('finding #22 (end-to-end): neither a letters RIB nor an MA-prefix RIB is sent to the API', async () => {
+  it('finding #22 (FIXED, end-to-end): neither a letters RIB nor an MA-prefix RIB is sent to the API', async () => {
     // SCENARIO: full onboarding at Step 2. For EACH illegal RIB the user can
     //           type, clicking Create account must end in a REJECTION at the
     //           client — an error message on screen — and NEVER a network
-    //           call carrying the junk value.
-    // EXPECTED: fetch is never called for either value.
-    //           (fails today: both values are POSTed verbatim in the
-    //           bank_account_id of the register payload)
+    //           call carrying the junk value. Was an it.fails tripwire until
+    //           the submit gate learned the digits rule; now a plain pin.
     for (const rib of ['abcdefghij', 'MA64000100000042']) {
       const fetchMock = stubRegisterFetch()
       const { unmount } = renderOnboardingAt('/welcome/account')
@@ -308,12 +312,14 @@ describe('PIN: register payload (Step 2 -> POST /api/auth/register)', () => {
       await user.click(screen.getByRole('button', { name: t.signupButton }))
 
       // the app must reach a DECISION point: either it sent something (the
-      // bug, today) or it blocked with a message on screen. Waiting for
+      // bug) or it blocked with a message on screen. Waiting for
       // "one of the two" avoids racing the async handler.
       await waitFor(() => {
         const sent = fetchMock.mock.calls.length > 0
+        // the same message renders BOTH on the field and in the page alert —
+        // queryAllByText, or the query itself throws on the duplicate.
         const blocked = [t.bankAccountInvalid, t.bankAccountRequired].some(
-          (message) => screen.queryByText(message) !== null,
+          (message) => screen.queryAllByText(message).length > 0,
         )
         expect(sent || blocked).toBe(true)
       })
