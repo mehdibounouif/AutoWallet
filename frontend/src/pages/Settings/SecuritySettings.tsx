@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, Copy, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { OTPInput } from '../../components/common/OTPInput'
+import { RecoveryCodes } from './RecoveryCodes'
+import { parseRecoveryCodes } from '../../auth/recoveryCodes'
 import { AuthenticatorCode } from './AuthenticatorCode'
 import { SettingsApiError, settingsRequest } from '../../api/settingsApi'
 import type { SecurityInfo } from '../../api/settingsApi'
@@ -18,6 +20,7 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [success, setSuccess] = useState(false)
   const controller = useRef<AbortController | null>(null)
   const inFlight = useRef(false)
@@ -64,6 +67,7 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
     } catch (reason) {
       if (next.signal.aborted) return
       if (reason instanceof SettingsApiError && reason.status === 401) { onSessionEnded(); return }
+      if (reason instanceof SettingsApiError && reason.status === 409) { onEnabled(true); setConfirming(false) }
       setError(reason instanceof Error ? reason.message : 'Could not start two-factor setup. Please try again.')
     } finally { inFlight.current = false; setBusy(false); setPassword(''); setShowPassword(false) }
   }
@@ -75,12 +79,16 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
     controller.current = next
     setBusy(true); setError(null)
     try {
-      await settingsRequest('/api/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ code }), signal: next.signal })
+      const response = await settingsRequest('/api/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ code }), signal: next.signal })
+      if (next.signal.aborted) return
       onEnabled(true); setSetup(null); setCode(''); setSuccess(true)
+      const codes = parseRecoveryCodes(await response.json())
+      if (!next.signal.aborted) setRecoveryCodes(codes)
     } catch (reason) {
       if (next.signal.aborted) return
       if (reason instanceof SettingsApiError && reason.status === 401) { onSessionEnded(); return }
-      setError(reason instanceof SettingsApiError && reason.status === 400 ? 'That code didn’t work. Codes change every 30 seconds. Try the latest code from your app.' : 'The result could not be confirmed. Check your sign-in status before starting a new setup.')
+      if (reason instanceof SettingsApiError && reason.status === 409) { onEnabled(true); setSetup(null); setCode('') }
+      setError(reason instanceof SettingsApiError && reason.status === 400 ? 'That code didn’t work. Codes change every 30 seconds. Try the latest code from your app.' : 'The result could not be confirmed. Use your authenticator app and generate recovery codes below if setup was enabled.')
     } finally { inFlight.current = false; setBusy(false) }
   }
 
@@ -103,5 +111,6 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
       {error && <p role="alert" className="workspace-field-error">{error}</p>}
       {info.signInMethod === null && info.twoFactorEnabled === null && !setup && <p className="settings-availability">Sign in with Google? Request a JSON export in <Link className="workspace-text-button" to="/app/settings/privacy">Privacy and data</Link> first to check your security status.</p>}
     </section>
+    {!setup && !confirming && info.twoFactorEnabled !== false && <RecoveryCodes codes={recoveryCodes} onCodes={setRecoveryCodes} onEnabled={() => onEnabled(true)} online={online && !busy} googleAccount={info.signInMethod === 'google'} onSessionEnded={onSessionEnded} />}
   </>
 }

@@ -10,6 +10,9 @@ import {
 } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { Translations } from '../../../i18n'
+import { previewPayment } from '../../Dashboard/dashboardSplit'
+import type { DashboardRule } from '../../Dashboard/dashboardApi'
+import { walletTypes } from '../../../api/walletTypes'
 import { money as moneyFormatter, parseAmount } from '../../../utils/format'
 
 interface Props {
@@ -34,7 +37,6 @@ interface Allocation {
   Icon: ComponentType<{ className?: string }>
 }
 
-const cents = (value: number) => Math.round(value * 100) / 100
 const money = (value: number) => moneyFormatter.format(value)
 
 function getAllocations(
@@ -45,15 +47,19 @@ function getAllocations(
   savingsCap: string,
   t: Translations,
 ): Allocation[] {
-  const rent = Math.min(amount, parseAmount(rentAmount))
-  const afterRent = cents(amount - rent)
-  const tax = cents((afterRent * parseAmount(taxPercent)) / 100)
-  const afterTax = cents(afterRent - tax)
-  const savings = Math.min(
-    cents((afterTax * parseAmount(savingsPercent)) / 100),
-    parseAmount(savingsCap),
-  )
-  const free = cents(afterTax - savings)
+  // Match the backend starter rules and reuse the Dashboard/Sandbox engine.
+  // Keep fractional cents during allocation; format to two decimals for display.
+  const base = { is_active: true, fixed_amount: null, percentage: null, condition_field: null, condition_operator: null, condition_value: null }
+  const rules: DashboardRule[] = [
+    { ...base, id: 'rent', name: 'Rent lock', rule_type: 'lock_fixed', target_wallet: 'rent', priority: 1, fixed_amount: parseAmount(rentAmount), condition_field: 'rent_balance', condition_operator: '<', condition_value: parseAmount(rentAmount) },
+    { ...base, id: 'tax', name: 'Tax', rule_type: 'percentage_remainder', target_wallet: 'tax', priority: 2, percentage: parseAmount(taxPercent) },
+    { ...base, id: 'savings', name: 'Savings (capped)', rule_type: 'percentage_remainder', target_wallet: 'savings', priority: 3, percentage: parseAmount(savingsPercent), condition_field: 'savings_balance', condition_operator: '<', condition_value: parseAmount(savingsCap) },
+    { ...base, id: 'free', name: 'Free to spend', rule_type: 'percentage_remainder', target_wallet: 'free', priority: 4, percentage: 100 },
+  ]
+  const { allocations: { rent, tax, savings, free }, steps } = previewPayment(amount, rules,
+    walletTypes.map(wallet_type => ({ id: wallet_type, wallet_type, balance: 0 })))
+  const afterRent = steps[0]?.remaining ?? amount
+  const afterTax = steps[1]?.remaining ?? afterRent
 
   return [
     {
@@ -206,7 +212,7 @@ export function Step5TryPayment({
   const allocations = validAmount
     ? getAllocations(amount, rentAmount, taxPercent, savingsPercent, savingsCap, t)
     : []
-  const total = cents(allocations.reduce((sum, item) => sum + item.amount, 0))
+  const total = allocations.reduce((sum, item) => sum + item.amount, 0)
   return (
     <div className="max-w-[1200px] mx-auto space-y-6 animate-fadeIn w-full">
       <div className="text-center space-y-2 max-w-[640px] mx-auto pb-1.5">

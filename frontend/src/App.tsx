@@ -29,6 +29,7 @@ const authRoutes = {
   '/forgot-password': 'forgot-password',
   '/reset-password': 'reset-password',
   '/verify-email': 'verify-email',
+  '/auth/verify-email': 'verify-email',
 } as const
 
 export default function App() {

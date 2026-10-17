@@ -29,7 +29,7 @@ public/AW.svg           Public logo
 tests/                  QA-owned component and domain tests
 ```
 
-Local design exports and the ZIP are reference inputs, not runtime assets. Build output and dependency directories are generated. `Dockerfile` is reserved for a future production container; Compose does not currently enable a frontend service.
+Local design exports and the ZIP are reference inputs, not runtime assets. Build output and dependency directories are generated. `Dockerfile` builds the production bundle and serves it with nginx; Compose includes the frontend and its reverse proxy.
 
 ## API boundaries
 
@@ -49,11 +49,12 @@ The development proxy forwards relative `/api` requests to the configured backen
 
 `usePaymentLiveUpdates` subscribes after a linked user is known. It resynchronizes after subscribing or reconnecting, batches bursts of payment events, backs off on disconnects, expires the session on 401, and stops while hidden, offline, or viewing Settings. Payment events trigger fresh resource reads rather than treating an event as a complete ledger. The backend has no replay cursor, so reconnecting must read current state.
 
-`dashboardSplit.ts` previews active rules in priority order using current balances and conditions. It is a preview, not a replacement for server processing. Historical payment bars and envelope histories require actual allocation fields and reconciled totals; absent values are not reconstructed from today's rules.
+`dashboardSplit.ts` is shared by signup, Sandbox and dashboard previews. It previews active rules in priority order using current balances and conditions. It is a preview, not a replacement for server processing. Historical payment bars and envelope histories require actual allocation fields and reconciled totals; absent values are not reconstructed from today's rules.
 
 ## State and lifecycle
 
 - The URL selects the current view and detail object. Safe return URLs survive login, two-factor entry, and the Google callback.
+- Recovery codes use component memory with copy/download controls; they are cleared when the Security screen unmounts. Verification consumes email tokens once per mounted screen, including StrictMode effect replay.
 - Signup and two-factor passwords are page-memory data; non-secret drafts and a short-lived Google return destination use session storage.
 - The Bearer token is currently stored in local storage. Backend authorization remains authoritative.
 - Theme and payment-alert preferences use external-store subscriptions. Notification read IDs are scoped to the user and synchronized across tabs; unavailable storage falls back to memory for the visit.

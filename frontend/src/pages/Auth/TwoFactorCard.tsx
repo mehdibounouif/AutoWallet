@@ -1,6 +1,8 @@
+import { isRecoveryCode, normalizeRecoveryCode } from '../../auth/recoveryCodes'
+import { apiErrorDetail } from '../../api/errors'
 import { Dialog } from '../../components/common/Dialog'
 import { LegalFooter } from '../../components/common/LegalFooter'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, AlertCircle, Loader2, KeyRound } from 'lucide-react'
@@ -31,69 +33,51 @@ export function TwoFactorCard() {
   const [backupCode, setBackupCode] = useState('')
   const [backupError, setBackupError] = useState(false)
 
+  const inFlight = useRef(false)
   const cleanCode = code.replace(/\s/g, '')
-  const isComplete = cleanCode.length === 6
+  const isComplete = /^\d{6}$/.test(cleanCode)
 
-  // Handle TOTP verification
-  const handleVerify = async (codeToVerify?: string) => {
-    const finalCode = (codeToVerify || code).replace(/\s/g, '')
-    if (finalCode.length !== 6 || verifying || !pendingData.email || !pendingData.password) return
-
+  const signIn = async (method: 'totp_code' | 'recovery_code', value: string) => {
+    if (inFlight.current || !pendingData.email || !pendingData.password) return
+    if (method === 'totp_code' ? !/^\d{6}$/.test(value) : !isRecoveryCode(value)) return
+    inFlight.current = true
     const signal = requestSignal()
-    setVerifying(true)
-    setWrongCode(false)
-    setServiceError(null)
-
+    setVerifying(true); setWrongCode(false); setBackupError(false); setServiceError(null)
     try {
-      // In production/local backend, submit to /api/auth/login with totp_code
-      const payload = {
-        email: pendingData.email,
-        password: pendingData.password,
-        totp_code: finalCode,
-      }
-
       const res = await apiFetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal,
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingData.email, password: pendingData.password, [method]: value }), signal,
       })
-
+      if (signal.aborted) return
       if (res.ok) {
         const data = await res.json()
-        if (typeof data.access_token !== 'string') throw new Error('Missing access token')
+        if (signal.aborted) return
+        if (typeof data.access_token !== 'string' || !data.access_token) throw new Error('Missing access token')
         localStorage.setItem('autowallet_token', data.access_token)
-        clearTwoFactorCredentials()
-        navigate(returnTo)
+        clearTwoFactorCredentials(); setBackupCode(''); navigate(returnTo, { replace: true })
       } else if (res.status === 401) {
-        setWrongCode(true)
-      } else if (res.status === 503) {
-        setServiceError(t.serviceUnavailable)
+        if (method === 'totp_code') setWrongCode(true)
+        else setServiceError('That recovery code or your sign-in details could not be verified. Each recovery code can only be used once.')
       } else {
-        setWrongCode(true)
+        const detail = await res.json().catch(() => null)
+        setServiceError(apiErrorDetail(detail, t.serviceUnavailable).message)
       }
     } catch {
-      if (!signal.aborted) setServiceError(t.serviceUnavailable)
-    } finally {
-      if (!signal.aborted) setVerifying(false)
-    }
+      if (!signal.aborted) setServiceError(method === 'recovery_code'
+        ? 'Sign-in could not be confirmed. If this code was consumed, try another saved code or your authenticator app.'
+        : t.serviceUnavailable)
+    } finally { inFlight.current = false; if (!signal.aborted) setVerifying(false) }
   }
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    handleVerify()
-  }
-
-  const handleLogout = () => {
-    clearTwoFactorCredentials()
-    navigate(loginPath(returnTo))
-  }
-
-  const handleBackupSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    const cleanBackup = backupCode.trim().replace(/-/g, '')
-    setBackupError(cleanBackup.length < 8)
-    if (cleanBackup.length >= 8) setServiceError('Backup code sign-in is not available yet. Use your authenticator app.')
+  const handleVerify = (value = code) => signIn('totp_code', value.replace(/\s/g, ''))
+  const handleSubmit = (event: FormEvent) => { event.preventDefault(); void handleVerify() }
+  const handleLogout = () => { clearTwoFactorCredentials(); navigate(loginPath(returnTo)) }
+  const closeBackup = () => { setShowBackupModal(false); setBackupCode(''); setServiceError(null); setBackupError(false) }
+  const handleBackupSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    const value = normalizeRecoveryCode(backupCode)
+    setBackupError(!isRecoveryCode(value))
+    if (isRecoveryCode(value)) void signIn('recovery_code', value)
   }
 
   if (!pendingData.email || !pendingData.password) return null
@@ -183,13 +167,15 @@ export function TwoFactorCard() {
         <div className="mt-6 flex items-center justify-between text-sm text-[#4A53A0] pt-2">
           <button
             type="button"
-            onClick={() => setShowBackupModal(true)}
+            disabled={verifying}
+            onClick={() => { setServiceError(null); setShowBackupModal(true) }}
             className="text-[#4A53A0] hover:text-[#3B495D] hover:underline font-medium cursor-pointer"
           >
             {t.twoFactorCantUseApp}
           </button>
           <button
             type="button"
+            disabled={verifying}
             onClick={handleLogout}
             className="text-[#4A53A0] hover:text-[#3B495D] hover:underline font-medium cursor-pointer"
           >
@@ -200,7 +186,7 @@ export function TwoFactorCard() {
 
       {/* Backup Code Modal */}
       {showBackupModal && (
-        <Dialog labelledBy="backup-code-title" onClose={() => setShowBackupModal(false)} panelClassName="w-full max-w-[420px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-8 shadow-2xl space-y-4">
+        <Dialog labelledBy="backup-code-title" dismissible={!verifying} onClose={closeBackup} panelClassName="w-full max-w-[420px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-8 shadow-2xl space-y-4">
             <div className="w-10 h-10 rounded-full bg-[#ECEEFA] flex items-center justify-center text-[#5A64B4]">
               <KeyRound className="w-5 h-5" />
             </div>
@@ -220,11 +206,16 @@ export function TwoFactorCard() {
                 <input
                   type="text"
                   autoFocus
+                  aria-label="Recovery code"
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={verifying}
                   placeholder={t.twoFactorBackupPlaceholder}
                   value={backupCode}
                   onChange={(e) => {
-                    setBackupCode(e.target.value.toUpperCase())
+                    setBackupCode(normalizeRecoveryCode(e.target.value))
                     if (backupError) setBackupError(false)
+                    setServiceError(null)
                   }}
                   className={`w-full h-11 px-3.5 rounded-[10px] border font-mono text-center text-base tracking-widest bg-white text-[#1A2330] placeholder:text-[#8C9BAE] focus:outline-none transition ${
                     backupError
@@ -235,7 +226,7 @@ export function TwoFactorCard() {
                 {backupError && (
                   <p className="text-xs text-[#B42325] flex items-center gap-1 mt-1">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>Please enter a valid 8-character recovery code.</span>
+                    <span>Please enter a valid 32-character recovery code.</span>
                   </p>
                 )}
               </div>
@@ -243,14 +234,15 @@ export function TwoFactorCard() {
               <div className="flex flex-col gap-2 pt-2">
                 <button
                   type="submit"
-                  disabled={backupCode.trim().length < 8}
+                  disabled={verifying || !isRecoveryCode(backupCode)}
                   className="w-full h-11 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] disabled:opacity-50 text-white font-medium text-sm transition cursor-pointer"
                 >
-                  {t.twoFactorBackupSubmit}
+                  {verifying ? t.twoFactorChecking : t.twoFactorBackupSubmit}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowBackupModal(false)}
+                  disabled={verifying}
+                  onClick={closeBackup}
                   className="w-full h-10 rounded-[10px] text-sm text-[#5E6B7E] hover:text-[#1A2330] transition cursor-pointer"
                 >
                   {t.twoFactorBackToCode}
