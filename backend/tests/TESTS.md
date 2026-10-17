@@ -24,10 +24,11 @@ cd backend
 - No server, no database server, no Redis, no bank simulator, no
   authorization service, no AI provider, no SMTP server needed — see §2
   (fake infrastructure).
-- Current baseline: **109 passed, 3 xfailed**. Findings #15/#17/#18/#19 are
-  closed (§4); open and xfail-strict by design: #20/#24/#25 (§4). The 2FA
-  review findings #27/#28 ride their own branch (`feature/qa-2fa-findings-tests`)
-  until that PR merges.
+- Current baseline: **109 passed, 5 xfailed** (verified: merged state). Findings
+  #15/#17/#18/#19 are closed (§4); open and xfail-strict by design:
+  #20/#24/#25/#27/#28 (§4). #26 (Allocation-model deletion, PR #63/#64
+  stack) is filed as an issue — no test needed, the suite cannot even
+  import while the branch is unmerged.
 - ⚠️ **main's settings currently block the suite at import** (finding #20):
   until that fix lands, run with the four missing vars supplied —
   `FRONTEND_GOOGLE_CALLBACK_URL=... POSTGRES_USER=... POSTGRES_PASSWORD=... POSTGRES_DB=... ./venv/bin/pytest -q`
@@ -284,6 +285,8 @@ outside the repo, in QA's shared documents):
 | `test_the_app_boots_from_the_committed_env_example` (test_oauth.py) | **#20** | MEHDI | 4 required settings (`frontend_google_callback_url`, `postgres_user/password/db`) with no defaults and incomplete `.env.example` — the app can't boot from `cp .env.example .env`; 3 CI jobs red at import. Fix: defaults or complete the example. |
 | `test_rules_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#24** | MEHDI | the rules router has no gateway hop — `app/api/rules.py:13` creates the APIRouter without `dependencies=[Depends(require_client)]` (the import sits commented out). Locally authenticated, never authorized by the api-gateway, unlike wallets/transactions. Fix: add the dependency like the other routers. |
 | `test_gdpr_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#25** | MTARZA | same gap on `app/gdpr/router.py:22` — export/delete paths never cross the hop. Fix: add the dependency. |
+| `test_login_rejects_2fa_after_repeated_failed_attempts` (test_2fa.py) | **#27** (PR #64 review) | MEHDI | `/login` grades TOTP/recovery second factors with no attempt counting or lockout — a stolen password can brute-force the 6-digit factor (10^6 keyspace, valid_window=1) at request speed. Fix: Redis-backed failed-attempt window per user, checked BEFORE the verify call, refuse with 429 past the threshold. |
+| `test_2fa_can_be_disabled_by_the_user` (test_2fa.py) | **#28** (PR #64 review) | MEHDI | auth.py ships 2FA setup/verify/regenerate but NO disable endpoint — a user who loses device AND recovery codes is locked out forever. Fix: POST `/api/auth/2fa/disable` gated by password + one valid second factor, clearing the secret and outstanding recovery codes atomically. |
 
 (#21 — `/login` Redis-key spam, LOW — is report-only in the review doc: the
 fix shape is a design decision.)
