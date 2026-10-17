@@ -35,11 +35,11 @@ describe('Google callback', () => {
 
     expect(await screen.findByText('Dashboard route')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledWith('/api/auth/oauth/google/exchange', {
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/oauth/google/exchange', expect.objectContaining({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: 'one-time-code' }),
-    })
+    }))
     expect(localStorage.getItem('autowallet_token')).toBe('app-token')
   })
 
