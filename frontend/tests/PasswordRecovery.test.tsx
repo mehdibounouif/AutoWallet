@@ -2,12 +2,10 @@
  * Password recovery inputs — the forgot-password email, the reset password.
  *
  * What this suite pins:
- *   FORGOT EMAIL     empty field never sends (green). FINDING #23: any
- *                    NON-EMPTY string is POSTed to /api/auth/password/forgot
- *                    today — "not-an-email" goes out on the wire, and the
- *                    backend's 422 comes back as a misleading "service
- *                    unavailable". The it.fails test goes green -> RED when
- *                    the AuthCard-style email validation is added.
+ *   FORGOT EMAIL     empty field never sends (green). FINDING #23, now
+ *                    FIXED: the card validates the format before sending —
+ *                    "not-an-email" shows the inline error and never goes
+ *                    on the wire; pinned here as a plain test.
  *   RESET PASSWORD   under 8 characters never sends (green — the gate is
  *                    disabled={password.length < 8}).
  */
@@ -68,16 +66,12 @@ describe('PIN: forgot-password email', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  // ⚠️ TEMPORARY (it.fails) — expected to fail while finding #23 is open.
-  // Converts to a plain it() when the AuthCard-style email validation is
-  // added; the suite going RED on "expected fail but passed" is the
-  // intended signal, NOT a regression.
-  it.fails('finding #23: a malformed email is never sent to the API', async () => {
+  it('finding #23 (FIXED): a malformed email is never sent to the API', async () => {
     // SCENARIO: the user types "not-an-email" and submits.
     // EXPECTED: client-side rejection — the emailInvalid message shows AND
-    //           no request goes out (the AuthCard pattern).
-    //           (fails today: the junk string is POSTed verbatim, and the
-    //           backend 422 surfaces as a misleading "service unavailable")
+    //           no request goes out (the AuthCard pattern). Was an
+    //           it.fails tripwire until the validation landed; now a plain
+    //           contract pin.
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     renderForgot()
