@@ -237,7 +237,8 @@ def test_google_callback_bad_code_is_handled(client: TestClient, monkeypatch):
 def test_google_callback_garbage_userinfo_response(client: TestClient, monkeypatch):
     """SCENARIO:   token exchange SUCCEEDS but the userinfo call comes back
                 hostile (403).
-    EXPECTED:   a clean 401 mentioning "user info" — not a KeyError/500."""
+    EXPECTED:   a clean 401 with a safe, generic error — not a KeyError/500
+                and not a leak of what went wrong."""
     state = _login_state(client)
     _fake_google(monkeypatch, userinfo_status=403)
 
@@ -247,7 +248,8 @@ def test_google_callback_garbage_userinfo_response(client: TestClient, monkeypat
     )
 
     assert response.status_code == 401
-    assert "user info" in response.json()["detail"]
+    # The app deliberately answers with a generic message; pin it.
+    assert response.json()["detail"] == "Could not verify Google identity"
 
 
 # ---------------------------------------------------------------------------
@@ -318,19 +320,17 @@ def test_oauth_user_provisioning_matches_promise(db_session, oauth_user_id):
 # XPASSes (turning the suite red ON PURPOSE) the moment the fix lands.
 # The full analysis is the OAuth security review document, kept outside
 # the repo (QA's shared documents) — ask QA for it.
+#
+# STATUS: findings #17/#18/#19 (cycle-2 OAuth) are FIXED on main — the
+# /login flow now issues an httpOnly autowallet_google_oauth_nonce cookie
+# and the Redis key binds hash(nonce:state); email_verified is checked
+# before the link branch; userinfo payloads are read with .get() and a
+# clean 401. The xfail-strict tripwires XPASSed (suite red as designed),
+# so the markers were removed in the PR #52 refresh — the tests below are
+# plain regression pins now. A regression is a green-to-red change, not
+# an xfail.
 # ---------------------------------------------------------------------------
 
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #17 (owner: MEHDI): login-CSRF — the OAuth state is not "
-           "bound to the browser that requested it (app/api/oauth.py:31 stores "
-           "the raw state in Redis; nothing ties it to the /login caller). An "
-           "attacker completes his own /login, replays HIS code+state into the "
-           "victim's browser, and the victim lands in the ATTACKER's account. "
-           "Fix: bind the state to a browser-held secret (httpOnly "
-           "SameSite=Lax cookie with a nonce; store hash(nonce+state)).",
-)
 def test_a_state_issued_to_another_browser_is_rejected(client: TestClient, monkeypatch):
     """SCENARIO:   the ATTACKER's browser does /login (state S lands in Redis,
                 unused), then the VICTIM's browser — which never requested
@@ -361,14 +361,6 @@ def test_a_state_issued_to_another_browser_is_rejected(client: TestClient, monke
         "finding #17: a state from ANOTHER browser completed the login"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #18 (owner: MEHDI): the callback links Google onto an "
-           "EXISTING password account by email alone (app/api/oauth.py:143) "
-           "without checking Google's email_verified claim — the classic "
-           "OAuth account-takeover pattern. Fix: refuse with 401 unless "
-           "profile.get('email_verified') is true, BEFORE the link branch.",
-)
 def test_unverified_google_email_never_links_onto_an_existing_account(
     client: TestClient, monkeypatch, db_session
 ):
@@ -405,14 +397,6 @@ def test_unverified_google_email_never_links_onto_an_existing_account(
     assert victim.oauth_id is None
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #19 (owner: MEHDI): profile['sub'] and profile['email'] "
-           "use direct indexing (app/api/oauth.py:135-136), so a userinfo "
-           "answer missing those keys raises KeyError/500 BEFORE the "
-           "if-not-google_id 401 guard below it (dead code). Fix: .get() + "
-           "an explicit 401.",
-)
 def test_userinfo_without_sub_answers_401_not_500(client: TestClient, monkeypatch):
     """SCENARIO:   token exchange succeeds, but the userinfo answer is 200
                 with a malformed body (no 'sub').
