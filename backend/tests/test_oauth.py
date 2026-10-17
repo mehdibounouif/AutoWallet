@@ -6,7 +6,8 @@ Sections:
                                re-pinned to the state dance after PR #51)
     3. Acceptance tests        (finding #10 legs; xfail-strict while open)
     4. Provisioning parity     (OAuth signup promises the same 5+4)
-    5. OAuth security acceptance — cycle-2 findings (xfail-strict)
+    5. OAuth security          (#17/#18/#19 CLOSED and pinned as plain
+                               tests; #20 still xfail-strict)
 
 Report-only findings referenced below (owners hold the fixes):
     #9   OAuth config hard-requires 3 Google secrets — verified live via
@@ -15,11 +16,13 @@ Report-only findings referenced below (owners hold the fixes):
     #10  transactions must be gated by require_linked_account like
          wallets/rules are — POST leg FIXED, GET leg REOPENED (see §3).
     #17  the OAuth state is not bound to the browser that requested it —
-         login-CSRF / authorization-code injection (see §5).
+         login-CSRF / authorization-code injection (see §5). FIXED by
+         Mehdi's OAuth hardening; the acceptance test is now a plain pin.
     #18  Google's email is linked onto existing password accounts without
          checking email_verified — the classic OAuth ATO pattern (see §5).
+         FIXED (email_verified required; silent linking removed entirely).
     #19  a userinfo answer without "sub" crashes with KeyError/500 instead
-         of the intended clean 401 (see §5).
+         of the intended clean 401 (see §5). FIXED (.get() + explicit 401).
     #20  the 4 required settings PR #51 added are missing from the
          committed .env.example, so the app can't boot from it (see §5).
 
@@ -311,13 +314,14 @@ def test_oauth_user_provisioning_matches_promise(db_session, oauth_user_id):
 
 
 # ---------------------------------------------------------------------------
-# 5. OAUTH SECURITY ACCEPTANCE — cycle-2 findings (owner of all four: MEHDI)
+# 5. OAUTH SECURITY — findings #17/#18/#19 CLOSED, #20 open
 #
-# PR #51's state/exchange rewrite hardened the flow (single-use state,
-# timeouts, error param, JWT out of URLs) but left three cracks plus one
-# boot blocker. Each is pinned here xfail-strict: the test asserts the
-# DESIRED (post-fix) behavior, fails today because of the finding, and
-# XPASSes (turning the suite red ON PURPOSE) the moment the fix lands.
+# #17, #18 and #19 were filed from the QA review of PR #51 and FIXED by
+# Mehdi's OAuth hardening: their acceptance tests XPASSed (strict) in the
+# worktree against his branch, so the markers were removed here — they are
+# now plain contract pins. #20 (required settings can't boot from the
+# committed .env.example) is still open and stays xfail-strict: it
+# converts the same way the moment its fix lands.
 # The full analysis is the OAuth security review document, kept outside
 # the repo (QA's shared documents) — ask QA for it.
 #
@@ -331,12 +335,13 @@ def test_oauth_user_provisioning_matches_promise(db_session, oauth_user_id):
 # an xfail.
 # ---------------------------------------------------------------------------
 
+
 def test_a_state_issued_to_another_browser_is_rejected(client: TestClient, monkeypatch):
     """SCENARIO:   the ATTACKER's browser does /login (state S lands in Redis,
                 unused), then the VICTIM's browser — which never requested
                 anything — opens /callback?code=<attacker's code>&state=S.
-    EXPECTED:   400 — a state this browser never requested must not open the
-                door for it (login-CSRF / authorization-code injection)."""
+    EXPECTED:   400 — the cookie-bound state means a browser that never
+                started the flow cannot complete one (finding #17, FIXED)."""
     from app.main import app as fastapi_app
 
     state = _login_state(client)  # the attacker's browser starts the flow
@@ -358,7 +363,7 @@ def test_a_state_issued_to_another_browser_is_rejected(client: TestClient, monke
     )
 
     assert response.status_code == 400, \
-        "finding #17: a state from ANOTHER browser completed the login"
+        "a state from ANOTHER browser must not complete a login"
 
 
 def test_unverified_google_email_never_links_onto_an_existing_account(
@@ -366,7 +371,8 @@ def test_unverified_google_email_never_links_onto_an_existing_account(
 ):
     """SCENARIO:   Google answers with an identity that CLAIMS the victim's
                 email but carries email_verified: false.
-    EXPECTED:   401, and the victim's password account stays un-linked."""
+    EXPECTED:   401, and the victim's password account stays un-linked
+                (finding #18, FIXED — emailed-linked accounts are refused)."""
     from tests.helpers import make_user
 
     victim_id = make_user(db_session, "oauth-victim@autowallet.dev",
@@ -388,19 +394,20 @@ def test_unverified_google_email_never_links_onto_an_existing_account(
     )
 
     assert response.status_code == 401, \
-        "finding #18: an unverified email completed an OAuth login"
+        "an unverified email must never complete an OAuth login"
 
     db_session.expire_all()
     victim = db_session.query(User).filter(User.id == victim_id).first()
     assert victim.oauth_provider is None, \
-        "finding #18: the attacker's Google identity was LINKED onto the victim's account"
+        "the Google identity must NOT be linked onto the victim's account"
     assert victim.oauth_id is None
 
 
 def test_userinfo_without_sub_answers_401_not_500(client: TestClient, monkeypatch):
     """SCENARIO:   token exchange succeeds, but the userinfo answer is 200
                 with a malformed body (no 'sub').
-    EXPECTED:   the intended clean 401 — never an unhandled KeyError/500."""
+    EXPECTED:   the clean 401 — never an unhandled KeyError/500
+                (finding #19, FIXED)."""
     state = _login_state(client)
     _fake_google(monkeypatch, userinfo_body={"email": "who@autowallet.dev"})
 
@@ -410,7 +417,7 @@ def test_userinfo_without_sub_answers_401_not_500(client: TestClient, monkeypatc
     )
 
     assert response.status_code == 401, \
-        "finding #19: malformed userinfo must answer 401, not crash"
+        "malformed userinfo must answer 401, not crash"
 
 
 @pytest.mark.xfail(

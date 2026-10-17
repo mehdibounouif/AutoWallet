@@ -10,7 +10,7 @@ doesn't make the reason obvious, that's a documentation bug — tell me.
 
 ```bash
 cd backend
-./venv/bin/pytest tests -q    # expected: 109 passed, 1 xfailed (nothing red)
+./venv/bin/pytest tests -q    # expected: 109 passed, 3 xfailed (nothing red)
 ./venv/bin/pytest tests/test_transactions.py -q   # one file
 ./venv/bin/pytest "tests/test_auth_client.py::test_auth_service_403_propagates_as_403"  # one test
 ```
@@ -24,8 +24,11 @@ cd backend
 - No server, no database server, no Redis, no bank simulator, no
   authorization service, no AI provider, no SMTP server needed — see §2
   (fake infrastructure).
-- Current baseline: **109 passed, 3 xfailed**. Findings #15/#17/#18/#19 are closed (§4); #20/#27/#28 (backend) and #26 (see issue) are open, xfail-strict by design. The generation-1 findings (#10 GET
-  leg, #12 role claim) are FIXED (12269aa).
+- Current baseline: **109 passed, 5 xfailed** (verified: merged state). Findings
+  #15/#17/#18/#19 are closed (§4); open and xfail-strict by design:
+  #20/#24/#25/#27/#28 (§4). #26 (Allocation-model deletion, PR #63/#64
+  stack) is filed as an issue — no test needed, the suite cannot even
+  import while the branch is unmerged.
 - ⚠️ **main's settings currently block the suite at import** (finding #20):
   until that fix lands, run with the four missing vars supplied —
   `FRONTEND_GOOGLE_CALLBACK_URL=... POSTGRES_USER=... POSTGRES_PASSWORD=... POSTGRES_DB=... ./venv/bin/pytest -q`
@@ -108,7 +111,7 @@ so tests can assert the request contract too.
 | `test_transactions_scoped_to_owner` | user A pays, user B lists → B never sees A's payment (IDOR) |
 | `test_conditional_rules_apply_live_through_api` | savings at cap, then payment → savings skips, its 15% flows to free |
 
-### `tests/test_auth_client.py` — the require_client auth hop (11 tests)
+### `tests/test_auth_client.py` — the require_client auth hop (13 tests)
 
 The mapping contract (`service answer → endpoint status`):
 
@@ -125,6 +128,8 @@ The mapping contract (`service answer → endpoint status`):
 | `test_request_shape_contract` | one guarded request → exactly one call; path `/api/authorize`; Authorization header VERBATIM; body `{"permission":"client:access"}` — the interface the service is built against |
 | `test_real_service_grants_token_with_role_claim` | realish + token WITH role → 200 (the contract the backend must reach) |
 | `test_real_service_accepts_backend_token_once_role_claim_exists` ⚠️ xfail | realish + REAL backend token → DESIRED 200; fails today (403): finding **#12** (owner **HOMIE**) |
+| `test_rules_routes_go_through_the_gateway_hop` ⚠️ xfail | rules answers WITHOUT crossing the hop (0 seam calls): finding **#24** (owner **MEHDI**) — see §4 |
+| `test_gdpr_routes_go_through_the_gateway_hop` ⚠️ xfail | gdpr answers WITHOUT crossing the hop (0 seam calls): finding **#25** (owner **MTARZA**) — see §4 |
 
 ### `tests/test_oauth.py` — Google OAuth + linked-account gate (17 tests)
 
@@ -143,9 +148,9 @@ The mapping contract (`service answer → endpoint status`):
 | `test_transactions_gated_for_unlinked_user` | unlinked user POSTs payment → 403 — **finding #10 POST leg, FIXED** |
 | `test_transaction_list_gated_for_unlinked_user` ⚠️ xfail | unlinked user GETs list → DESIRED 403; **fails today (200): finding #10 REOPENED** (owner **HOMIE**) |
 | `test_oauth_user_provisioning_matches_promise` | Google-created user → DB has the same 5 wallets + 4 rules |
-| `test_a_state_issued_to_another_browser_is_rejected` ⚠️ xfail | **finding #17** (owner **MEHDI**): another browser's state must NOT complete a login (login-CSRF) — see §4 |
-| `test_unverified_google_email_never_links_onto_an_existing_account` ⚠️ xfail | **finding #18** (owner **MEHDI**): `email_verified: false` → 401, no link — see §4 |
-| `test_userinfo_without_sub_answers_401_not_500` ⚠️ xfail | **finding #19** (owner **MEHDI**): userinfo without `sub` → 401, not KeyError/500 — see §4 |
+| `test_a_state_issued_to_another_browser_is_rejected` | another browser's state must NOT complete a login (login-CSRF) — **finding #17, FIXED**, now a plain pin |
+| `test_unverified_google_email_never_links_onto_an_existing_account` | `email_verified: false` → 401, no link — **finding #18, FIXED**, now a plain pin |
+| `test_userinfo_without_sub_answers_401_not_500` | userinfo without `sub` → 401, not KeyError/500 — **finding #19, FIXED**, now a plain pin |
 | `test_the_app_boots_from_the_committed_env_example` ⚠️ xfail | **finding #20** (owner **MEHDI**): Settings must construct from `.env.example` alone — see §4 |
 
 The state dance helpers (`_login_state`, `_fake_google`) live in the test
@@ -278,6 +283,8 @@ outside the repo, in QA's shared documents):
 | Test | Finding | Owner | The missing fix |
 |---|---|---|---|
 | `test_the_app_boots_from_the_committed_env_example` (test_oauth.py) | **#20** | MEHDI | 4 required settings (`frontend_google_callback_url`, `postgres_user/password/db`) with no defaults and incomplete `.env.example` — the app can't boot from `cp .env.example .env`; 3 CI jobs red at import. Fix: defaults or complete the example. |
+| `test_rules_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#24** | MEHDI | the rules router has no gateway hop — `app/api/rules.py:13` creates the APIRouter without `dependencies=[Depends(require_client)]` (the import sits commented out). Locally authenticated, never authorized by the api-gateway, unlike wallets/transactions. Fix: add the dependency like the other routers. |
+| `test_gdpr_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#25** | MTARZA | same gap on `app/gdpr/router.py:22` — export/delete paths never cross the hop. Fix: add the dependency. |
 | `test_login_rejects_2fa_after_repeated_failed_attempts` (test_2fa.py) | **#27** (PR #64 review) | MEHDI | `/login` grades TOTP/recovery second factors with no attempt counting or lockout — a stolen password can brute-force the 6-digit factor (10^6 keyspace, valid_window=1) at request speed. Fix: Redis-backed failed-attempt window per user, checked BEFORE the verify call, refuse with 429 past the threshold. |
 | `test_2fa_can_be_disabled_by_the_user` (test_2fa.py) | **#28** (PR #64 review) | MEHDI | auth.py ships 2FA setup/verify/regenerate but NO disable endpoint — a user who loses device AND recovery codes is locked out forever. Fix: POST `/api/auth/2fa/disable` gated by password + one valid second factor, clearing the secret and outstanding recovery codes atomically. |
 
@@ -288,21 +295,13 @@ Closed-cycle log:
 
 | Test | Finding | Owner | Resolution |
 |---|---|---|---|
+| `test_real_service_accepts_backend_token_once_role_claim_exists` | #12 | HOMIE | `create_access_token` now emits `{"sub", "role", "exp"}` (security.py:22); verified live: token carries `role:"user"`, guarded chain answers 200 (e2e, 2026-09-28) |
+| `test_transaction_list_gated_for_unlinked_user` | #10 (reopened, partial fix) | HOMIE | `list_transactions` (transactions.py:38) now `Depends(require_linked_account)`; verified by the test passing |
+| `test_a_state_issued_to_another_browser_is_rejected` | #17 | MEHDI | FIXED: cookie-bound state (httpOnly SameSite=Lax nonce at `/login`, `sha256(nonce:state)` in Redis). Acceptance test XPASSed (strict) against his branch; marker removed, now a plain pin |
+| `test_unverified_google_email_never_links_onto_an_existing_account` | #18 | MEHDI | FIXED: `email_verified` required; silent email-linking removed entirely (existing email → 409). Acceptance test XPASSed (strict); marker removed, plain pin |
+| `test_userinfo_without_sub_answers_401_not_500` | #19 | MEHDI | FIXED: `.get()` + explicit 401s on incomplete identity. Acceptance test XPASSed (strict); marker removed, plain pin |
 | `test_ai_routes_go_through_the_gateway_authorization_hop` | #15 | MTARZA | `app/ai/router.py:17` now creates the router WITH `dependencies=[Depends(require_client)]` — marker removed, test kept as a plain pin (this PR). |
-| `test_a_state_issued_to_another_browser_is_rejected` | #17 | MEHDI | fixed on main (`app/api/oauth.py`: /login sets an httpOnly `autowallet_google_oauth_nonce` cookie; Redis key binds hash(nonce:state)) — marker removed, pin kept (this PR). |
-| `test_unverified_google_email_never_links_onto_an_existing_account` | #18 | MEHDI | fixed on main (oauth.py checked the `email_verified` claim before the link branch; verified by this PR's run) — marker removed, pin kept (this PR). |
-| `test_userinfo_without_sub_answers_401_not_500` | #19 | MEHDI | fixed on main (oauth.py uses `.get()` on the userinfo payload with an explicit 401) — marker removed, pin kept (this PR). |
 | `test_google_callback_garbage_userinfo_response` | (not a numbered finding) | QA | the app's safe generic error was reworded to "Could not verify Google identity" while keeping the clean 401 — test assertion updated to match (this PR). |
-| `test_real_service_accepts_backend_token_once_role_claim_exists` | #12 | HOMIE | `create_access_token` now emits `{"sub", "role", "exp"}` (security.py:22); verified live: token carries `role:"user"`, guarded chain answers 200 (e2e, 2026-09-28) |
-| `test_transaction_list_gated_for_unlinked_user` | #10 (reopened, partial fix) | HOMIE | `list_transactions` (transactions.py:38) now `Depends(require_linked_account)`; verified by the test passing |
-
-
-Closed-cycle log:
-
-| Test | Finding | Owner | Resolution |
-|---|---|---|---|
-| `test_real_service_accepts_backend_token_once_role_claim_exists` | #12 | HOMIE | `create_access_token` now emits `{"sub", "role", "exp"}` (security.py:22); verified live: token carries `role:"user"`, guarded chain answers 200 (e2e, 2026-09-28) |
-| `test_transaction_list_gated_for_unlinked_user` | #10 (reopened, partial fix) | HOMIE | `list_transactions` (transactions.py:38) now `Depends(require_linked_account)`; verified by the test passing |
 
 ---
 
