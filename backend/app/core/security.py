@@ -2,11 +2,14 @@ from datetime import datetime, timedelta
 
 import jwt
 from passlib.context import CryptContext
-
+import hashlib
+import hmac
+import secrets
 from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours, as discussed
+RECOVERY_CODE_COUNT = 10
 
 
 def hash_password(password: str) -> str:
@@ -47,3 +50,24 @@ def get_totp_uri(secret: str, email: str) -> str:
 # Check if this 6-digit code correct for this user's secret and the current time?
 def verify_totp_code(secret: str, code: str) -> bool:
     return pyotp.TOTP(secret).verify(code, valid_window=1)
+
+
+def normalize_recovery_code(code: str) -> str:
+    return code.strip().upper()
+
+
+def generate_recovery_codes() -> list[str]:
+    return [
+        secrets.token_hex(16).upper()
+        for _ in range(RECOVERY_CODE_COUNT)
+    ]
+
+
+def hash_recovery_code(code: str) -> str:
+    normalized = normalize_recovery_code(code)
+
+    return hmac.new(
+        settings.secret_key.encode("utf-8"),
+        normalized.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()

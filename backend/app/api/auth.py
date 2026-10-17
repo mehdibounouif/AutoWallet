@@ -18,6 +18,20 @@ from app.api.schemas import (
     VerifyEmailRequest,
     MessageResponse
 )
+
+from sqlalchemy import delete
+
+from app.models.models import TwoFactorRecoveryCode
+from app.api.schemas import (
+    RecoveryCodesOut,
+    RegenerateRecoveryCodesRequest,
+)
+
+from app.core.security import (
+    generate_recovery_codes,
+    hash_recovery_code,
+)
+
 from app.services.email_verification import token_key
 
 import logging
@@ -89,19 +103,93 @@ def register(
 
     return user
 
+
 @router.post("/login", response_model=Token)
-def login(payload: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    if not user or not user.hashed_password or not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+def login(
+    payload: UserLogin,
+    db: Session = Depends(get_db),
+):
+    email = str(payload.email).strip().lower()
+
+    user = (
+        db.query(User)
+        .filter(User.email == email)
+        .first()
+    )
+
+    if (
+        not user
+        or not user.hashed_password
+        or not verify_password(
+            payload.password,
+            user.hashed_password,
+        )
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password",
+        )
 
     if user.two_factor_enabled:
-        if not payload.totp_code:
-            raise HTTPException(status_code=401, detail="2FA code required")
-        if not verify_totp_code(user.two_factor_secret, payload.totp_code):
-            raise HTTPException(status_code=401, detail="Invalid 2FA code")
-    return Token(access_token=create_access_token(user_id=user.id, role=user.role.value))
+        if payload.totp_code and payload.recovery_code:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide only one 2FA method",
+            )
 
+        if payload.totp_code:
+            if not verify_totp_code(
+                user.two_factor_secret,
+                payload.totp_code,
+            ):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid 2FA code",
+                )
+
+        elif payload.recovery_code:
+            code_hash = hash_recovery_code(
+                payload.recovery_code
+            )
+
+            try:
+                result = db.execute(
+                    delete(TwoFactorRecoveryCode).where(
+                        TwoFactorRecoveryCode.user_id
+                        == user.id,
+                        TwoFactorRecoveryCode.code_hash
+                        == code_hash,
+                    )
+                )
+
+                if result.rowcount != 1:
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Invalid recovery code",
+                    )
+
+                db.commit()
+
+            except HTTPException:
+                raise
+
+            except Exception:
+                db.rollback()
+                raise
+
+        else:
+            raise HTTPException(
+                status_code=401,
+                detail="2FA code required",
+            )
+
+    return Token(
+        access_token=create_access_token(
+            user_id=user.id,
+            role=user.role.value,
+        )
+    )
 
 
 # get has no request body
@@ -109,25 +197,146 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
-
 @router.post("/2fa/setup", response_model=TwoFactorSetupOut)
-def setup_2fa(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def setup_2fa(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.two_factor_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="2FA is already enabled",
+        )
+
     secret = generate_totp_secret()
+
     current_user.two_factor_secret = secret
     db.commit()
-    return TwoFactorSetupOut(secret=secret, provisioning_uri=get_totp_uri(secret, current_user.email))
 
+    return TwoFactorSetupOut(
+        secret=secret,
+        provisioning_uri=get_totp_uri(
+            secret,
+            current_user.email,
+        ),
+    )
 
-@router.post("/2fa/verify")
-def verify_2fa(payload: TwoFactorVerify, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.post("/2fa/verify", response_model=RecoveryCodesOut)
+def verify_2fa(
+    payload: TwoFactorVerify,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.two_factor_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="2FA is already enabled",
+        )
+
     if not current_user.two_factor_secret:
-        raise HTTPException(status_code=400, detail="2FA setup has not been started")
-    if not verify_totp_code(current_user.two_factor_secret, payload.code):
-        raise HTTPException(status_code=400, detail="Invalid code")
+        raise HTTPException(
+            status_code=400,
+            detail="2FA setup has not been started",
+        )
 
-    current_user.two_factor_enabled = True
-    db.commit()
-    return {"message": "2FA enabled"}
+    if not verify_totp_code(
+        current_user.two_factor_secret,
+        payload.code,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid code",
+        )
+
+    codes = generate_recovery_codes()
+
+    try:
+        for code in codes:
+            db.add(
+                TwoFactorRecoveryCode(
+                    user_id=current_user.id,
+                    code_hash=hash_recovery_code(code),
+                )
+            )
+
+        current_user.two_factor_enabled = True
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return RecoveryCodesOut(
+        message="2FA enabled. Save your recovery codes.",
+        recovery_codes=codes,
+    )
+
+
+@router.post(
+    "/2fa/recovery-codes/regenerate",
+    response_model=RecoveryCodesOut,
+)
+def regenerate_recovery_codes(
+    payload: RegenerateRecoveryCodesRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.two_factor_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="2FA is not enabled",
+        )
+
+    if (
+        not current_user.hashed_password
+        or not verify_password(
+            payload.password,
+            current_user.hashed_password,
+        )
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials",
+        )
+
+    if not verify_totp_code(
+        current_user.two_factor_secret,
+        payload.totp_code,
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials",
+        )
+
+    codes = generate_recovery_codes()
+
+    try:
+        db.execute(
+            delete(TwoFactorRecoveryCode).where(
+                TwoFactorRecoveryCode.user_id
+                == current_user.id
+            )
+        )
+
+        for code in codes:
+            db.add(
+                TwoFactorRecoveryCode(
+                    user_id=current_user.id,
+                    code_hash=hash_recovery_code(code),
+                )
+            )
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return RecoveryCodesOut(
+        message="Recovery codes regenerated.",
+        recovery_codes=codes,
+    )
+
 
 @router.post("/link-bank-account", response_model=UserOut)
 def link_bank_account(
