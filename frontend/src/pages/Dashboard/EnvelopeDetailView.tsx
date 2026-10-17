@@ -1,7 +1,8 @@
 import { ArrowLeft, ArrowLeftRight, ArrowRight, Check, ChevronRight, MessageSquareText, ReceiptText } from 'lucide-react'
-import type { DashboardData, DashboardRule, DashboardTransaction, WalletType } from './dashboardApi'
-import { envelopeDescription, envelopeMeta, money } from './envelopeDisplay'
+import type { DashboardData, DashboardTransaction, WalletType } from './dashboardApi'
+import { envelopeDescription, envelopeMeta, envelopeTarget, money, ruleDescription } from './envelopeDisplay'
 import { buildEnvelopeHistory } from './envelopeHistory'
+import { paymentDate } from './paymentUtils'
 import './envelopeDetail.css'
 
 interface Props {
@@ -9,30 +10,17 @@ interface Props {
   data: DashboardData
   onBack: () => void
   onViewRules: () => void
+  onAsk: (question: string) => void
   onSelectPayment: (payment: DashboardTransaction) => void
-  onUnavailable: (action: string) => void
 }
 
-function shortDate(value?: string) {
-  if (!value) return 'Date unavailable'
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value))
-}
-
-function ruleExplanation(rule: DashboardRule, name: string) {
-  if (rule.rule_type === 'lock_fixed') {
-    const amount = money.format(rule.fixed_amount ?? 0)
-    return rule.condition_field === `${rule.target_wallet}_balance` && rule.condition_value !== null
-      ? `Lock ${amount} MAD into ${name}, only while ${name} is below ${money.format(rule.condition_value)}`
-      : `Lock ${amount} MAD into ${name} first`
-  }
-  return `Put ${rule.percentage ?? 0}% of what's left into ${name}`
-}
+const shortDate = (value?: string) => paymentDate(value, true) || 'Date unavailable'
 
 function GlanceRow({ label, value }: { label: string; value: string }) {
   return <div className="envelope-detail-glance-row"><dt>{label}</dt><dd>{value}</dd></div>
 }
 
-export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPayment, onUnavailable }: Props) {
+export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPayment, onAsk }: Props) {
   const meta = envelopeMeta[type]
   const Icon = meta.icon
   const wallet = data.wallets.find((item) => item.wallet_type === type)
@@ -41,8 +29,7 @@ export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPa
   const share = total > 0 ? balance / total * 100 : 0
   const rule = data.rules.find((item) => item.target_wallet === type && item.is_active) ??
     data.rules.find((item) => item.target_wallet === type)
-  const target = rule?.condition_field === `${type}_balance` && rule.condition_value !== null && rule.condition_value > 0
-    ? rule.condition_value : null
+  const target = envelopeTarget(type, data.rules)
   const progress = target === null ? null : Math.max(0, Math.min(100, balance / target * 100))
   const history = buildEnvelopeHistory(type, data.transactions, balance)
   const latest = history.status === 'ready' ? history.rows[0] : undefined
@@ -81,8 +68,8 @@ export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPa
     </section>
 
     <div className="envelope-detail-actions">
-      {type === 'rent' ? <button type="button" className="dashboard-primary-button" onClick={() => onUnavailable('Mark rent as paid')}><Check className="h-4 w-4" />Mark rent as paid</button>
-        : <><button type="button" className="dashboard-primary-button" onClick={() => onUnavailable('Record spending')}><ReceiptText className="h-4 w-4" />Record spending</button><button type="button" className="dashboard-secondary-button envelope-detail-move" onClick={() => onUnavailable('Move money')}><ArrowLeftRight className="h-4 w-4" />Move money</button></>}
+      {type === 'rent' ? <button type="button" className="dashboard-primary-button" disabled title="Coming soon"><Check className="h-4 w-4" />Mark rent as paid <span className="dashboard-soon-badge">Soon</span></button>
+        : <><button type="button" className="dashboard-primary-button" disabled title="Coming soon"><ReceiptText className="h-4 w-4" />Record spending <span className="dashboard-soon-badge">Soon</span></button><button type="button" className="dashboard-secondary-button envelope-detail-move" disabled title="Coming soon"><ArrowLeftRight className="h-4 w-4" />Move money <span className="dashboard-soon-badge">Soon</span></button></>}
     </div>
 
     <div className="envelope-detail-panels">
@@ -91,7 +78,7 @@ export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPa
         {rule ? <div className="envelope-detail-rule-card">
           <span className="envelope-detail-priority">{rule.priority}</span>
           <span className="envelope-detail-rule-icon" style={{ color: meta.color, backgroundColor: meta.tint }}><Icon className="h-5 w-5" aria-hidden="true" /></span>
-          <div><strong>{rule.name}</strong><p>{ruleExplanation(rule, meta.name)}</p></div>
+          <div><strong>{rule.name}</strong><p>{ruleDescription(rule)}</p></div>
           <span className={`envelope-detail-rule-status ${rule.is_active ? 'is-active' : ''}`}><span aria-hidden="true" />{rule.is_active ? 'Active' : 'Paused'}</span>
         </div> : <p className="envelope-detail-muted">No saved rule fills this envelope.</p>}
         <button type="button" className="envelope-detail-text-link" onClick={onViewRules}>View in Rules <ArrowRight className="h-4 w-4" /></button>
@@ -112,7 +99,7 @@ export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPa
       </section>
     </div>
 
-    {type === 'tax' && <div className="envelope-detail-insight"><MessageSquareText className="h-4 w-4" aria-hidden="true" /><div><p>{reserveVsGross !== null ? `Tax received ${reserveVsGross.toFixed(1)}% of a full ${rule?.percentage ?? 0}% gross allocation because earlier rules ran first.` : 'Tax receives a share of what remains after higher-priority rules run.'}</p><button type="button" onClick={() => onUnavailable('Assistant')}>Ask why <ArrowRight className="h-4 w-4" /></button></div></div>}
+    {type === 'tax' && <div className="envelope-detail-insight"><MessageSquareText className="h-4 w-4" aria-hidden="true" /><div><p>{reserveVsGross !== null ? `Tax received ${reserveVsGross.toFixed(1)}% of a full ${rule?.percentage ?? 0}% gross allocation because earlier rules ran first.` : 'Tax receives a share of what remains after higher-priority rules run.'}</p><button type="button" onClick={() => onAsk('Explain my Tax envelope balance and how higher-priority rules affect the amount set aside for Tax.')}>Ask why</button></div></div>}
 
     <section className="envelope-detail-panel envelope-detail-history" aria-labelledby="envelope-history-heading">
       <h2 id="envelope-history-heading">History</h2>

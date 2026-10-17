@@ -1,9 +1,13 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthPage } from './pages/Auth/AuthPage'
-import { GoogleCallbackPage } from './pages/Auth/GoogleCallbackPage'
+
+import { useDashboardTheme } from './pages/Settings/settingsPreferences'
 import { onboardingPaths } from './pages/Onboarding/routes'
-import { LegalPage } from './pages/Legal/LegalPage'
+
+
+const GoogleCallbackPage = lazy(() => import('./pages/Auth/GoogleCallbackPage').then(({ GoogleCallbackPage }) => ({ default: GoogleCallbackPage })))
+const LegalPage = lazy(() => import('./pages/Legal/LegalPage').then(({ LegalPage }) => ({ default: LegalPage })))
 
 const OnboardingPage = lazy(() =>
   import('./pages/Onboarding/OnboardingPage').then(({ OnboardingPage }) => ({
@@ -28,6 +32,7 @@ const authRoutes = {
 } as const
 
 export default function App() {
+  useDashboardTheme()
   return (
     <BrowserRouter>
       <Suspense
@@ -43,7 +48,7 @@ export default function App() {
               key={path}
               path={path}
               element={
-                <AuthPage mode={mode} />
+                <AuthPage key={mode} mode={mode} />
               }
             />
           ))}
@@ -70,6 +75,15 @@ export default function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
 
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/app/activity" element={<DashboardPage />} />
+          <Route path="/app/activity/:paymentId" element={<DashboardPage />} />
+          <Route path="/app/analytics" element={<DashboardPage />} />
+          <Route path="/app/assistant" element={<DashboardPage />} />
+          <Route path="/app/notifications" element={<DashboardPage />} />
+          <Route path="/app/sandbox" element={<DashboardPage />} />
+          <Route path="/app/settings" element={<DashboardPage />} />
+          <Route path="/app/settings/:section" element={<DashboardPage />} />
+          <Route path="/app/rules" element={<DashboardPage />} />
           <Route path="/app/envelopes" element={<DashboardPage />} />
           <Route path="/app/envelopes/:walletType" element={<DashboardPage />} />
           <Route path="/maintenance" element={<Navigate to="/dashboard" replace />} />

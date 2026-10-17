@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
@@ -12,45 +12,27 @@ import { Step4Rules } from './steps/Step4Rules'
 import { Step5TryPayment } from './steps/Step5TryPayment'
 import { onboardingPaths } from './routes'
 import { clearSignupCredentials, getSignupPassword } from '../../auth/pendingCredentials'
-
-interface SignupDraft {
-  email?: string
-  firstName?: string
-  lastName?: string
-  bankAccount?: string
-  rentAmount?: string
-  taxPercent?: string
-  savingsPercent?: string
-  savingsCap?: string
-  registered?: boolean
-  bankAccountError?: string
-}
+import { isValidBankAccountId } from '../../auth/validation'
+import { isValidRuleValue } from '../../utils/format'
+import { clearSignupDraft, parseSignupDraft, readSignupDraft, writeSignupDraft } from '../../auth/signupDraft'
+import type { SignupDraft } from '../../auth/signupDraft'
+import { apiFetch } from '../../api/request'
+import { apiErrorDetail } from '../../api/errors'
+import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
   value ? value.replaceAll(',', '').trim() || fallback : fallback
-
-const isValidRuleValue = (value: string, maximum = Infinity) => {
-  if (!/^\d+(?:\.\d{1,2})?$/.test(value.trim())) return false
-  const numericValue = Number(value)
-  return Number.isFinite(numericValue) && numericValue <= maximum
-}
 
 export function OnboardingPage() {
   const t = translations
   const navigate = useNavigate()
   const location = useLocation()
+  const requestSignal = useRequestSignal()
 
   // Derive step directly from URL route
   const step = onboardingPaths.indexOf(location.pathname as typeof onboardingPaths[number]) + 1
 
-  const [draft] = useState(() => {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}') as SignupDraft
-      return { ...saved, ...(location.state as SignupDraft | null) } as SignupDraft
-    } catch {
-      return (location.state || {}) as SignupDraft
-    }
-  })
+  const [draft] = useState(() => ({ ...readSignupDraft(), ...parseSignupDraft(location.state) }))
   const draftEmail = draft.email || ''
   const [draftPassword] = useState(() => getSignupPassword(draftEmail) || '')
   const [registered, setRegistered] = useState(Boolean(draft.registered))
@@ -67,9 +49,8 @@ export function OnboardingPage() {
     if (registered && step < 3) navigate('/welcome/envelopes', { replace: true })
   }, [navigate, registered, step])
 
-  const hasLegacySampleName = draft.firstName === 'Yasmine' && draft.lastName === 'El Amrani'
-  const [firstName, setFirstName] = useState(hasLegacySampleName ? '' : draft.firstName || '')
-  const [lastName, setLastName] = useState(hasLegacySampleName ? '' : draft.lastName || '')
+  const [firstName, setFirstName] = useState(draft.firstName || '')
+  const [lastName, setLastName] = useState(draft.lastName || '')
   const [bankAccount, setBankAccount] = useState(draft.bankAccount || '')
 
   // Step 4 Rule customization states (Figma #118:1359)
@@ -83,9 +64,13 @@ export function OnboardingPage() {
   const [hasSimulated, setHasSimulated] = useState(false)
   const [isSimulating, setIsSimulating] = useState(false)
 
+  const simulationTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (simulationTimer.current) clearTimeout(simulationTimer.current) }, [])
+
   const handleSimulate = () => {
+    if (isSimulating) return
     setIsSimulating(true)
-    setTimeout(() => {
+    simulationTimer.current = setTimeout(() => {
       setIsSimulating(false)
       setHasSimulated(true)
     }, 700)
@@ -97,29 +82,14 @@ export function OnboardingPage() {
   const [firstNameError, setFirstNameError] = useState<string | null>(null)
   const [lastNameError, setLastNameError] = useState<string | null>(null)
   const [bankAccountError, setBankAccountError] = useState<string | null>(
-    (location.state as { bankAccountError?: string } | null)?.bankAccountError ?? null,
+    draft.bankAccountError ?? null,
   )
 
   const persistDraft = (extra: Partial<SignupDraft> = {}) => {
-    try {
-      const existing = JSON.parse(sessionStorage.getItem('autowallet_signup_draft') || '{}') as Record<string, unknown>
-      delete existing.password
-      const merged = {
-        ...existing,
-        email: draftEmail,
-        firstName,
-        lastName,
-        bankAccount,
-        rentAmount,
-        taxPercent,
-        savingsPercent,
-        savingsCap,
-        ...extra,
-      }
-      sessionStorage.setItem('autowallet_signup_draft', JSON.stringify(merged))
-    } catch {
-      // ignore
-    }
+    writeSignupDraft({
+      ...readSignupDraft(), email: draftEmail, firstName, lastName, bankAccount,
+      rentAmount, taxPercent, savingsPercent, savingsCap, registered, ...extra,
+    })
   }
 
   const handleStep1Continue = (e?: FormEvent) => {
@@ -166,7 +136,7 @@ export function OnboardingPage() {
       return
     }
 
-    if (cleanAcc.length < 3 || cleanAcc.length > 50) {
+    if (!isValidBankAccountId(cleanAcc)) {
       setBankAccountError(t.bankAccountInvalid)
       setErrorMessage(t.bankAccountInvalid)
       return
@@ -178,9 +148,10 @@ export function OnboardingPage() {
       return
     }
 
+    const signal = requestSignal()
     setLoading(true)
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -189,11 +160,12 @@ export function OnboardingPage() {
           password: draftPassword,
           bank_account_id: cleanAcc,
         }),
+        signal,
       })
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}))
-        const detail = typeof error.detail === 'string' ? error.detail.toLowerCase() : ''
+        const detail = apiErrorDetail(error, '').message.toLowerCase()
         if (detail.includes('email')) {
           setErrorMessage(t.emailExists)
         } else if (detail.includes('bank account')) {
@@ -209,9 +181,9 @@ export function OnboardingPage() {
       setRegistered(true)
       navigate('/welcome/envelopes')
     } catch {
-      setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 
@@ -243,12 +215,14 @@ export function OnboardingPage() {
       return
     }
 
+    const signal = requestSignal()
     setLoading(true)
     try {
-      const loginResponse = await fetch('/api/auth/login', {
+      const loginResponse = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: draftEmail.trim(), password: draftPassword }),
+        signal,
       })
       if (!loginResponse.ok) {
         setErrorMessage(t.rulesSaveFailed)
@@ -261,7 +235,7 @@ export function OnboardingPage() {
         return
       }
 
-      const rulesResponse = await fetch('/api/rules/onboarding', {
+      const rulesResponse = await apiFetch('/api/rules/onboarding', {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${loginData.access_token}`,
@@ -273,6 +247,7 @@ export function OnboardingPage() {
           savings_percent: Number(savingsPercent),
           savings_cap: Number(savingsCap),
         }),
+        signal,
       })
       if (!rulesResponse.ok) {
         setErrorMessage(t.rulesSaveFailed)
@@ -281,9 +256,9 @@ export function OnboardingPage() {
 
       navigate('/welcome/try')
     } catch {
-      setErrorMessage(t.rulesSaveFailed)
+      if (!signal.aborted) setErrorMessage(t.rulesSaveFailed)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 
@@ -314,63 +289,56 @@ export function OnboardingPage() {
       return
     }
 
+    const signal = requestSignal()
     setLoading(true)
 
     try {
-      const loginRes = await fetch('/api/auth/login', {
+      const loginRes = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        signal,
       })
       if (loginRes.ok) {
         const tokenData = await loginRes.json()
         if (typeof tokenData.access_token === 'string') {
           localStorage.setItem('autowallet_token', tokenData.access_token)
-          try {
-            sessionStorage.removeItem('autowallet_signup_draft')
-          } catch {
-            // The session is valid even when browser storage is unavailable.
-          }
+          clearSignupDraft()
           navigate('/dashboard', { replace: true })
           return
         }
       }
-      try {
-        sessionStorage.removeItem('autowallet_signup_draft')
-      } catch {
-        // The account already exists; the user can sign in from the login page.
-      }
+      clearSignupDraft()
       navigate('/login', { replace: true })
     } catch {
+      if (signal.aborted) return
       // The account exists; sign-in can be retried without registering again.
-      try {
-        sessionStorage.removeItem('autowallet_signup_draft')
-      } catch {
-        // The login page remains available without browser storage.
-      }
+      clearSignupDraft()
       navigate('/login', { replace: true })
     } finally {
-      clearSignupCredentials()
-      setLoading(false)
+      if (!signal.aborted) {
+        clearSignupCredentials()
+        setLoading(false)
+      }
     }
   }
 
   if (!draftEmail || !draftPassword) return null
 
   return (
-    <div className={`min-h-screen bg-[#F3F6FA] flex flex-col justify-between ${step === 5 ? 'w-screen overflow-x-hidden' : 'w-full'}`}>
+    <div className={`min-h-screen bg-[#F3F6FA] flex flex-col justify-between ${'w-full'}`}>
       {/* Onboarding Top Bar with Logo and Stepper */}
       <TopBar variant="onboarding" finalStep={step === 5}>
         <Stepper
           currentStep={step}
-          onStepClick={registered ? undefined : handleStepClick}
+          onStepClick={registered || loading ? undefined : handleStepClick}
           expanded={step === 5}
           t={t}
         />
       </TopBar>
 
       {/* Main Content Area */}
-      <main className={`flex-1 flex flex-col items-center px-4 z-10 ${step === 5 ? 'justify-start pt-[54px] pb-40' : 'justify-center py-8 sm:py-12'}`}>
+      <main className={`flex-1 flex flex-col items-center px-4 z-10 ${step === 5 ? 'justify-start pt-8 sm:pt-[54px] pb-32 sm:pb-40' : 'justify-center py-8 sm:py-12'}`}>
         {/* Error Alert Display */}
         {errorMessage && (
           <div
@@ -429,9 +397,7 @@ export function OnboardingPage() {
             setBankAccount={(val) => {
               setBankAccount(val)
               if (errorMessage === t.bankAccountExists) setErrorMessage(null)
-              if (bankAccountError && val.trim().length >= 3 && val.trim().length <= 50) {
-                setBankAccountError(null)
-              }
+              if (bankAccountError) setBankAccountError(null)
             }}
             t={t}
             externalBankAccountError={bankAccountError}
@@ -477,7 +443,7 @@ export function OnboardingPage() {
       </main>
 
       {/* Fixed / Bottom Actions Bar per Figma layout_daff2d4f */}
-      <footer className={`w-full bg-white border-t border-[#DDE3EA] z-20 ${step === 5 ? 'fixed inset-x-0 bottom-0 h-[132px] px-4 sm:px-10 flex items-center' : 'px-6 sm:px-10 py-4'}`}>
+      <footer className={`w-full bg-white border-t border-[#DDE3EA] z-20 ${step === 5 ? 'fixed inset-x-0 bottom-0 h-[88px] sm:h-[132px] pb-[env(safe-area-inset-bottom)] px-4 sm:px-10 flex items-center' : 'px-6 sm:px-10 py-4'}`}>
         <div className={`${step === 5 ? 'w-full' : 'max-w-5xl mx-auto'} flex items-center justify-between`}>
           {step === 1 ? (
             <>

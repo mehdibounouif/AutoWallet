@@ -1,8 +1,7 @@
 import { Check, House, Landmark, PiggyBank, ShoppingBag } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { SplitAmounts } from './dashboardSplit'
-
-const money = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+import { money } from '../../utils/format'
 const branches: { type: 'rent' | 'tax' | 'savings' | 'free'; label: string; color: string; icon: ComponentType<{ className?: string }> }[] = [
   { type: 'rent', label: 'Rent', color: '#2A78D6', icon: House },
   { type: 'tax', label: 'Tax', color: '#EB6834', icon: Landmark },
@@ -15,11 +14,13 @@ const top = 15
 const end = 96
 const bend = 13
 
-export function DashboardSplitRibbon({ amount, allocations, reference, preview = false }: {
+export function DashboardSplitRibbon({ amount, allocations, reference, preview = false, previewLabel = 'Preview', branchNotes }: {
   amount: number
   allocations: SplitAmounts
   reference?: string
   preview?: boolean
+  previewLabel?: string
+  branchNotes?: Partial<Record<'rent' | 'tax' | 'savings' | 'free', string>>
 }) {
   const remaining = branches.map((_, index) => amount - branches.slice(0, index + 1)
     .reduce((sum, item) => sum + allocations[item.type], 0))
@@ -36,7 +37,7 @@ export function DashboardSplitRibbon({ amount, allocations, reference, preview =
     <div className="dashboard-ribbon">
       <div className="dashboard-ribbon-amount">
         <strong>{money.format(amount)} <small>MAD</small></strong>
-        <span>{preview ? 'Preview' : reference}</span>
+        <span>{preview ? previewLabel : reference}</span>
       </div>
       <div className="dashboard-ribbon-graphic">
         <div className="dashboard-ribbon-remaining">
@@ -68,6 +69,7 @@ export function DashboardSplitRibbon({ amount, allocations, reference, preview =
             return <div key={branch.type} style={{ left: `${(branchX[index] / 644) * 100}%` }}>
               <span className="flex items-center gap-1 font-semibold text-[#283447]"><span style={{ color: branch.color }}><Icon className="h-3.5 w-3.5 shrink-0" /></span><span className="truncate">{branch.label}</span></span>
               <strong>{allocations[branch.type] > 0 ? money.format(allocations[branch.type]) : 'Skipped'}</strong>
+              {branchNotes?.[branch.type] && <small>{branchNotes[branch.type]}</small>}
             </div>
           })}
         </div>

@@ -1,4 +1,8 @@
-export type WalletType = 'main' | 'rent' | 'tax' | 'savings' | 'free'
+import { newestPaymentsFirst } from './paymentUtils'
+import { apiFetch } from '../../api/request'
+import { isWalletType } from '../../api/walletTypes'
+import type { WalletType } from '../../api/walletTypes'
+export type { WalletType } from '../../api/walletTypes'
 
 export interface DashboardUser {
   id: string
@@ -52,15 +56,10 @@ export class DashboardApiError extends Error {
   }
 }
 
-const walletTypes = new Set<WalletType>(['main', 'rent', 'tax', 'savings', 'free'])
 const transactionStatuses = new Set(['pending', 'processed', 'failed'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isWalletType(value: unknown): value is WalletType {
-  return typeof value === 'string' && walletTypes.has(value as WalletType)
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -148,16 +147,19 @@ function parseRule(value: unknown): DashboardRule {
 }
 
 async function getJson(path: string, token: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     signal,
-  })
+  }, 15000)
   if (!response.ok) throw new DashboardApiError(response.status, `Could not load ${path}`)
   return response.json()
 }
 
-export async function fetchDashboard(token: string, signal: AbortSignal): Promise<DashboardData> {
-  const user = parseUser(await getJson('/api/auth/me', token, signal))
+export async function fetchDashboardUser(token: string, signal: AbortSignal): Promise<DashboardUser> {
+  return parseUser(await getJson('/api/auth/me', token, signal))
+}
+
+export async function fetchDashboardResources(user: DashboardUser, token: string, signal: AbortSignal): Promise<DashboardData> {
   if (!user.bank_account_id) return { user, wallets: [], transactions: [], rules: [] }
 
   const [wallets, transactions, rules] = await Promise.all([
@@ -169,7 +171,7 @@ export async function fetchDashboard(token: string, signal: AbortSignal): Promis
   return {
     user,
     wallets: parseArray(wallets, parseWallet),
-    transactions: parseArray(transactions, parseTransaction),
+    transactions: newestPaymentsFirst(parseArray(transactions, parseTransaction)),
     rules: parseArray(rules, parseRule).sort((a, b) => a.priority - b.priority),
   }
 }
