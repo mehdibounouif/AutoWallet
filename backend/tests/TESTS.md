@@ -24,7 +24,7 @@ cd backend
 - No server, no database server, no Redis, no bank simulator, no
   authorization service, no AI provider, no SMTP server needed — see §2
   (fake infrastructure).
-- Current baseline: **109 passed, 1 xfailed**. Findings #15/#17/#18/#19 are closed (§4); only #20 is open and xfail-strict by design. The generation-1 findings (#10 GET
+- Current baseline: **109 passed, 3 xfailed**. Findings #15/#17/#18/#19 are closed (§4); #20/#27/#28 (backend) and #26 (see issue) are open, xfail-strict by design. The generation-1 findings (#10 GET
   leg, #12 role claim) are FIXED (12269aa).
 - ⚠️ **main's settings currently block the suite at import** (finding #20):
   until that fix lands, run with the four missing vars supplied —
@@ -278,6 +278,8 @@ outside the repo, in QA's shared documents):
 | Test | Finding | Owner | The missing fix |
 |---|---|---|---|
 | `test_the_app_boots_from_the_committed_env_example` (test_oauth.py) | **#20** | MEHDI | 4 required settings (`frontend_google_callback_url`, `postgres_user/password/db`) with no defaults and incomplete `.env.example` — the app can't boot from `cp .env.example .env`; 3 CI jobs red at import. Fix: defaults or complete the example. |
+| `test_login_rejects_2fa_after_repeated_failed_attempts` (test_2fa.py) | **#27** (PR #64 review) | MEHDI | `/login` grades TOTP/recovery second factors with no attempt counting or lockout — a stolen password can brute-force the 6-digit factor (10^6 keyspace, valid_window=1) at request speed. Fix: Redis-backed failed-attempt window per user, checked BEFORE the verify call, refuse with 429 past the threshold. |
+| `test_2fa_can_be_disabled_by_the_user` (test_2fa.py) | **#28** (PR #64 review) | MEHDI | auth.py ships 2FA setup/verify/regenerate but NO disable endpoint — a user who loses device AND recovery codes is locked out forever. Fix: POST `/api/auth/2fa/disable` gated by password + one valid second factor, clearing the secret and outstanding recovery codes atomically. |
 
 (#21 — `/login` Redis-key spam, LOW — is report-only in the review doc: the
 fix shape is a design decision.)
