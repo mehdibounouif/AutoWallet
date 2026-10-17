@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowDownLeft, BarChart3, Bell, Check, ChevronDown, ChevronRight, Clock3, FlaskConical, LayoutDashboard, Link2, ListOrdered, LogOut, Mail, Menu, MessageSquareText, PanelLeftClose, Plus, Search, Settings, X } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { DashboardApiError, fetchDashboardResources, fetchDashboardUser } from './dashboardApi'
@@ -8,6 +8,7 @@ import type { DashboardData, DashboardTransaction, DashboardUser, WalletType } f
 import { apiFetch } from '../../api/request'
 import { apiErrorDetail } from '../../api/errors'
 import { loginPath, safeReturnPath } from '../../auth/returnPath'
+import { clearAccessToken, getSessionEndReason, useAccessToken } from '../../auth/session'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
 import { isValidBankAccountId } from '../../auth/validation'
 import { useDismissibleLayer } from '../../hooks/useDismissibleLayer'
@@ -46,6 +47,15 @@ const nav: { view: PageView; label: string; icon: ComponentType<{ className?: st
 ]
 
 export function DashboardPage() {
+  const token = useAccessToken()
+  const location = useLocation()
+  const returnTo = safeReturnPath(`${location.pathname}${location.search}${location.hash}`)
+  if (!token) return <Navigate to={getSessionEndReason() === 'expired' ? `/session-ended?reason=expired&redirect=${encodeURIComponent(returnTo)}` : loginPath(returnTo)} replace />
+  // Replacing a session unmounts all old account data, requests and live streams.
+  return <SignedInDashboard key={token} />
+}
+
+function SignedInDashboard() {
   const navigate = useNavigate()
   const location = useLocation()
   const controller = useRef<AbortController | null>(null)
@@ -83,9 +93,9 @@ export function DashboardPage() {
   const [online, setOnline] = useState(() => navigator.onLine)
   const [serviceStatus, setServiceStatus] = useState<'checking' | 'connected' | 'unavailable'>('checking')
 
-  const signOut = useCallback(() => { localStorage.removeItem('autowallet_token'); navigate('/login', { replace: true }) }, [navigate])
+  const signOut = useCallback(() => { clearAccessToken(); navigate('/login', { replace: true }) }, [navigate])
   const endSession = useCallback(() => {
-    localStorage.removeItem('autowallet_token')
+    clearAccessToken('expired')
     navigate(`/session-ended?reason=expired&redirect=${encodeURIComponent(returnTo)}`, { replace: true })
   }, [navigate, returnTo])
   const loadDashboard = useCallback(async () => {

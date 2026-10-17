@@ -9,9 +9,12 @@ The frontend includes authentication, onboarding, Home, Envelopes and details, R
 - Integrated interactive analytics charts and formatted AI responses into the existing dashboard; the older `/analytics`, `/assistant`, and `/account/privacy` URLs redirect to dashboard pages.
 - Preserved one shared SSE reader, validated API clients, authenticated payment refresh, reconnect/resynchronization, and cancellation on navigation.
 - Connected recovery-code login using `recovery_code`, with the backend's 32-character hexadecimal format. Passwords stay in memory during the login handoff.
-- Displayed recovery codes returned by 2FA activation, with copy/download and explicit dismissal. Codes are held in component memory, never local/session storage. Navigation clears them.
+- Displayed recovery codes returned by 2FA activation, with copy/download and explicit dismissal. Codes are held in component memory, never local/session storage. Internal navigation and browser Back/Forward ask for confirmation before discarding unacknowledged codes; closing/reloading the page uses a browser warning. Sign-out and session replacement clear codes without blocking account cleanup.
 - Added recovery-code regeneration using the current password and authenticator code. Incorrect credentials preserve the signed-in session; unknown replacement outcomes explain how to recover. The backend requires a password, so Google-only accounts cannot use this replacement endpoint.
 - Connected email verification and resend, including invalid/expired links, cooldowns, and service errors. Both `/verify-email` and the backend's `/auth/verify-email` link path work. StrictMode effect replay reuses the verification request so it does not consume a token twice.
+- Added visible verification/resend links in Profile settings and after signup registration. Signup opens the verification screen in a separate tab to preserve onboarding progress and in-memory credentials. The profile does not claim a verified status that the API does not provide.
+- Synchronized authentication token changes across tabs, including logout, account replacement, and browser-storage clearing. Replacing the dashboard session unmounts old account data, conversations, pending requests, and live-update subscriptions. Expired tokens still use the session-ended screen.
+- Removed unused styles for the replaced analytics stacked-column implementation; histogram styles remain in use.
 - Reused the Dashboard/Sandbox rule engine in signup's Try a payment preview. Starter rules use zero starting balances; fractional cents are retained during calculation and rounded for display, matching the current backend rule engine.
 - Kept the existing input validation, rule saving, cross-tab notification read state, payment error handling, responsive layouts, and theme support.
 
@@ -38,6 +41,7 @@ Settings reads account data independently of money services. Local previews do n
 
 - Transaction responses still omit `created_at` and persisted `allocations`; complete historical split bars, ledgers, receipts and per-payment analysis require those fields. Aggregate Analytics APIs are connected separately.
 - `/api/auth/me` lacks security metadata. The current security-status workaround uses password confirmation or a user-requested JSON export. The backend rejects setup for an already-enabled authenticator; concurrency behavior remains backend-owned.
+- `/api/auth/me` also omits email-verification status, so Settings offers verification/resend without showing a verified/unverified badge.
 - Password recovery/reset, profile/password updates, 2FA disable, session revocation, personal API keys, notification preferences, custom-rule create/delete/reorder/pause, and money transfers still need backend contracts. Their unavailable controls remain explicit.
 - Google OAuth, verification/deletion emails, and external Assistant responses require working provider, SMTP and AI configuration. UI checks with fixtures do not verify provider delivery.
 - Bank ID validation in the frontend accepts 3–50 digits. Ownership verification and matching backend validation remain separate backend work.
@@ -50,3 +54,5 @@ Settings reads account data independently of money services. Local previews do n
 The previous PR #60 revision passed build, lint and all 68 existing frontend tests, plus browser checks for desktop/mobile charts, dark mode, redirects, streamed formatting and Privacy navigation. The old October 16 counts of 51 passing / 12 failing tests are superseded.
 
 This update passes the production build, lint and all 68 existing tests across 12 files. Temporary browser checks outside the repository also pass for recovery-code login, download and regeneration, invalid credentials, memory-only secrets, both verification URLs, a single verification request under React StrictMode, expired links, resend failures and cooldown, 320px layouts, and signup preview parity. Browser checks use mocked API responses; they do not verify live backend processing or email delivery. No QA-owned tests or test configuration are edited.
+
+Follow-up browser checks pass at desktop and 320px widths for navigation confirmation, Back, Escape, initial focus, staying with codes, leaving explicitly, and cross-tab logout while a confirmation is open. Account replacement clears the old Assistant conversation and identity; clearing storage signs out other tabs. Profile verification links prefill the account email and submit resend; signup links open a separate tab while preserving the original onboarding credentials and progress.

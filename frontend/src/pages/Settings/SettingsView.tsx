@@ -5,6 +5,7 @@ import type { DashboardUser } from '../Dashboard/dashboardApi'
 import { SecuritySettings } from './SecuritySettings'
 import { PrivacySettings } from './PrivacySettings'
 import { unknownSecurity } from '../../api/settingsApi'
+import { clearAccessToken } from '../../auth/session'
 import { savePaymentAlerts, saveTheme, usePaymentAlerts, useThemePreference } from './settingsPreferences'
 import type { ThemePreference } from './settingsPreferences'
 import './settings.css'
@@ -36,12 +37,12 @@ export function SettingsView({ user, online, onSignOut, onSessionEnded }: { user
   const paymentsEnabled = usePaymentAlerts(user.id)
   const deleted = () => {
     try {
-      localStorage.removeItem('autowallet_token')
+      clearAccessToken()
       localStorage.removeItem(`autowallet_payment_alerts:${user.id}`)
       localStorage.removeItem(`autowallet_notification_reads:${user.id}`)
     } finally { navigate('/login', { replace: true, state: { accountDeleted: true } }) }
   }
-  const profile = <section className="workspace-card settings-card settings-profile"><h2>Profile</h2><p>How you appear in AutoWallet and where we reach you.</p><AccountIdentity user={user} role={security.role} /><div className="settings-form"><label>Full name<input className="dashboard-input" value={user.full_name} readOnly autoComplete="name" aria-describedby="profile-unavailable" /></label><label>Email<input className="dashboard-input" type="email" value={user.email} readOnly autoComplete="email" aria-describedby="profile-unavailable" /><span className="workspace-note">Used for account emails.</span></label><label>Linked account<input className="dashboard-input settings-readonly" value={user.bank_account_id ? `•••• ${user.bank_account_id.slice(-4)}` : 'Not linked'} readOnly /><span className="workspace-note">Payments into this account are split using your saved rules.</span></label><button className="dashboard-primary-button" disabled>Save changes</button></div><p id="profile-unavailable" className="settings-availability">Your profile is read-only until the account service supports profile updates.</p></section>
+  const profile = <section className="workspace-card settings-card settings-profile"><h2>Profile</h2><p>How you appear in AutoWallet and where we reach you.</p><AccountIdentity user={user} role={security.role} /><div className="settings-form"><label>Full name<input className="dashboard-input" value={user.full_name} readOnly autoComplete="name" aria-describedby="profile-unavailable" /></label><label>Email<input className="dashboard-input" type="email" value={user.email} readOnly autoComplete="email" aria-describedby="profile-unavailable" /><span className="workspace-note">Used for account emails.</span></label><div><Link className="workspace-text-button" to={`/verify-email?email=${encodeURIComponent(user.email)}`}>Verify email or request another link<ArrowRight size={14} /></Link><p className="workspace-note">Use this if you haven’t verified your email. Verification status is not available here yet.</p></div><label>Linked account<input className="dashboard-input settings-readonly" value={user.bank_account_id ? `•••• ${user.bank_account_id.slice(-4)}` : 'Not linked'} readOnly /><span className="workspace-note">Payments into this account are split using your saved rules.</span></label><button className="dashboard-primary-button" disabled>Save changes</button></div><p id="profile-unavailable" className="settings-availability">Your profile is read-only until the account service supports profile updates.</p></section>
 
   return <div className={`workspace-page settings-page ${isIndex ? 'settings-page--index' : 'settings-page--section'}`}>
     <header className="workspace-heading settings-heading"><div><h1>Settings</h1><p>Your profile, security, data and preferences.</p></div></header>

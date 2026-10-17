@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
 import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
@@ -17,6 +17,7 @@ import { isValidRuleValue } from '../../utils/format'
 import { clearSignupDraft, parseSignupDraft, readSignupDraft, writeSignupDraft } from '../../auth/signupDraft'
 import type { SignupDraft } from '../../auth/signupDraft'
 import { apiFetch } from '../../api/request'
+import { saveAccessToken } from '../../auth/session'
 import { apiErrorDetail } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
 
@@ -302,7 +303,7 @@ export function OnboardingPage() {
       if (loginRes.ok) {
         const tokenData = await loginRes.json()
         if (typeof tokenData.access_token === 'string') {
-          localStorage.setItem('autowallet_token', tokenData.access_token)
+          saveAccessToken(tokenData.access_token)
           clearSignupDraft()
           navigate('/dashboard', { replace: true })
           return
@@ -336,6 +337,11 @@ export function OnboardingPage() {
           t={t}
         />
       </TopBar>
+
+      {registered && <aside aria-label="Email verification" className="mx-auto mt-5 w-full max-w-[640px] px-4 text-center text-sm text-[#5E6B7E]">
+        <p>Check your email for a verification link. You can finish setting up your account here.</p>
+        <Link to={`/verify-email?email=${encodeURIComponent(draftEmail)}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold text-[#5A64B4] underline underline-offset-2">Request another verification link (opens in a new tab)</Link>
+      </aside>}
 
       {/* Main Content Area */}
       <main className={`flex-1 flex flex-col items-center px-4 z-10 ${step === 5 ? 'justify-start pt-8 sm:pt-[54px] pb-32 sm:pb-40' : 'justify-center py-8 sm:py-12'}`}>
