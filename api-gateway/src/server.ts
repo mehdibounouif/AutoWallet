@@ -28,20 +28,3 @@ export function startServer() {
 if (process.env.NODE_ENV !== "test") {
     startServer();
 }
-
-// import dotenv from "dotenv";
-// import app from "./app.js";
-// import http from "http";
-// import { setupWebSocket } from './websocket/websocket.server.js';
-
-// dotenv.config();
-
-// const PORT = process.env.PORT || 3000;
-
-// const server = http.createServer(app);
-
-// setupWebSocket(server);
-
-// server.listen(PORT, () => {
-//   console.log(`API gateway running on port ${PORT}`);
-// });
