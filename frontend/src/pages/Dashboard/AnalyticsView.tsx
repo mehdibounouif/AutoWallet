@@ -1,13 +1,14 @@
-import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ArrowRight, BarChart3, ChevronDown, Download, House, Landmark, PiggyBank, RefreshCw, TrendingUp, X } from 'lucide-react'
 import type { DashboardData, WalletType } from './dashboardApi'
-import { envelopeMeta, envelopeTarget, money, walletOrder } from './envelopeDisplay'
+import { envelopeChartColor as chartColor, envelopeMeta, envelopeTarget, money, walletOrder } from './envelopeDisplay'
 import { AnalyticsApiError, analyticsQuery, analyticsRangeError, fetchAnalytics, fetchAnalyticsExport } from '../../api/analyticsApi'
 import type { AnalyticsData, AnalyticsFilters, AnalyticsInterval } from '../../api/analyticsApi'
 
+import { ReceivedChart, SplitChart, SplitPie } from './AnalyticsCharts'
+
 type Row = (string | number)[]
-const chartColor = (type: WalletType) => type === 'free' ? '#EDA100' : type === 'main' ? '#8A95D2' : envelopeMeta[type].color
 const dateLabel = (value: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T12:00:00Z`))
 function periodStart(period: string, today: string) {
   const date = new Date(`${today}T00:00:00Z`)
@@ -23,14 +24,6 @@ function pointLabel(period: string, interval: AnalyticsInterval) {
 function ChartCard({ title, description, headers, rows, children, unavailable }: { title: string; description: string; headers: string[]; rows: Row[]; children?: ReactNode; unavailable?: string }) {
   const [showData, setShowData] = useState(false)
   return <section className="workspace-card analytics-chart"><h3>{title}</h3><p>{description}</p>{unavailable ? <div className="analytics-chart-unavailable"><BarChart3 size={22} /><p>{unavailable}</p></div> : <><div className="analytics-chart-canvas">{children}</div><button className="analytics-data-toggle" onClick={() => setShowData(value => !value)} aria-expanded={showData}>{showData ? 'Hide data' : 'Show data'}<ChevronDown size={13} /></button>{showData && <div className="analytics-data-table"><table><caption className="sr-only">{title}</caption><thead><tr>{headers.map(header => <th key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody></table></div>}</>}</section>
-}
-
-function PeriodColumns({ range, children }: { range: string; children: ReactNode }) {
-  const columns = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    if (columns.current) columns.current.scrollLeft = columns.current.scrollWidth
-  }, [range])
-  return <div ref={columns} className="analytics-columns" tabIndex={0} role="group" aria-label="Chart periods. Scroll to view earlier dates.">{children}</div>
 }
 
 interface Props {
@@ -130,8 +123,6 @@ function AnalyticsResults({ report: { summary, timeseries }, data, filters, onRe
   const allocationTotal = types.reduce((sum, type) => sum + (allocations[type] ?? 0), 0)
   const missing = filters.envelope ? 0 : Math.max(0, total - allocationTotal)
   const points = timeseries.points.map(point => ({ ...point, label: pointLabel(point.period, filters.interval) }))
-  const maxIncome = Math.max(1, ...points.map(point => point.received))
-  const maxSplit = Math.max(1, ...points.map(point => types.reduce((sum, type) => sum + (point.envelopes[type] ?? 0), 0)))
   const running: Partial<Record<WalletType, number>> = {}
   const cumulative = points.map(point => {
     for (const type of types) running[type] = (running[type] ?? 0) + (point.envelopes[type] ?? 0)
@@ -172,13 +163,16 @@ function AnalyticsResults({ report: { summary, timeseries }, data, filters, onRe
     </div>
     <header className="workspace-heading analytics-section-heading"><div><h2>Suggestions</h2><p>From your own numbers. Review your rules before making a change.</p></div>{dismissed.length > 0 && <button className="workspace-text-button" onClick={() => setDismissed([])}>Show dismissed</button>}</header>
     <div className="analytics-suggestions">{suggestions.filter(item => !dismissed.includes(item.id)).map(({ id, icon: Icon, title, text, question }) => <article key={id} className="workspace-card analytics-suggestion"><div className="analytics-suggestion-top"><Icon size={19} /><span className="workspace-tag">Local engine</span><button onClick={() => setDismissed(items => [...items, id])} aria-label={`Dismiss ${title}`}><X size={15} /></button></div><h3>{title}</h3><p>{text}</p><div><button className="workspace-text-button" onClick={() => onAsk(question)}>Ask why<ArrowRight size={14} /></button><button className="workspace-text-button" onClick={onRules}>Review rules</button></div></article>)}</div>
-    <header className="workspace-heading analytics-section-heading"><div><h2>The details</h2><p>Charts open at the latest dates. Scroll for earlier periods, or open a data table for all values.</p></div></header>
+    <header className="workspace-heading analytics-section-heading"><div><h2>The details</h2><p>Explore chart values with a pointer or keyboard, or open a data table for all values.</p></div></header>
     <div className="analytics-charts">
       <ChartCard title="Income by envelope" description="Saved allocations in each period." headers={['Period', ...types.map(type => `${envelopeMeta[type].name} (MAD)`)]} rows={points.map(point => [point.label, ...types.map(type => money.format(point.envelopes[type] ?? 0))])}>
-        <PeriodColumns range={analyticsQuery(filters, true)}>{points.map(point => { const sum = types.reduce((value, type) => value + (point.envelopes[type] ?? 0), 0); return <div key={point.period} className="analytics-column"><div className="analytics-column-stack" style={{ height: `${sum / maxSplit * 100}%` }}>{types.map(type => (point.envelopes[type] ?? 0) > 0 && <span tabIndex={0} key={type} style={{ height: `${(point.envelopes[type] ?? 0) / sum * 100}%`, backgroundColor: chartColor(type) }} title={`${point.label}, ${envelopeMeta[type].name}: ${money.format(point.envelopes[type] ?? 0)} MAD`} aria-label={`${point.label}, ${envelopeMeta[type].name}: ${money.format(point.envelopes[type] ?? 0)} MAD`} />)}</div><small>{point.label}</small></div> })}</PeriodColumns><ChartLegend types={types} />
+        <SplitChart points={points} envelopes={types} />
       </ChartCard>
       <ChartCard title="Income over time" description="Total processed income before splitting, including periods with no payments." headers={['Period', 'Income (MAD)']} rows={points.map(point => [point.label, money.format(point.received)])}>
-        <PeriodColumns range={analyticsQuery(filters, true)}>{points.map(point => <div key={point.period} className="analytics-column"><div tabIndex={0} className="analytics-column-fill" style={{ height: `${point.received / maxIncome * 100}%` }} title={`${point.label}: ${money.format(point.received)} MAD`} aria-label={`${point.label}: ${money.format(point.received)} MAD`} /><small>{point.label}</small></div>)}</PeriodColumns>
+        <ReceivedChart points={points} />
+      </ChartCard>
+      <ChartCard title="Allocation shares" description="Shares of saved allocations in the selected period. Income without a recorded split is excluded." headers={['Envelope', 'Allocated (MAD)']} rows={types.map(type => [envelopeMeta[type].name, money.format(allocations[type] ?? 0)])} unavailable={allocationTotal <= 0 ? 'No saved allocations in this period.' : undefined}>
+        <SplitPie allocations={allocations} envelopes={types} />
       </ChartCard>
       <ChartCard title="How allocations built up" description="Cumulative recorded allocations within this period, not historical balances." headers={['Period', ...types.map(type => `${envelopeMeta[type].name} (MAD)`)]} rows={cumulative.map(point => [point.label, ...types.map(type => money.format(point.values[type] ?? 0))])}>
         <svg className="analytics-lines" viewBox="0 0 440 180" role="img" aria-label="Cumulative allocations by period">{[35, 80, 125, 170].map(y => <line key={y} x1="12" y1={y} x2="430" y2={y} stroke="#e6ebf1" />)}{types.map(type => { const coords = cumulative.map((point, i) => [12 + i / Math.max(1, cumulative.length - 1) * 418, 170 - (point.values[type] ?? 0) / maxAllocation * 150]); return <g key={type}><polyline points={coords.map(point => point.join(',')).join(' ')} fill="none" stroke={chartColor(type)} strokeWidth="2.5" />{coords.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3" fill={chartColor(type)} tabIndex={0} aria-label={`${envelopeMeta[type].name}, ${cumulative[i].label}: ${money.format(cumulative[i].values[type] ?? 0)} MAD`}><title>{envelopeMeta[type].name}: {money.format(cumulative[i].values[type] ?? 0)} MAD</title></circle>)}</g> })}</svg><ChartLegend types={types} />

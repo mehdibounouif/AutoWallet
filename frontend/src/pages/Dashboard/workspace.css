@@ -299,3 +299,10 @@
   .assistant-input-row textarea { font-size: 16px; }
   .assistant-send { width: 40px; height: 40px; }
 }
+
+/* Interactive analytics reuse the dashboard palette in both themes. */
+.analytics-interactive-chart { min-width: 0; width: 100%; }
+.analytics-legend button { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 4px 6px; color: var(--aw-ink, #3b495d); font-size: 11px; border-radius: 4px; }
+.analytics-legend button[aria-pressed="false"] { color: var(--aw-muted, #74839b); text-decoration: line-through; }
+.analytics-legend button:focus-visible { outline: 2px solid #8a95d2; outline-offset: 2px; }
+.assistant-formatted-answer { white-space: normal; }

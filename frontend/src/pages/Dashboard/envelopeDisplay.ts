@@ -21,6 +21,8 @@ export const envelopeMeta: Record<WalletType, {
   main: { name: 'Main', icon: Wallet, color: '#526176', tint: '#E9EDF2' },
 }
 
+export const envelopeChartColor = (type: WalletType) => type === 'free' ? '#EDA100' : type === 'main' ? '#8A95D2' : envelopeMeta[type].color
+
 export function envelopeTarget(type: WalletType, rules: DashboardRule[]) {
   return rules.find((rule) => rule.is_active && rule.target_wallet === type &&
     rule.condition_field === `${type}_balance` && (rule.condition_operator === '<' || rule.condition_operator === '<=') &&

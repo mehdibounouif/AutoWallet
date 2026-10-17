@@ -5,6 +5,7 @@ import type { DashboardData, WalletType } from './dashboardApi'
 import { AssistantApiError, streamAssistant } from '../../api/assistantApi'
 import { envelopeMeta, money, walletOrder } from './envelopeDisplay'
 import { previewSplit } from './dashboardSplit'
+import { FormattedAnswer } from './FormattedAnswer'
 import { DashboardSplitRibbon } from './DashboardSplitRibbon'
 import { hasCompleteSplit } from './paymentUtils'
 import { useDismissibleLayer } from '../../hooks/useDismissibleLayer'
@@ -89,7 +90,7 @@ export function AssistantView({ data, online, onSessionEnded }: { data: Dashboar
     <div className="assistant-thread" ref={scrollRef} role="log" aria-label="Conversation" aria-relevant="additions">
       {!messages.length ? <div className="assistant-welcome"><span className="assistant-welcome-icon"><Sparkles size={25} /></span><h1>Ask about your money</h1><p>Answers use your envelopes and payments.<br />Nothing changes in your account from chatting here.</p></div> : <div className="assistant-messages">{messages.map(message => <article key={message.id} className={`assistant-message assistant-message--${message.role}`} aria-label={message.role === 'user' ? 'Your question' : 'Assistant response'}>
         {message.source && <span className="assistant-source"><Sparkles size={12} />{message.source}</span>}
-        {message.text ? <div className="assistant-message-text">{message.text}</div> : busy && message.id === lastAnswer?.id ? <span className="assistant-thinking" role="status">Thinking…</span> : message.stopped ? null : <p className="workspace-note">No answer received.</p>}
+        {message.text ? <div className="assistant-message-text">{message.role === 'assistant' ? <FormattedAnswer text={message.text} /> : message.text}</div> : busy && message.id === lastAnswer?.id ? <span className="assistant-thinking" role="status">Thinking…</span> : message.stopped ? null : <p className="workspace-note">No answer received.</p>}
         {message.preview && <DashboardSplitRibbon amount={message.preview} allocations={previewSplit(message.preview, data.rules, data.wallets)} preview />}
         {message.chart && <div className="assistant-chart">{walletOrder.map(type => { const value = message.chart?.[type] ?? 0; const maximum = Math.max(1, ...Object.values(message.chart!).filter((v): v is number => typeof v === 'number')); return <div key={type}><span>{envelopeMeta[type].name}</span><span className="assistant-chart-track"><i style={{ width: `${Math.max(0, value) / maximum * 100}%`, backgroundColor: envelopeMeta[type].color }} /></span><strong>{money.format(value)}</strong></div> })}</div>}
         {message.stopped && <p className="workspace-note">Response stopped.</p>}

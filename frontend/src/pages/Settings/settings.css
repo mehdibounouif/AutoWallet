@@ -155,3 +155,7 @@
   .settings-delete-dialog .settings-actions { flex-wrap: nowrap; gap: 8px; }
   .settings-delete-dialog .settings-actions button { min-width: 0; white-space: normal; }
 }
+
+.settings-recovery-codes { display: grid; gap: 8px; margin: 16px 0; padding: 0; list-style: none; }
+.settings-recovery-codes li { min-width: 0; padding: 10px; border-radius: 8px; background: var(--aw-layer, #edf0f5); }
+.settings-recovery-codes code { font-size: 12px; overflow-wrap: anywhere; user-select: all; }

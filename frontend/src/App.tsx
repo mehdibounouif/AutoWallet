@@ -29,6 +29,7 @@ const authRoutes = {
   '/forgot-password': 'forgot-password',
   '/reset-password': 'reset-password',
   '/verify-email': 'verify-email',
+  '/auth/verify-email': 'verify-email',
 } as const
 
 export default function App() {
@@ -87,6 +88,10 @@ export default function App() {
           <Route path="/app/envelopes" element={<DashboardPage />} />
           <Route path="/app/envelopes/:walletType" element={<DashboardPage />} />
           <Route path="/maintenance" element={<Navigate to="/dashboard" replace />} />
+          {/* Preserve links shared from the original account pages. */}
+          <Route path="/analytics" element={<Navigate to="/app/analytics" replace />} />
+          <Route path="/assistant" element={<Navigate to="/app/assistant" replace />} />
+          <Route path="/account/privacy" element={<Navigate to="/app/settings/privacy" replace />} />
           <Route path="/terms" element={<LegalPage document="terms" />} />
           <Route path="/privacy" element={<LegalPage document="privacy" />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
