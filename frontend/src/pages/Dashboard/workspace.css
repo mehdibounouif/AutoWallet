@@ -275,7 +275,6 @@
   .analytics-stats strong { font-size: clamp(14px, 4vw, 20px); overflow-wrap: anywhere; }
   .analytics-stats small { display: block; margin-top: 4px; }
   .analytics-stats h2 { min-height: 30px; font-size: 10px; }
-  .analytics-period select { max-width: 115px; font-size: 11px; }
   .analytics-suggestions, .analytics-charts { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .analytics-section-heading { margin-top: 30px; }
   .analytics-columns { gap: 12px; }

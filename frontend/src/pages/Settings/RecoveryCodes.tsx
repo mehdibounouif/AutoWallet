@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Copy, Download, RefreshCw } from 'lucide-react'
-import { useBlocker } from 'react-router-dom'
-import { Dialog } from '../../components/common/Dialog'
 import { parseRecoveryCodes } from '../../auth/recoveryCodes'
-import { readAccessToken } from '../../auth/session'
 import { SettingsApiError, settingsRequest } from '../../api/settingsApi'
 
 interface Props {
@@ -12,10 +9,11 @@ interface Props {
   onEnabled: () => void
   online: boolean
   googleAccount: boolean
+  onPendingChange: (pending: boolean) => void
   onSessionEnded: () => void
 }
 
-export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount, onSessionEnded }: Props) {
+export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount, onSessionEnded, onPendingChange }: Props) {
   const [editing, setEditing] = useState(false)
   const [password, setPassword] = useState('')
   const [totp, setTotp] = useState('')
@@ -24,22 +22,8 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
   const [notice, setNotice] = useState<string | null>(null)
   const active = useRef<AbortController | null>(null)
   const downloadUrl = useRef<string | null>(null)
-  const stayRef = useRef<HTMLButtonElement>(null)
-  const [sessionToken] = useState(readAccessToken)
   const hasCodes = codes.length > 0
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    hasCodes && sessionToken !== null && sessionToken === readAccessToken() && currentLocation.pathname !== nextLocation.pathname)
   useEffect(() => () => { active.current?.abort(); if (downloadUrl.current) URL.revokeObjectURL(downloadUrl.current) }, [])
-  useEffect(() => {
-    if (!hasCodes) return
-    const warn = (event: BeforeUnloadEvent) => {
-      // Session expiry and sign-out must always be able to clear sensitive data.
-      if (sessionToken !== readAccessToken()) return
-      event.preventDefault(); event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [hasCodes, sessionToken])
 
   const text = `AutoWallet recovery codes\nEach code can be used once. Keep these somewhere private.\n\n${codes.join('\n')}\n`
   const download = () => {
@@ -54,6 +38,7 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
     if (active.current || !online || !password || !/^\d{6}$/.test(totp)) return
     const controller = new AbortController()
     active.current = controller
+    onPendingChange(true)
     setBusy(true); setError(null); setNotice(null)
     try {
       const response = await settingsRequest('/api/auth/2fa/recovery-codes/regenerate', {
@@ -78,6 +63,7 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
       }
     } finally {
       active.current = null
+      onPendingChange(false)
       if (!controller.signal.aborted) { setBusy(false); setPassword(''); setTotp('') }
     }
   }
@@ -111,13 +97,6 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
     </form>}
     {notice && <p className="workspace-note" role="status">{notice}</p>}
     {error && <p className="workspace-field-error" role="alert">{error}</p>}
-    {blocker.state === 'blocked' && <Dialog labelledBy="leave-recovery-title" role="alertdialog" initialFocusRef={stayRef} onClose={() => blocker.reset()} panelClassName="dashboard-modal">
-      <h2 id="leave-recovery-title">Have you saved your recovery codes?</h2>
-      <p>Leaving this page hides these codes. You won’t be able to display this set again. Stay to copy or download them first.</p>
-      <div className="settings-actions">
-        <button ref={stayRef} type="button" className="dashboard-primary-button" onClick={() => blocker.reset()}>Stay and save codes</button>
-        <button type="button" className="settings-outline-button" onClick={() => { onCodes([]); blocker.proceed() }}>Leave this page</button>
-      </div>
-    </Dialog>}
+
   </section>
 }

@@ -73,6 +73,10 @@ function SignedInDashboard() {
   const location = useLocation()
   const controller = useRef<AbortController | null>(null)
   const lastSnapshot = useRef<DashboardData | null>(null)
+  const cachedAccount = useRef<DashboardUser | null>(null)
+  const lastAccountRead = useRef(0)
+  const lastResourceRead = useRef(0)
+  const pendingRead = useRef<{ resources: boolean } | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
   const mobileSearchRef = useRef<HTMLInputElement | null>(null)
   const [data, setData] = useState<DashboardData | null>(null)
@@ -85,6 +89,8 @@ function SignedInDashboard() {
   const view: View = location.pathname === '/app/settings' || location.pathname.startsWith('/app/settings/') ? 'settings' : detailSegment ? 'envelope-detail' : paymentSegment ? 'payment-detail' : (['envelopes', 'rules', 'activity', 'analytics', 'assistant', 'sandbox', 'notifications'] as const).find(page => location.pathname === `/app/${page}`) ?? 'home'
   const settingsOnly = view === 'settings'
   const returnTo = safeReturnPath(`${location.pathname}${location.search}${location.hash}`)
+  const returnToRef = useRef(returnTo)
+  useEffect(() => { returnToRef.current = returnTo }, [returnTo])
   const requestSignal = useRequestSignal()
   const fromPath = typeof location.state?.from === 'string' ? location.state.from : '/dashboard'
   const activeView = view === 'notifications' ? fromPath.startsWith('/app/activity') ? 'activity' : fromPath.startsWith('/app/envelopes') ? 'envelopes' : fromPath === '/app/rules' ? 'rules' : fromPath === '/app/assistant' ? 'assistant' : fromPath === '/app/analytics' ? 'analytics' : fromPath === '/app/sandbox' ? 'sandbox' : fromPath.startsWith('/app/settings') ? 'settings' : 'home' : view
@@ -109,20 +115,33 @@ function SignedInDashboard() {
   const signOut = useCallback(() => { clearAccessToken(); navigate('/login', { replace: true }) }, [navigate])
   const endSession = useCallback(() => {
     clearAccessToken('expired')
-    navigate(`/session-ended?reason=expired&redirect=${encodeURIComponent(returnTo)}`, { replace: true })
-  }, [navigate, returnTo])
-  const loadDashboard = useCallback(async () => {
+    navigate(`/session-ended?reason=expired&redirect=${encodeURIComponent(returnToRef.current)}`, { replace: true })
+  }, [navigate])
+  const loadDashboard = useCallback(async (force = true) => {
+    const token = localStorage.getItem('autowallet_token')
+    if (!token) { navigate(loginPath(returnToRef.current), { replace: true }); return }
+    // Navigation reuses a recent snapshot; mutations, retries and live updates force a read.
+    if (!force && pendingRead.current && !controller.current?.signal.aborted &&
+        (settingsOnly || pendingRead.current.resources)) return
+    const accountFresh = cachedAccount.current !== null && Date.now() - lastAccountRead.current < 30000
+    if (!force && accountFresh && (settingsOnly || Date.now() - lastResourceRead.current < 30000)) {
+      setLoading(false)
+      setError(null)
+      setServiceStatus(navigator.onLine ? 'connected' : 'unavailable')
+      return
+    }
     controller.current?.abort()
     const next = new AbortController()
     controller.current = next
-    const token = localStorage.getItem('autowallet_token')
-    if (!token) { navigate(loginPath(returnTo), { replace: true }); return }
+    pendingRead.current = { resources: !settingsOnly }
     setLoading(true)
     setError(null)
     setServiceStatus('checking')
     try {
-      const user = await fetchDashboardUser(token, next.signal)
+      const user = !force && accountFresh ? cachedAccount.current! : await fetchDashboardUser(token, next.signal)
       if (next.signal.aborted) return
+      cachedAccount.current = user
+      if (force || !accountFresh) lastAccountRead.current = Date.now()
       setAccount(user)
       if (settingsOnly) {
         setServiceStatus('connected')
@@ -138,18 +157,25 @@ function SignedInDashboard() {
         lastSnapshot.current = result
         setData(result)
         const failures = Object.values(result.resourceErrors ?? {})
+        lastResourceRead.current = failures.length ? 0 : Date.now()
         setServiceStatus(failures.length ? 'unavailable' : 'connected')
         setError(failures.length ? `${failures.join(' ')} Other available pages can still be used.` : null)
       }
     } catch (reason) {
       if (next.signal.aborted) return
       if (reason instanceof DashboardApiError && reason.status === 401) { endSession(); return }
+      lastAccountRead.current = 0
+      lastResourceRead.current = 0
       setServiceStatus('unavailable')
       setError(`We could not load your ${settingsOnly ? 'account' : 'dashboard'}. Check your connection and try again.`)
-    } finally { if (!next.signal.aborted) setLoading(false) }
-  }, [navigate, returnTo, settingsOnly, endSession, setToast, setNewPayment])
+    } finally {
+      if (controller.current === next) pendingRead.current = null
+      if (!next.signal.aborted) setLoading(false)
+    }
+  }, [navigate, settingsOnly, endSession, setToast, setNewPayment])
 
-  useEffect(() => { let active = true; queueMicrotask(() => { if (active) void loadDashboard() }); return () => { active = false; controller.current?.abort() } }, [loadDashboard])
+  useEffect(() => { let active = true; queueMicrotask(() => { if (active) void loadDashboard(false) }); return () => { active = false } }, [loadDashboard, location.pathname])
+  useEffect(() => () => controller.current?.abort(), [])
   useEffect(() => {
     const update = () => {
       setOnline(navigator.onLine)

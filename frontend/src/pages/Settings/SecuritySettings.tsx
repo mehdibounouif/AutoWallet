@@ -3,6 +3,7 @@ import { Check, Copy, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { OTPInput } from '../../components/common/OTPInput'
 import { RecoveryCodes } from './RecoveryCodes'
+import { RecoveryNavigationGuard } from './RecoveryNavigationGuard'
 import { parseRecoveryCodes } from '../../auth/recoveryCodes'
 import { AuthenticatorCode } from './AuthenticatorCode'
 import { SettingsApiError, settingsRequest } from '../../api/settingsApi'
@@ -20,6 +21,8 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [success, setSuccess] = useState(false)
   const controller = useRef<AbortController | null>(null)
@@ -75,6 +78,7 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
   const verify = async () => {
     if (inFlight.current || !online || !/^\d{6}$/.test(code)) return
     inFlight.current = true
+    setVerifying(true)
     const next = new AbortController()
     controller.current = next
     setBusy(true); setError(null)
@@ -89,10 +93,11 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
       if (reason instanceof SettingsApiError && reason.status === 401) { onSessionEnded(); return }
       if (reason instanceof SettingsApiError && reason.status === 409) { onEnabled(true); setSetup(null); setCode('') }
       setError(reason instanceof SettingsApiError && reason.status === 400 ? 'That code didn’t work. Codes change every 30 seconds. Try the latest code from your app.' : 'The result could not be confirmed. Use your authenticator app and generate recovery codes below if setup was enabled.')
-    } finally { inFlight.current = false; setBusy(false) }
+    } finally { inFlight.current = false; setBusy(false); setVerifying(false) }
   }
 
   return <>
+    <RecoveryNavigationGuard pending={verifying || regenerating} hasCodes={recoveryCodes.length > 0} onDiscard={() => setRecoveryCodes([])} />
     <section className="workspace-card settings-card"><h2>Password</h2><p>Use at least 8 characters. A longer password is stronger than a complicated one.</p>
       <div className="settings-form settings-form--unavailable"><label>Current password<input className="dashboard-input" type="password" disabled autoComplete="current-password" aria-describedby="password-unavailable" /></label><label>New password<input className="dashboard-input" type="password" disabled autoComplete="new-password" aria-describedby="password-unavailable" /></label><button className="settings-outline-button" disabled>Change password</button></div>
       <p id="password-unavailable" className="settings-availability">Password changes are not available from the account service yet.</p>
@@ -111,6 +116,6 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
       {error && <p role="alert" className="workspace-field-error">{error}</p>}
       {info.signInMethod === null && info.twoFactorEnabled === null && !setup && <p className="settings-availability">Sign in with Google? Request a JSON export in <Link className="workspace-text-button" to="/app/settings/privacy">Privacy and data</Link> first to check your security status.</p>}
     </section>
-    {!setup && !confirming && info.twoFactorEnabled !== false && <RecoveryCodes codes={recoveryCodes} onCodes={setRecoveryCodes} onEnabled={() => onEnabled(true)} online={online && !busy} googleAccount={info.signInMethod === 'google'} onSessionEnded={onSessionEnded} />}
+    {!setup && !confirming && info.twoFactorEnabled !== false && <RecoveryCodes onPendingChange={setRegenerating} codes={recoveryCodes} onCodes={setRecoveryCodes} onEnabled={() => onEnabled(true)} online={online && !busy} googleAccount={info.signInMethod === 'google'} onSessionEnded={onSessionEnded} />}
   </>
 }

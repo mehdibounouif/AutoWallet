@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, createRoutesFromElements, RouterProvider, Outlet, Route, Navigate } from 'react-router-dom'
+import { RouteErrorPage } from './components/common/RouteErrorPage'
 import { AuthPage } from './pages/Auth/AuthPage'
 
 import { useDashboardTheme } from './pages/Settings/settingsPreferences'
@@ -34,7 +35,7 @@ const authRoutes = {
 
 // A data router lets recovery-code screens block links and Back/Forward navigation.
 const router = createBrowserRouter(createRoutesFromElements(
-  <Route element={
+  <Route errorElement={<RouteErrorPage />} element={
     <Suspense fallback={<div role="status" className="min-h-screen flex items-center justify-center">Loading…</div>}>
       <Outlet />
     </Suspense>

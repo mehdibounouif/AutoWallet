@@ -1,15 +1,31 @@
-# Frontend audit — October 17, 2026
+# Frontend audit — October 18, 2026
 
 ## Current scope
 
 The frontend includes authentication, onboarding, Home, Envelopes and details, Rules, Activity and payment details, Analytics, Assistant, Notifications, Sandbox, and Settings. This update builds on PR #60's reconciled dashboard. Backend code and QA-owned tests are unchanged.
+
+## Latest fixes and optimizations
+
+- Fixed Activity sorting: missing dates preserve server order, chronological sorts respect month direction, and other sorts apply across the list.
+- Snapshot Assistant preview allocations with each answer so balance/rule refreshes do not rewrite previous responses.
+- Handle dashboard resource failures independently. Activity can use successful transaction reads when Rules fails; pages needing failed data show an unavailable state and retry. Expired-session handling remains intact.
+- Validate the combined signup name against the backend's 100-character limit and display FastAPI field validation errors without showing echoed request inputs.
+- Protect pending initial 2FA activation and recovery-code regeneration, as well as returned unsaved codes, using one navigation guard. Leaving is disabled while generation is pending; reload/close warns. Session expiry and account replacement still clear sensitive state. Failed requests without codes dismiss the navigation dialog and leave the user on the error screen.
+- Reuse dashboard/account reads for up to 30 seconds during page navigation. Stale navigation, explicit retries, writes, returning to the tab, reconnection, and payment events refresh data. Cache state remains inside the signed-in session and is discarded when its token changes.
+- Paginate Activity at 25 payments per page after global filtering/sorting. Reset pagination on filter/sort changes and clamp it when the history shrinks. Desktop and mobile render only the current page; group totals explicitly describe that page.
+- Add a route error screen with Reload and Home actions instead of exposing the default technical error screen.
+- Remove the unused `continueSettingUp` text and `.analytics-period select` style. Exclude local `design/` and `autoWallet.zip` from the Docker build context.
+
+### Remaining pagination dependency
+
+Activity pagination currently limits rendered rows, not the API response size. The backend still returns the entire transaction list. Server pagination requires an agreed cursor/page, total/count, filter, and sorting contract, with corresponding frontend integration. No backend routes or response schemas were changed.
 
 ## Completed frontend work
 
 - Integrated interactive analytics charts and formatted AI responses into the existing dashboard; the older `/analytics`, `/assistant`, and `/account/privacy` URLs redirect to dashboard pages.
 - Preserved one shared SSE reader, validated API clients, authenticated payment refresh, reconnect/resynchronization, and cancellation on navigation.
 - Connected recovery-code login using `recovery_code`, with the backend's 32-character hexadecimal format. Passwords stay in memory during the login handoff.
-- Displayed recovery codes returned by 2FA activation, with copy/download and explicit dismissal. Codes are held in component memory, never local/session storage. Internal navigation and browser Back/Forward ask for confirmation before discarding unacknowledged codes; closing/reloading the page uses a browser warning. Sign-out and session replacement clear codes without blocking account cleanup.
+- Displayed recovery codes returned by 2FA activation, with copy/download and explicit dismissal. Codes are held in component memory, never local/session storage. Internal navigation and browser Back/Forward are guarded during code generation and ask for confirmation before discarding unacknowledged codes; closing/reloading the page uses a browser warning. Sign-out and session replacement clear codes without blocking account cleanup.
 - Added recovery-code regeneration using the current password and authenticator code. Incorrect credentials preserve the signed-in session; unknown replacement outcomes explain how to recover. The backend requires a password, so Google-only accounts cannot use this replacement endpoint.
 - Connected email verification and resend, including invalid/expired links, cooldowns, and service errors. Both `/verify-email` and the backend's `/auth/verify-email` link path work. StrictMode effect replay reuses the verification request so it does not consume a token twice.
 - Added visible verification/resend links in Profile settings and after signup registration. Signup opens the verification screen in a separate tab to preserve onboarding progress and in-memory credentials. The profile does not claim a verified status that the API does not provide.
@@ -56,3 +72,5 @@ The previous PR #60 revision passed build, lint and all 68 existing frontend tes
 This update passes the production build, lint and all 68 existing tests across 12 files. Temporary browser checks outside the repository also pass for recovery-code login, download and regeneration, invalid credentials, memory-only secrets, both verification URLs, a single verification request under React StrictMode, expired links, resend failures and cooldown, 320px layouts, and signup preview parity. Browser checks use mocked API responses; they do not verify live backend processing or email delivery. No QA-owned tests or test configuration are edited.
 
 Follow-up browser checks pass at desktop and 320px widths for navigation confirmation, Back, Escape, initial focus, staying with codes, leaving explicitly, and cross-tab logout while a confirmation is open. Account replacement clears the old Assistant conversation and identity; clearing storage signs out other tabs. Profile verification links prefill the account email and submit resend; signup links open a separate tab while preserving the original onboarding credentials and progress.
+
+The latest source changes pass lint, the production build, and all 68 existing tests. Temporary browser checks verify navigation caching, stale refresh, payment-triggered refresh, paginated desktop/mobile rows, filter/sort resets, shrinking histories, pending activation/regeneration guards, success/failure handling, the previous four fixes, cross-tab logout while generation is pending, and recovery from an injected route failure using the friendly error screen. QA-owned test files remain unchanged.

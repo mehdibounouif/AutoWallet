@@ -68,7 +68,6 @@ export const en = {
   passwordChangedTitle: 'Password changed',
   passwordChangedSubtitle: 'Log in with your new password.',
   verifyEmailSubtitle: 'Check {email} for your verification link. You can request a new link below.',
-  continueSettingUp: 'Continue setting up',
   emailExists: 'An account with this email already exists. Log in instead, or reset your password.',
   changeEmail: 'Use another email',
   emailInvalid: 'Please enter a valid email address.',
