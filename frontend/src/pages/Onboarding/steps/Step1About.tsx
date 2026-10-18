@@ -1,3 +1,4 @@
+import { isValidFullNameLength } from '../../../auth/validation'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { AlertCircle } from 'lucide-react'
@@ -31,11 +32,14 @@ export function Step1About({
   const isFirstNameValid = firstName.trim().length >= 2
   const isLastNameValid = lastName.trim().length >= 2
 
+  const nameTooLong = !isValidFullNameLength(firstName, lastName)
   const firstNameError =
+    (nameTooLong ? t.fullNameTooLong : null) ||
     externalFirstNameError ||
     (firstNameTouched && !isFirstNameValid ? t.firstNameRequired : null)
 
   const lastNameError =
+    (nameTooLong ? t.fullNameTooLong : null) ||
     externalLastNameError ||
     (lastNameTouched && !isLastNameValid ? t.lastNameRequired : null)
 

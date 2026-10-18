@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
 import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
@@ -12,12 +12,13 @@ import { Step4Rules } from './steps/Step4Rules'
 import { Step5TryPayment } from './steps/Step5TryPayment'
 import { onboardingPaths } from './routes'
 import { clearSignupCredentials, getSignupPassword } from '../../auth/pendingCredentials'
-import { isValidBankAccountId } from '../../auth/validation'
+import { isValidBankAccountId, isValidFullNameLength } from '../../auth/validation'
 import { isValidRuleValue } from '../../utils/format'
 import { clearSignupDraft, parseSignupDraft, readSignupDraft, writeSignupDraft } from '../../auth/signupDraft'
 import type { SignupDraft } from '../../auth/signupDraft'
 import { apiFetch } from '../../api/request'
-import { apiErrorDetail } from '../../api/errors'
+import { saveAccessToken } from '../../auth/session'
+import { apiErrorDetail, apiValidationErrors } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
@@ -119,6 +120,12 @@ export function OnboardingPage() {
       return
     }
 
+    if (!isValidFullNameLength(firstName, lastName)) {
+      setFirstNameError(t.fullNameTooLong)
+      setLastNameError(t.fullNameTooLong)
+      setErrorMessage(t.fullNameTooLong)
+      return
+    }
     setErrorMessage(null)
     persistDraft({ firstName: firstName.trim(), lastName: lastName.trim() })
     navigate('/welcome/account')
@@ -142,7 +149,7 @@ export function OnboardingPage() {
       return
     }
 
-    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
+    if (firstName.trim().length < 2 || lastName.trim().length < 2 || !isValidFullNameLength(firstName, lastName)) {
       persistDraft({ bankAccount: cleanAcc })
       navigate('/welcome/about')
       return
@@ -165,10 +172,24 @@ export function OnboardingPage() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}))
+        if (response.status === 422) {
+          const fields = apiValidationErrors(error)
+          const nameError = fields.find(field => field.field === 'full_name')
+          const bankError = fields.find(field => field.field === 'bank_account_id')
+          setErrorMessage(apiErrorDetail(error, 'Please check your account details and try again.').message)
+          if (bankError) setBankAccountError(bankError.message)
+          if (nameError) {
+            setFirstNameError(nameError.message)
+            setLastNameError(nameError.message)
+            persistDraft({ bankAccount: cleanAcc })
+            navigate('/welcome/about')
+          }
+          return
+        }
         const detail = apiErrorDetail(error, '').message.toLowerCase()
-        if (detail.includes('email')) {
+        if (response.status === 400 && detail.includes('email')) {
           setErrorMessage(t.emailExists)
-        } else if (detail.includes('bank account')) {
+        } else if (response.status === 400 && detail.includes('bank account')) {
           setBankAccountError(t.bankAccountExists)
           setErrorMessage(t.bankAccountExists)
         } else {
@@ -302,7 +323,7 @@ export function OnboardingPage() {
       if (loginRes.ok) {
         const tokenData = await loginRes.json()
         if (typeof tokenData.access_token === 'string') {
-          localStorage.setItem('autowallet_token', tokenData.access_token)
+          saveAccessToken(tokenData.access_token)
           clearSignupDraft()
           navigate('/dashboard', { replace: true })
           return
@@ -336,6 +357,11 @@ export function OnboardingPage() {
           t={t}
         />
       </TopBar>
+
+      {registered && <aside aria-label="Email verification" className="mx-auto mt-5 w-full max-w-[640px] px-4 text-center text-sm text-[#5E6B7E]">
+        <p>Check your email for a verification link. You can finish setting up your account here.</p>
+        <Link to={`/verify-email?email=${encodeURIComponent(draftEmail)}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold text-[#5A64B4] underline underline-offset-2">Request another verification link (opens in a new tab)</Link>
+      </aside>}
 
       {/* Main Content Area */}
       <main className={`flex-1 flex flex-col items-center px-4 z-10 ${step === 5 ? 'justify-start pt-8 sm:pt-[54px] pb-32 sm:pb-40' : 'justify-center py-8 sm:py-12'}`}>

@@ -125,3 +125,8 @@
   .activity-loading-row { grid-template-columns: 30% 25% 25% 20%; }
   .activity-loading-row span:last-child { display: none; }
 }
+
+.activity-pagination { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 16px; border-top: 1px solid var(--aw-border, #dbe3ec); color: var(--aw-muted, #738199); font-size: 12px; }
+.activity-pagination > div { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.activity-pagination button { min-height: 44px; }
+.activity-pagination button:disabled { opacity: .45; cursor: default; }

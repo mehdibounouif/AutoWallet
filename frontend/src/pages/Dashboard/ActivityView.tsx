@@ -11,6 +11,7 @@ import './activity.css'
 type FilterName = 'date' | 'amount' | 'envelope' | 'status'
 type SortField = 'reference' | 'received' | 'amount' | 'status'
 type SortDirection = 'asc' | 'desc'
+const pageSize = 25
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
 const rangeFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 
@@ -35,6 +36,7 @@ function localDateKey(value: string) {
 }
 
 function monthTitle(key: string) {
+  if (key === 'all') return 'All payments'
   if (key === 'unknown') return 'Date unavailable'
   const [year, month] = key.split('-').map(Number)
   return monthFormatter.format(new Date(year, month - 1, 1))
@@ -73,6 +75,7 @@ export function ActivityView({ payments, search, onSearchChange, onSelect, onRec
   const [status, setStatus] = useState<DashboardTransaction['status'] | ''>('')
   const [sortField, setSortField] = useState<SortField>('received')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [pagination, setPagination] = useState({ key: '', page: 1 })
   const filtersRef = useDismissibleLayer(openFilter !== null, () => setOpenFilter(null))
   const deferredSearch = useDeferredValue(search)
   const availableDateRange = useMemo(() => dateRangeLabel(payments), [payments])
@@ -108,22 +111,33 @@ export function ActivityView({ payments, search, onSearchChange, onSelect, onRec
     })
   }, [payments, deferredSearch, startDate, endDate, minAmount, maxAmount, envelope, status])
 
+  const sorted = useMemo(() => [...filtered].sort((a, b) => {
+      if (sortField === 'received') {
+        // Unknown dates retain the server order and stay after known dates.
+        if (!a.created_at || !b.created_at) return a.created_at ? -1 : b.created_at ? 1 : 0
+        const result = Date.parse(a.created_at) - Date.parse(b.created_at)
+        return sortDirection === 'asc' ? result : -result
+      }
+      const result = sortField === 'amount' ? a.amount - b.amount : a[sortField].localeCompare(b[sortField])
+      return sortDirection === 'asc' ? result : -result
+    }), [filtered, sortField, sortDirection])
+  const paginationKey = JSON.stringify([deferredSearch, startDate, endDate, minAmount, maxAmount, envelope, status, sortField, sortDirection])
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize))
+  const page = pagination.key === paginationKey ? Math.min(pagination.page, pageCount) : 1
+  if (pagination.key !== paginationKey || pagination.page !== page) {
+    setPagination({ key: paginationKey, page })
+  }
+  const pageStart = (page - 1) * pageSize
   const groups = useMemo(() => {
-    const sorted = [...filtered].sort((a, b) => {
-      const result = sortField === 'received'
-        ? (a.created_at ? new Date(a.created_at).getTime() : 0) - (b.created_at ? new Date(b.created_at).getTime() : 0)
-        : sortField === 'amount' ? a.amount - b.amount : a[sortField].localeCompare(b[sortField])
-      return (sortDirection === 'asc' ? result : -result) || a.reference.localeCompare(b.reference)
-    })
     const byMonth = new Map<string, DashboardTransaction[]>()
-    for (const payment of sorted) {
-      const key = monthKey(payment)
+    for (const payment of sorted.slice(pageStart, pageStart + pageSize)) {
+      const key = sortField === 'received' ? monthKey(payment) : 'all'
       const items = byMonth.get(key)
       if (items) items.push(payment)
       else byMonth.set(key, [payment])
     }
-    return [...byMonth.entries()].sort(([a], [b]) => a === 'unknown' ? 1 : b === 'unknown' ? -1 : b.localeCompare(a))
-  }, [filtered, sortField, sortDirection])
+    return [...byMonth.entries()]
+  }, [sorted, pageStart, sortField])
 
   const sortHeader = (field: SortField, label: string) => <button type="button" onClick={() => sortBy(field)}>{label}{field === sortField ? sortDirection === 'desc' ? <ArrowDown size={14} aria-hidden="true" /> : <ArrowUp size={14} aria-hidden="true" /> : <span className="activity-sort-neutral" aria-hidden="true">↕</span>}</button>
   const toggle = (name: FilterName) => setOpenFilter((current) => current === name ? null : name)
@@ -150,9 +164,13 @@ export function ActivityView({ payments, search, onSearchChange, onSelect, onRec
 
     <div className="activity-panel">
       {filtered.length === 0 ? <div className="activity-empty"><div className="activity-empty-icon" aria-hidden="true"><span /><Mail /><Mail /><Mail /></div><h2>{payments.length ? 'No payments match these filters.' : 'No payments yet'}</h2><p>{payments.length ? 'Try a wider date range or fewer filters.' : 'When a payment arrives, you can find it here and see how it was split.'}</p>{hasFilters && <button type="button" className="dashboard-secondary-button" onClick={clearFilters}>Clear filters</button>}</div> : <>
-        <table className="activity-table"><colgroup><col className="activity-col-reference" /><col className="activity-col-received" /><col className="activity-col-amount" /><col className="activity-col-split" /><col className="activity-col-status" /><col className="activity-col-open" /></colgroup><thead><tr><th scope="col" aria-sort={sortField === 'reference' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('reference', 'Reference')}</th><th scope="col" aria-sort={sortField === 'received' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('received', 'Received')}</th><th scope="col" className="activity-amount-cell" aria-sort={sortField === 'amount' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('amount', 'Amount (MAD)')}</th><th scope="col">Split</th><th scope="col" aria-sort={sortField === 'status' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('status', 'Status')}</th><th scope="col"><span className="sr-only">Open payment</span></th></tr></thead><tbody>{groups.map(([key, items]) => <FragmentRows key={key} label={monthTitle(key)} items={items} onSelect={onSelect} />)}</tbody></table>
-        <div className="activity-mobile-list">{groups.map(([key, items]) => <section key={key} className="activity-mobile-group" aria-label={monthTitle(key)}><div className="activity-mobile-month"><strong>{monthTitle(key)}</strong><span>{items.length} {items.length === 1 ? 'payment' : 'payments'} · {money.format(items.reduce((sum, payment) => sum + payment.amount, 0))}</span></div>{items.map((payment) => <button type="button" key={payment.id} className="activity-mobile-row" onClick={() => onSelect(payment)} aria-label={accessiblePaymentLabel(payment)}><span className="activity-mobile-row-top"><strong>{payment.reference}</strong><b>{money.format(payment.amount)}</b></span><span className="activity-mobile-row-bottom"><span>{paymentDate(payment.created_at) || 'Date unavailable'}</span><span className="activity-mobile-split"><PaymentSplitBar payment={payment} /></span><PaymentStatus status={payment.status} /></span></button>)}</section>)}</div>
+        <table className="activity-table"><colgroup><col className="activity-col-reference" /><col className="activity-col-received" /><col className="activity-col-amount" /><col className="activity-col-split" /><col className="activity-col-status" /><col className="activity-col-open" /></colgroup><thead><tr><th scope="col" aria-sort={sortField === 'reference' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('reference', 'Reference')}</th><th scope="col" aria-sort={sortField === 'received' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('received', 'Received')}</th><th scope="col" className="activity-amount-cell" aria-sort={sortField === 'amount' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('amount', 'Amount (MAD)')}</th><th scope="col">Split</th><th scope="col" aria-sort={sortField === 'status' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('status', 'Status')}</th><th scope="col"><span className="sr-only">Open payment</span></th></tr></thead><tbody>{groups.map(([key, items]) => <FragmentRows key={key} label={`${monthTitle(key)}${pageCount > 1 ? ' (this page)' : ''}`} items={items} onSelect={onSelect} />)}</tbody></table>
+        <div className="activity-mobile-list">{groups.map(([key, items]) => <section key={key} className="activity-mobile-group" aria-label={monthTitle(key)}><div className="activity-mobile-month"><strong>{monthTitle(key)}{pageCount > 1 ? ' (this page)' : ''}</strong><span>{items.length} {items.length === 1 ? 'payment' : 'payments'} · {money.format(items.reduce((sum, payment) => sum + payment.amount, 0))}</span></div>{items.map((payment) => <button type="button" key={payment.id} className="activity-mobile-row" onClick={() => onSelect(payment)} aria-label={accessiblePaymentLabel(payment)}><span className="activity-mobile-row-top"><strong>{payment.reference}</strong><b>{money.format(payment.amount)}</b></span><span className="activity-mobile-row-bottom"><span>{paymentDate(payment.created_at) || 'Date unavailable'}</span><span className="activity-mobile-split"><PaymentSplitBar payment={payment} /></span><PaymentStatus status={payment.status} /></span></button>)}</section>)}</div>
       </>}
+      {pageCount > 1 && <nav className="activity-pagination" aria-label="Payment pages">
+        <p aria-live="polite">Showing {pageStart + 1}–{Math.min(pageStart + pageSize, sorted.length)} of {sorted.length} payments</p>
+        <div><button type="button" className="dashboard-secondary-button" disabled={page === 1} onClick={() => setPagination({ key: paginationKey, page: page - 1 })}>Previous</button><span>Page {page} of {pageCount}</span><button type="button" className="dashboard-secondary-button" disabled={page === pageCount} onClick={() => setPagination({ key: paginationKey, page: page + 1 })}>Next</button></div>
+      </nav>}
     </div>
   </section>
 }

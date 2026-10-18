@@ -8,7 +8,7 @@ Updated October 16, 2026. This document describes the current frontend; backend 
 src/
   api/                  Shared HTTP clients, SSE reader, error and wallet validation
   assets/               Imported assets (Google logo)
-  auth/                 Validation, safe return URLs, signup drafts, in-memory credentials
+  auth/                 Validation, session synchronization, safe return URLs, signup drafts, in-memory credentials
   components/
     common/             Dialog, OTP, password meter, stepper, top bar, legal footer
     icons/              Google icon wrapper
@@ -22,7 +22,7 @@ src/
     Onboarding/         Five-step signup controller and step components
     Settings/           Settings sections, security/privacy flows, browser preferences
   utils/                Shared number/date formatting
-  App.tsx               Route registration and lazy page boundaries
+  App.tsx               Data-router registration, navigation blocking, and lazy page boundaries
   main.tsx              React entry point and legacy draft cleanup
   index.css             Tailwind and global styles
 public/AW.svg           Public logo

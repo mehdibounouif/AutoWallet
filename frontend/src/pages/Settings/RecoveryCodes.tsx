@@ -9,10 +9,11 @@ interface Props {
   onEnabled: () => void
   online: boolean
   googleAccount: boolean
+  onPendingChange: (pending: boolean) => void
   onSessionEnded: () => void
 }
 
-export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount, onSessionEnded }: Props) {
+export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount, onSessionEnded, onPendingChange }: Props) {
   const [editing, setEditing] = useState(false)
   const [password, setPassword] = useState('')
   const [totp, setTotp] = useState('')
@@ -23,12 +24,6 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
   const downloadUrl = useRef<string | null>(null)
   const hasCodes = codes.length > 0
   useEffect(() => () => { active.current?.abort(); if (downloadUrl.current) URL.revokeObjectURL(downloadUrl.current) }, [])
-  useEffect(() => {
-    if (!hasCodes) return
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [hasCodes])
 
   const text = `AutoWallet recovery codes\nEach code can be used once. Keep these somewhere private.\n\n${codes.join('\n')}\n`
   const download = () => {
@@ -43,6 +38,7 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
     if (active.current || !online || !password || !/^\d{6}$/.test(totp)) return
     const controller = new AbortController()
     active.current = controller
+    onPendingChange(true)
     setBusy(true); setError(null); setNotice(null)
     try {
       const response = await settingsRequest('/api/auth/2fa/recovery-codes/regenerate', {
@@ -67,6 +63,7 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
       }
     } finally {
       active.current = null
+      onPendingChange(false)
       if (!controller.signal.aborted) { setBusy(false); setPassword(''); setTotp('') }
     }
   }
@@ -100,5 +97,6 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
     </form>}
     {notice && <p className="workspace-note" role="status">{notice}</p>}
     {error && <p className="workspace-field-error" role="alert">{error}</p>}
+
   </section>
 }

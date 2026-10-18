@@ -1,4 +1,5 @@
 import { isRecoveryCode, normalizeRecoveryCode } from '../../auth/recoveryCodes'
+import { saveAccessToken } from '../../auth/session'
 import { apiErrorDetail } from '../../api/errors'
 import { Dialog } from '../../components/common/Dialog'
 import { LegalFooter } from '../../components/common/LegalFooter'
@@ -53,7 +54,7 @@ export function TwoFactorCard() {
         const data = await res.json()
         if (signal.aborted) return
         if (typeof data.access_token !== 'string' || !data.access_token) throw new Error('Missing access token')
-        localStorage.setItem('autowallet_token', data.access_token)
+        saveAccessToken(data.access_token)
         clearTwoFactorCredentials(); setBackupCode(''); navigate(returnTo, { replace: true })
       } else if (res.status === 401) {
         if (method === 'totp_code') setWrongCode(true)

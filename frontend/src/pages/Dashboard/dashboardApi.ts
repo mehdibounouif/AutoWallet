@@ -40,11 +40,14 @@ export interface DashboardRule {
   is_active: boolean
 }
 
+export type DashboardResource = 'wallets' | 'transactions' | 'rules'
+
 export interface DashboardData {
   user: DashboardUser
   wallets: DashboardWallet[]
   transactions: DashboardTransaction[]
   rules: DashboardRule[]
+  resourceErrors?: Partial<Record<DashboardResource, string>>
 }
 
 export class DashboardApiError extends Error {
@@ -162,16 +165,29 @@ export async function fetchDashboardUser(token: string, signal: AbortSignal): Pr
 export async function fetchDashboardResources(user: DashboardUser, token: string, signal: AbortSignal): Promise<DashboardData> {
   if (!user.bank_account_id) return { user, wallets: [], transactions: [], rules: [] }
 
-  const [wallets, transactions, rules] = await Promise.all([
-    getJson('/api/wallets/', token, signal),
-    getJson('/api/transactions/', token, signal),
-    getJson('/api/rules/', token, signal),
+  // Parse within each request so malformed data only affects that resource.
+  const results = await Promise.allSettled([
+    getJson('/api/wallets/', token, signal).then(value => parseArray(value, parseWallet)),
+    getJson('/api/transactions/', token, signal).then(value => newestPaymentsFirst(parseArray(value, parseTransaction))),
+    getJson('/api/rules/', token, signal).then(value => parseArray(value, parseRule).sort((a, b) => a.priority - b.priority)),
   ])
-
+  signal.throwIfAborted()
+  const resourceErrors: NonNullable<DashboardData['resourceErrors']> = {}
+  const resources = ['wallets', 'transactions', 'rules'] as const
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      // An expired session must never be treated as a partial service outage.
+      if (result.reason instanceof DashboardApiError && result.reason.status === 401) throw result.reason
+      const resource = resources[index]
+      resourceErrors[resource] = `Could not load ${resource}.`
+    }
+  })
+  const [wallets, transactions, rules] = results
   return {
     user,
-    wallets: parseArray(wallets, parseWallet),
-    transactions: newestPaymentsFirst(parseArray(transactions, parseTransaction)),
-    rules: parseArray(rules, parseRule).sort((a, b) => a.priority - b.priority),
+    wallets: wallets.status === 'fulfilled' ? wallets.value : [],
+    transactions: transactions.status === 'fulfilled' ? transactions.value : [],
+    rules: rules.status === 'fulfilled' ? rules.value : [],
+    ...(Object.keys(resourceErrors).length ? { resourceErrors } : {}),
   }
 }

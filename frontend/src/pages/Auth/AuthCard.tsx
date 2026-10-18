@@ -17,6 +17,7 @@ import { translations } from '../../i18n'
 import { writeSignupDraft } from '../../auth/signupDraft'
 import { clearGoogleReturnPath, rememberGoogleReturnPath, safeReturnPath } from '../../auth/returnPath'
 import { apiFetch } from '../../api/request'
+import { saveAccessToken } from '../../auth/session'
 import { apiErrorDetail } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
 import { isValidEmail } from '../../auth/validation'
@@ -186,7 +187,7 @@ export function AuthCard({
       if (res.ok) {
         const data = await res.json()
         if (typeof data.access_token !== 'string') throw new Error('Missing access token')
-        localStorage.setItem('autowallet_token', data.access_token)
+        saveAccessToken(data.access_token)
         navigate(safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to')))
       } else if (res.status === 401) {
         const errData = await res.json().catch(() => ({}))

@@ -4,6 +4,7 @@ import { Loader2, AlertCircle } from 'lucide-react'
 import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
 import { apiFetch } from '../../api/request'
+import { saveAccessToken } from '../../auth/session'
 import { apiErrorDetail } from '../../api/errors'
 import { clearGoogleReturnPath, loginPath, readGoogleReturnPath } from '../../auth/returnPath'
 
@@ -74,7 +75,7 @@ export function GoogleCallbackPage() {
 
         if (result.ok) {
           if (typeof result.data.access_token !== 'string') throw new Error('Missing access token')
-          localStorage.setItem('autowallet_token', result.data.access_token)
+          saveAccessToken(result.data.access_token)
           clearGoogleReturnPath()
           navigate(returnPath, { replace: true })
         } else {

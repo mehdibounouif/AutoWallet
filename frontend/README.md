@@ -41,6 +41,8 @@ Password recovery and reset have frontend request handlers, but their backend ro
 
 Recovery codes returned after 2FA activation or regeneration are displayed once with copy/download controls and stay in component memory. The backend requires a password and authenticator code for regeneration, so Google-only accounts cannot regenerate codes with the current contract. Email links work at both `/verify-email` and `/auth/verify-email`.
 
+Leaving unsaved recovery codes through app navigation or Back/Forward asks for confirmation. Closing/reloading uses a browser warning. Signing out or replacing the account in another tab clears the old dashboard state and recovery codes. Profile settings includes a verification/resend link; signup opens that link in a separate tab to preserve setup progress.
+
 Signup and two-factor passwords remain in memory; refreshing those flows requires signing in again. Non-secret signup drafts use session storage. Sign-in tokens currently use local storage. Moving tokens to HttpOnly cookies would require a coordinated backend authentication change.
 
 See [architecture.md](architecture.md) for file organization and data flow. Production hosting must serve the SPA fallback and proxy `/api`, including streaming responses; the frontend Dockerfile and nginx configuration now provide the production bundle and SPA/API routing.
