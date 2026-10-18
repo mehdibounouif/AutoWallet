@@ -420,16 +420,6 @@ def test_userinfo_without_sub_answers_401_not_500(client: TestClient, monkeypatc
         "malformed userinfo must answer 401, not crash"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #20 (owner: MEHDI): PR #51 added four REQUIRED settings "
-           "(frontend_google_callback_url, postgres_user, postgres_password, "
-           "postgres_db — app/core/config.py) with no defaults, but did not "
-           "add postgres_* to backend/.env.example — so `cp .env.example "
-           ".env` (what CI and new clones do) can't boot the app: 3 CI jobs "
-           "red at import. Fix: defaults (the AI module's pattern) or "
-           "complete the example file.",
-)
 def test_the_app_boots_from_the_committed_env_example(monkeypatch):
     """SCENARIO:   CI and a fresh clone configure the backend with exactly
                 `cp .env.example .env` — nothing else.
