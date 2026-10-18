@@ -12,13 +12,13 @@ import { Step4Rules } from './steps/Step4Rules'
 import { Step5TryPayment } from './steps/Step5TryPayment'
 import { onboardingPaths } from './routes'
 import { clearSignupCredentials, getSignupPassword } from '../../auth/pendingCredentials'
-import { isValidBankAccountId } from '../../auth/validation'
+import { isValidBankAccountId, isValidFullNameLength } from '../../auth/validation'
 import { isValidRuleValue } from '../../utils/format'
 import { clearSignupDraft, parseSignupDraft, readSignupDraft, writeSignupDraft } from '../../auth/signupDraft'
 import type { SignupDraft } from '../../auth/signupDraft'
 import { apiFetch } from '../../api/request'
 import { saveAccessToken } from '../../auth/session'
-import { apiErrorDetail } from '../../api/errors'
+import { apiErrorDetail, apiValidationErrors } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
 
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
@@ -120,6 +120,12 @@ export function OnboardingPage() {
       return
     }
 
+    if (!isValidFullNameLength(firstName, lastName)) {
+      setFirstNameError(t.fullNameTooLong)
+      setLastNameError(t.fullNameTooLong)
+      setErrorMessage(t.fullNameTooLong)
+      return
+    }
     setErrorMessage(null)
     persistDraft({ firstName: firstName.trim(), lastName: lastName.trim() })
     navigate('/welcome/account')
@@ -143,7 +149,7 @@ export function OnboardingPage() {
       return
     }
 
-    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
+    if (firstName.trim().length < 2 || lastName.trim().length < 2 || !isValidFullNameLength(firstName, lastName)) {
       persistDraft({ bankAccount: cleanAcc })
       navigate('/welcome/about')
       return
@@ -166,10 +172,24 @@ export function OnboardingPage() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}))
+        if (response.status === 422) {
+          const fields = apiValidationErrors(error)
+          const nameError = fields.find(field => field.field === 'full_name')
+          const bankError = fields.find(field => field.field === 'bank_account_id')
+          setErrorMessage(apiErrorDetail(error, 'Please check your account details and try again.').message)
+          if (bankError) setBankAccountError(bankError.message)
+          if (nameError) {
+            setFirstNameError(nameError.message)
+            setLastNameError(nameError.message)
+            persistDraft({ bankAccount: cleanAcc })
+            navigate('/welcome/about')
+          }
+          return
+        }
         const detail = apiErrorDetail(error, '').message.toLowerCase()
-        if (detail.includes('email')) {
+        if (response.status === 400 && detail.includes('email')) {
           setErrorMessage(t.emailExists)
-        } else if (detail.includes('bank account')) {
+        } else if (response.status === 400 && detail.includes('bank account')) {
           setBankAccountError(t.bankAccountExists)
           setErrorMessage(t.bankAccountExists)
         } else {

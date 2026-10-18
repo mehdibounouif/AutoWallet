@@ -35,6 +35,7 @@ function localDateKey(value: string) {
 }
 
 function monthTitle(key: string) {
+  if (key === 'all') return 'All payments'
   if (key === 'unknown') return 'Date unavailable'
   const [year, month] = key.split('-').map(Number)
   return monthFormatter.format(new Date(year, month - 1, 1))
@@ -110,19 +111,23 @@ export function ActivityView({ payments, search, onSearchChange, onSelect, onRec
 
   const groups = useMemo(() => {
     const sorted = [...filtered].sort((a, b) => {
-      const result = sortField === 'received'
-        ? (a.created_at ? new Date(a.created_at).getTime() : 0) - (b.created_at ? new Date(b.created_at).getTime() : 0)
-        : sortField === 'amount' ? a.amount - b.amount : a[sortField].localeCompare(b[sortField])
-      return (sortDirection === 'asc' ? result : -result) || a.reference.localeCompare(b.reference)
+      if (sortField === 'received') {
+        // Unknown dates retain the server order and stay after known dates.
+        if (!a.created_at || !b.created_at) return a.created_at ? -1 : b.created_at ? 1 : 0
+        const result = Date.parse(a.created_at) - Date.parse(b.created_at)
+        return sortDirection === 'asc' ? result : -result
+      }
+      const result = sortField === 'amount' ? a.amount - b.amount : a[sortField].localeCompare(b[sortField])
+      return sortDirection === 'asc' ? result : -result
     })
     const byMonth = new Map<string, DashboardTransaction[]>()
     for (const payment of sorted) {
-      const key = monthKey(payment)
+      const key = sortField === 'received' ? monthKey(payment) : 'all'
       const items = byMonth.get(key)
       if (items) items.push(payment)
       else byMonth.set(key, [payment])
     }
-    return [...byMonth.entries()].sort(([a], [b]) => a === 'unknown' ? 1 : b === 'unknown' ? -1 : b.localeCompare(a))
+    return [...byMonth.entries()]
   }, [filtered, sortField, sortDirection])
 
   const sortHeader = (field: SortField, label: string) => <button type="button" onClick={() => sortBy(field)}>{label}{field === sortField ? sortDirection === 'desc' ? <ArrowDown size={14} aria-hidden="true" /> : <ArrowUp size={14} aria-hidden="true" /> : <span className="activity-sort-neutral" aria-hidden="true">↕</span>}</button>

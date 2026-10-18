@@ -75,6 +75,7 @@ export const en = {
   emailRequired: 'Please enter your email address.',
   pwTooShort: 'Password must be at least 8 characters.',
   termsRequired: 'Please read the Terms and Privacy pages.',
+  fullNameTooLong: 'Your full name must be 100 characters or fewer, including the space between names.',
   firstNameRequired: 'Please enter your first name (at least 2 characters).',
   lastNameRequired: 'Please enter your last name (at least 2 characters).',
   bankAccountRequired: 'Please enter your bank account ID / RIB to continue.',
