@@ -3,6 +3,7 @@ import { Check, Copy, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { OTPInput } from '../../components/common/OTPInput'
 import { RecoveryCodes } from './RecoveryCodes'
+import { DisableTwoFactorForm } from './DisableTwoFactorForm'
 import { RecoveryNavigationGuard } from './RecoveryNavigationGuard'
 import { parseRecoveryCodes } from '../../auth/recoveryCodes'
 import { AuthenticatorCode } from './AuthenticatorCode'
@@ -10,7 +11,7 @@ import { SettingsApiError, settingsRequest } from '../../api/settingsApi'
 import type { SecurityInfo } from '../../api/settingsApi'
 
 export function SecuritySettings({ email, info, onEnabled, onSessionEnded, online }: {
-  email: string; info: SecurityInfo; onEnabled: (enabled: boolean) => void; onSessionEnded: () => void; online: boolean
+  email: string; info: SecurityInfo; onEnabled: (enabled: boolean | null) => void; onSessionEnded: () => void; online: boolean
 }) {
   const [confirming, setConfirming] = useState(false)
   const [password, setPassword] = useState('')
@@ -25,6 +26,9 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
   const [regenerating, setRegenerating] = useState(false)
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [success, setSuccess] = useState(false)
+  const [disableOpen, setDisableOpen] = useState(false)
+  const [disabling, setDisabling] = useState(false)
+  const [disableNotice, setDisableNotice] = useState<string | null>(null)
   const controller = useRef<AbortController | null>(null)
   const inFlight = useRef(false)
   const setupHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -38,7 +42,7 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
     inFlight.current = true
     const next = new AbortController()
     controller.current = next
-    setBusy(true); setError(null)
+    setBusy(true); setError(null); setDisableNotice(null); setSuccess(false)
     try {
       // /me does not expose 2FA status. Password sign-in without a code succeeds
       // only when 2FA is off; never replace an already-active authenticator key.
@@ -81,7 +85,7 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
     setVerifying(true)
     const next = new AbortController()
     controller.current = next
-    setBusy(true); setError(null)
+    setBusy(true); setError(null); setDisableNotice(null); setSuccess(false)
     try {
       const response = await settingsRequest('/api/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ code }), signal: next.signal })
       if (next.signal.aborted) return
@@ -97,7 +101,7 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
   }
 
   return <>
-    <RecoveryNavigationGuard pending={verifying || regenerating} hasCodes={recoveryCodes.length > 0} onDiscard={() => setRecoveryCodes([])} />
+    <RecoveryNavigationGuard pending={verifying || regenerating || disabling} pendingAction={disabling ? 'disable' : 'generate'} hasCodes={recoveryCodes.length > 0} onDiscard={() => setRecoveryCodes([])} />
     <section className="workspace-card settings-card"><h2>Password</h2><p>Use at least 8 characters. A longer password is stronger than a complicated one.</p>
       <div className="settings-form settings-form--unavailable"><label>Current password<input className="dashboard-input" type="password" disabled autoComplete="current-password" aria-describedby="password-unavailable" /></label><label>New password<input className="dashboard-input" type="password" disabled autoComplete="new-password" aria-describedby="password-unavailable" /></label><button className="settings-outline-button" disabled>Change password</button></div>
       <p id="password-unavailable" className="settings-availability">Password changes are not available from the account service yet.</p>
@@ -105,7 +109,21 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
     <section className="workspace-card settings-card settings-security" aria-labelledby="two-factor-title"><h2 id="two-factor-title">Two-factor login</h2>
       <span className={`settings-status ${info.twoFactorEnabled === true ? 'settings-status--on' : ''}`}>{info.twoFactorEnabled === true && <Check size={13} />}{info.twoFactorEnabled === true ? 'On' : info.twoFactorEnabled === false || setup ? 'Off' : 'Status not provided'}</span>
       {success && <div className="workspace-banner workspace-banner--success" role="status"><Check size={16} />Two-factor login is on. Use your authenticator app the next time you sign in.</div>}
-      {!setup && !confirming && <><p>{info.twoFactorEnabled === true ? 'You’ll need a code from your app each time you log in.' : 'Add a 6-digit code from an authenticator app each time you log in, so a stolen password is not enough.'}</p>{info.twoFactorEnabled === true ? <><button className="settings-danger-outline" disabled>Turn off two-factor login</button><p className="settings-availability">Turning off two-factor login is not supported by the account service yet.</p></> : <button className="dashboard-primary-button" onClick={() => { setConfirming(true); setError(null) }} disabled={!online}><ShieldCheck size={16} />Turn on two-factor login</button>}</>}
+      {disableNotice && <p className="workspace-banner workspace-banner--success" role="status">{disableNotice}</p>}
+      {!setup && !confirming && !disableOpen && <>
+        <p>{info.twoFactorEnabled === true ? 'You’ll need a code from your app each time you log in.' : 'Add a 6-digit code from an authenticator app each time you log in, so a stolen password is not enough.'}</p>
+        <div className="settings-actions">
+          {info.twoFactorEnabled !== true && <button className="dashboard-primary-button" onClick={() => { setConfirming(true); setError(null) }} disabled={!online}><ShieldCheck size={16} />Turn on two-factor login</button>}
+          {info.twoFactorEnabled !== false && <button className="settings-danger-outline" disabled={!online || busy || regenerating || info.signInMethod === 'google'} onClick={() => { setDisableOpen(true); setDisableNotice(null); setError(null) }}>Turn off two-factor login</button>}
+        </div>
+        {info.twoFactorEnabled === null && <p className="workspace-note">Your status was not provided. You can confirm your password and a second factor to turn off an existing authenticator.</p>}
+        {info.signInMethod === 'google' && info.twoFactorEnabled !== false && <p className="settings-availability">The account service requires a password to turn off two-factor login. This action is unavailable for Google-only accounts.</p>}
+      </>}
+      {disableOpen && <DisableTwoFactorForm online={online} onClose={() => setDisableOpen(false)} onPendingChange={setDisabling} onDisabled={alreadyOff => {
+        setRecoveryCodes([]); setSetup(null); setSuccess(false); setConfirming(false); setDisableOpen(false); setError(null)
+        onEnabled(false)
+        setDisableNotice(alreadyOff ? 'Two-factor login is already off. Your old recovery codes are no longer usable.' : 'Two-factor login is off. Your authenticator and old recovery codes are no longer usable.')
+      }} onUnconfirmed={() => { setRecoveryCodes([]); setSuccess(false); onEnabled(null) }} onSessionEnded={onSessionEnded} />}
       {confirming && <form className="settings-form" noValidate onSubmit={event => { event.preventDefault(); void startSetup() }}><p>Confirm your current sign-in before creating an authenticator key. An existing two-factor login will be preserved.</p>{info.signInMethod !== 'google' && <label>Confirm current password<span className="settings-secret-input"><input className="dashboard-input" type={showPassword ? 'text' : 'password'} aria-label="Confirm current password" value={password} onChange={event => { setPassword(event.target.value); setError(null) }} autoComplete="current-password" disabled={busy} /><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>}<div className="settings-actions"><button className="dashboard-primary-button" disabled={busy || !online} type="submit">{busy ? 'Checking…' : 'Continue'}</button><button type="button" className="settings-text-button" disabled={busy} onClick={() => { setConfirming(false); setPassword(''); setError(null) }}>Cancel</button></div></form>}
       {setup && <form className="settings-setup" onSubmit={event => { event.preventDefault(); void verify() }}>
         <h3 ref={setupHeadingRef} tabIndex={-1}>1. Scan this code with your authenticator app</h3><AuthenticatorCode uri={setup.uri} /><p>Can’t scan it? Enter this key in your authenticator app instead.</p>
@@ -116,6 +134,6 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
       {error && <p role="alert" className="workspace-field-error">{error}</p>}
       {info.signInMethod === null && info.twoFactorEnabled === null && !setup && <p className="settings-availability">Sign in with Google? Request a JSON export in <Link className="workspace-text-button" to="/app/settings/privacy">Privacy and data</Link> first to check your security status.</p>}
     </section>
-    {!setup && !confirming && info.twoFactorEnabled !== false && <RecoveryCodes onPendingChange={setRegenerating} codes={recoveryCodes} onCodes={setRecoveryCodes} onEnabled={() => onEnabled(true)} online={online && !busy} googleAccount={info.signInMethod === 'google'} onSessionEnded={onSessionEnded} />}
+    {!setup && !confirming && !disableOpen && info.twoFactorEnabled !== false && <RecoveryCodes onPendingChange={setRegenerating} codes={recoveryCodes} onCodes={setRecoveryCodes} onEnabled={() => onEnabled(true)} online={online && !busy} googleAccount={info.signInMethod === 'google'} onSessionEnded={onSessionEnded} />}
   </>
 }
