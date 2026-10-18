@@ -20,6 +20,7 @@ import { apiFetch } from '../../api/request'
 import { saveAccessToken } from '../../auth/session'
 import { apiErrorDetail } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
+import { useCountdown } from '../../hooks/useCountdown'
 import { isValidEmail } from '../../auth/validation'
 import {
   clearSignupCredentials,
@@ -69,6 +70,7 @@ export function AuthCard({
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const { countdown, startCountdown } = useCountdown()
   const requestSignal = useRequestSignal()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
@@ -137,7 +139,7 @@ export function AuthCard({
   // Handle Form Submission
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (loading) return
+    if (loading || countdown > 0) return
     setErrorMessage(null)
 
     if (mode === 'signup') {
@@ -198,10 +200,17 @@ export function AuthCard({
         } else {
           setErrorMessage(t.wrongCredentials)
         }
-      } else if (res.status === 503) {
+      } else if (res.status === 429) {
+        const retry = Number(res.headers.get('Retry-After'))
+        startCountdown(Number.isFinite(retry) && retry > 0 ? Math.min(900, Math.ceil(retry)) : 60)
+        setErrorMessage('Too many sign-in attempts. Wait before trying again.')
+      } else if (res.status >= 500) {
         setErrorMessage(t.serviceUnavailable)
+      } else if (res.status === 422) {
+        const payload = await res.json().catch(() => null)
+        setErrorMessage(apiErrorDetail(payload, 'Check your email and password and try again.').message)
       } else {
-        setErrorMessage(t.wrongCredentials)
+        setErrorMessage('Sign-in could not be completed. Please try again.')
       }
     } catch {
       if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
@@ -542,7 +551,7 @@ export function AuthCard({
             <button
               type="submit"
               disabled={
-                loading ||
+                loading || countdown > 0 ||
                 (mode === 'signup' && (password.length < 8 || !email.trim())) ||
                 (mode === 'login' && (!email.trim() || !password))
               }
@@ -553,6 +562,8 @@ export function AuthCard({
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>{mode === 'login' ? t.loggingIn : t.signingUp}</span>
                 </>
+              ) : countdown > 0 ? (
+                `Try again in ${countdown}s`
               ) : mode === 'login' ? (
                 t.loginButton
               ) : (

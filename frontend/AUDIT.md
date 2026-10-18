@@ -6,20 +6,15 @@ The frontend includes authentication, onboarding, Home, Envelopes and details, R
 
 ## Latest fixes and optimizations
 
-- Integrated the existing main commits, including the backend 2FA-disable contract, Rules gateway authorization, environment examples, and WebSocket authentication foundation. These upstream changes were merged as authored; frontend implementation changes do not modify backend or QA-owned files.
-- Connected Security settings to `POST /api/auth/2fa/disable` using a password and exactly one TOTP/recovery-code field. The form is available when 2FA is on or its status is unknown. Successful disabling clears displayed recovery codes and changes local status to Off; already-disabled responses reconcile the same way. Wrong credentials preserve the current login, while expired-session errors sign out. Unconfirmed server/network outcomes clear stale recovery codes and mark the security status unknown rather than claiming the account is still protected.
-- Protect pending 2FA disabling from accidental navigation and reload, alongside the existing code-generation guards. Google-only accounts retain a clear unavailable state because this backend endpoint requires a password.
-
-
-- Fixed Activity sorting: missing dates preserve server order, chronological sorts respect month direction, and other sorts apply across the list.
-- Snapshot Assistant preview allocations with each answer so balance/rule refreshes do not rewrite previous responses.
-- Handle dashboard resource failures independently. Activity can use successful transaction reads when Rules fails; pages needing failed data show an unavailable state and retry. Expired-session handling remains intact.
-- Validate the combined signup name against the backend's 100-character limit and display FastAPI field validation errors without showing echoed request inputs.
-- Protect pending initial 2FA activation and recovery-code regeneration, as well as returned unsaved codes, using one navigation guard. Leaving is disabled while generation is pending; reload/close warns. Session expiry and account replacement still clear sensitive state. Failed requests without codes dismiss the navigation dialog and leave the user on the error screen.
-- Reuse dashboard/account reads for up to 30 seconds during page navigation. Stale navigation, explicit retries, writes, returning to the tab, reconnection, and payment events refresh data. Cache state remains inside the signed-in session and is discarded when its token changes.
-- Paginate Activity at 25 payments per page after global filtering/sorting. Reset pagination on filter/sort changes and clamp it when the history shrinks. Desktop and mobile render only the current page; group totals explicitly describe that page.
-- Add a route error screen with Reload and Home actions instead of exposing the default technical error screen.
-- Remove the unused `continueSettingUp` text and `.analytics-period select` style. Exclude local `design/` and `autoWallet.zip` from the Docker build context.
+- Guard pending starter-rule saves against router navigation and page unload. Refresh cached resources after success or uncertain outcomes before finishing the save flow; session cleanup remains allowed.
+- Load payment notifications on demand from Settings, with distinct loading, failure/retry and empty states. Keep full-page read history after marking it read; the compact popover remains unread-only.
+- Report login service failures, invalid credentials and rate limits separately. Respect a bounded Retry-After cooldown. Support the backend's default `/auth/reset-password` URL alongside `/reset-password`, preserving the token.
+- Extract account/resource loading into `useDashboardData`, cache successful resources individually for 30 seconds, and fetch missing/stale resources needed by each page. Activity and Notifications do not require wallets or rules. Settings remains independent of money services. Forced refreshes reconcile already-loaded resources after writes/live events; token replacement discards the cache.
+- Extract sidebar/mobile navigation and Analytics results from their parent views. Add current-page semantics, route titles/announcements, a skip link, route focus handling that preserves search/form focus, and explicit onboarding field-error associations.
+- Add mobile Activity sorting controls, safe pruning of removed notification IDs after complete history reads, and visible Assistant clipboard errors. Clarify unavailable profile/Google-linking actions and the UTC Analytics versus local Activity date boundary.
+- Enable TypeScript strict checks for application source. QA-owned test files/configuration remain unchanged.
+- Preserve the integrated main changes: 2FA disabling, Rules gateway authorization, PostgreSQL example settings, and WebSocket authentication/origin/connection management. Security settings use password plus exactly one second factor to disable 2FA, reconcile already-off/uncertain outcomes, and protect pending requests and unsaved recovery codes.
+- Preserve corrected Activity sorting, immutable Assistant previews, independent resource errors, combined-name validation/FastAPI field errors, shared preview calculations, 25-row Activity pagination, and the friendly route error screen.
 
 ### Remaining pagination dependency
 
@@ -69,20 +64,22 @@ Settings reads account data independently of money services. Local previews do n
 - Bank ID validation in the frontend accepts 3–50 digits. Ownership verification and matching backend validation remain separate backend work.
 - The current backend uses floating-point money calculations. Shared previews now agree with it, but a future currency-rounding policy must change processing and previews together; displayed allocations can still reflect independent rounding to cents.
 - Production frontend Docker/nginx, SPA fallback, API proxying and Compose integration now exist. The earlier note that the Dockerfile was empty is obsolete.
-- PR #60's CI run at commit `f8e19eb` passed frontend build/tests but failed backend tests and backend startup checks. Logs identify missing PostgreSQL settings and a missing frontend OAuth callback setting in the standalone smoke test. Stack startup exits before e2e tests; container logs are needed for its exact cause. Those infrastructure failures are outside these frontend edits.
+- Main now includes the restored `Allocation` model and transaction relationship. The earlier missing-model startup finding is resolved in source; deployed payment processing and Analytics still need live verification.
 
 ## Verification and limits
 
-The previous PR #60 revision passed build, lint and all 68 existing frontend tests, plus browser checks for desktop/mobile charts, dark mode, redirects, streamed formatting and Privacy navigation. The old October 16 counts of 51 passing / 12 failing tests are superseded.
+Lint, the strict production build and all 68 existing tests across 12 files pass. Temporary browser checks outside the repository verify notification loading/history/errors, selective API reads and cache refresh, pending rule-save navigation/reload protection, reset URL handling, navigation focus/titles, login failure/rate-limit states, and Clipboard API fallback.
 
-This update passes the production build, lint and all 68 existing tests across 12 files. Temporary browser checks outside the repository also pass for recovery-code login, download and regeneration, invalid credentials, memory-only secrets, both verification URLs, a single verification request under React StrictMode, expired links, resend failures and cooldown, 320px layouts, and signup preview parity. Browser checks use mocked API responses; they do not verify live backend processing or email delivery. No QA-owned tests or test configuration are edited.
+Additional browser regressions pass for rapid route changes during delayed reads, uncertain rule-write reconciliation, safe removal of stale notification IDs, mobile sorting/More navigation, SSE resynchronization of payments and balances, and cross-tab logout during a blocked rule save. All 96 combinations of 24 routes, desktop/320px widths, and light/dark themes pass without horizontal page overflow or uncaught exceptions, including fallback-font layouts. The Envelopes heading now wraps safely at narrow widths.
 
-Follow-up browser checks pass at desktop and 320px widths for navigation confirmation, Back, Escape, initial focus, staying with codes, leaving explicitly, and cross-tab logout while a confirmation is open. Account replacement clears the old Assistant conversation and identity; clearing storage signs out other tabs. Profile verification links prefill the account email and submit resend; signup links open a separate tab while preserving the original onboarding credentials and progress.
+Security regression checks also pass for TOTP/recovery-code disabling, input and duplicate-submit guards, pending navigation/reload protection, code cleanup, incorrect credentials without logout, unavailable/uncertain responses, Google-only limitations, Rules authorization retry, and expired-session redirects.
 
-The latest source changes pass lint, the production build, and all 68 existing tests. Temporary browser checks verify navigation caching, stale refresh, payment-triggered refresh, paginated desktop/mobile rows, filter/sort resets, shrinking histories, pending activation/regeneration guards, success/failure handling, the previous four fixes, cross-tab logout while generation is pending, and recovery from an injected route failure using the friendly error screen. QA-owned test files remain unchanged.
+Browser checks use controlled API responses. They do not verify live payment processing, external OAuth/SMTP/AI delivery, every accessibility criterion, or exact Figma matching. QA-owned tests and test configuration are unchanged. The older 51-passing/12-failing counts and the empty-Dockerfile finding are obsolete.
+
+### Historical CI context
+
+PR #60 at `f8e19eb` had backend test/startup failures, including missing PostgreSQL settings and the standalone smoke-test OAuth callback setting. This is historical evidence, not a fresh CI result. Main has since added PostgreSQL examples and changed CI jobs; verify the current branch's GitHub checks separately.
 
 ## WebSocket integration boundary after the main merge
 
 The gateway now checks a cookie named `access_token` (or its configured cookie name), validates the Origin, and tracks connections per user. The browser login flow still receives a Bearer token and stores it in local storage; no server-issued WebSocket authentication cookie/ticket is provided. The active Compose gateway configuration omits `FRONTEND_ORIGIN`, and the Redis subscriber/event forwarding remain empty. Complete those backend/gateway contracts before replacing the frontend's authenticated SSE payment updates. No JavaScript-readable authentication cookie or nonfunctional WebSocket transport was added as a workaround.
-
-Main-integration verification: lint, production build, and all 68 existing frontend tests pass. Temporary browser fixtures verify TOTP and recovery-code disabling payloads, input validation, duplicate-submit prevention, wrong credentials without logout, pending navigation/reload protection, clearing recovery codes after success, already-disabled reconciliation, 404/503 outcomes, Google-only limitations, 320px layout, Rules authorization failure/retry, and expired-session redirects. These checks do not verify the older running backend deployment; no backend or QA test implementation was edited for this integration.

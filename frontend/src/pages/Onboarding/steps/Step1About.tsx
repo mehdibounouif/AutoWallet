@@ -70,6 +70,8 @@ export function Step1About({
               required
               autoFocus
               value={firstName}
+              aria-invalid={Boolean(firstNameError)}
+              aria-describedby={firstNameError ? 'first-name-error' : undefined}
               onBlur={() => setFirstNameTouched(true)}
               onChange={(e) => {
                 setFirstName(e.target.value)
@@ -84,7 +86,7 @@ export function Step1About({
               }`}
             />
             {firstNameError && (
-              <p className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
+              <p id="first-name-error" role="alert" className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>{firstNameError}</span>
               </p>
@@ -102,6 +104,8 @@ export function Step1About({
               type="text"
               required
               value={lastName}
+              aria-invalid={Boolean(lastNameError)}
+              aria-describedby={lastNameError ? 'last-name-error' : undefined}
               onBlur={() => setLastNameTouched(true)}
               onChange={(e) => {
                 setLastName(e.target.value)
@@ -116,7 +120,7 @@ export function Step1About({
               }`}
             />
             {lastNameError && (
-              <p className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
+              <p id="last-name-error" role="alert" className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>{lastNameError}</span>
               </p>

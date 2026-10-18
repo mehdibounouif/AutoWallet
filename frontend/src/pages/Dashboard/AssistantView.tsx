@@ -30,6 +30,7 @@ export function AssistantView({ data, online, onSessionEnded }: { data: Dashboar
   const [error, setError] = useState<string | null>(null)
   const [chartOpen, setChartOpen] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+  const [copyError, setCopyError] = useState<string | null>(null)
   const chartRef = useDismissibleLayer(chartOpen, () => setChartOpen(false))
   const active = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -87,6 +88,17 @@ export function AssistantView({ data, online, onSessionEnded }: { data: Dashboar
     setMessages(items => [...items, { id: crypto.randomUUID(), role: 'user', text: 'What would 12,000.00 MAD do?' }, { id: crypto.randomUUID(), role: 'assistant', text: 'Here’s a preview using your current rules and balances. Your account has not changed.', source: 'Local engine', preview: { amount: 12000, allocations: previewSplit(12000, data.rules, data.wallets) } }])
   }
   const lastAnswer = messages.findLast(item => item.role === 'assistant' && item.source === 'External model')
+  const copyResponse = async (message: Message) => {
+    setCopied(null)
+    setCopyError(null)
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable')
+      await navigator.clipboard.writeText(message.text)
+      if (mounted.current) setCopied(message.id)
+    } catch {
+      if (mounted.current) setCopyError('Could not copy the response. Select the text and copy it manually.')
+    }
+  }
   return <section className={`assistant-page ${messages.length ? 'assistant-page--conversation' : ''}`} aria-label="Assistant">
     <div className="assistant-thread" ref={scrollRef} role="log" aria-label="Conversation" aria-relevant="additions">
       {!messages.length ? <div className="assistant-welcome"><span className="assistant-welcome-icon"><Sparkles size={25} /></span><h1>Ask about your money</h1><p>Answers use your envelopes and payments.<br />Nothing changes in your account from chatting here.</p></div> : <div className="assistant-messages">{messages.map(message => <article key={message.id} className={`assistant-message assistant-message--${message.role}`} aria-label={message.role === 'user' ? 'Your question' : 'Assistant response'}>
@@ -95,8 +107,9 @@ export function AssistantView({ data, online, onSessionEnded }: { data: Dashboar
         {message.preview && <DashboardSplitRibbon amount={message.preview.amount} allocations={message.preview.allocations} preview />}
         {message.chart && <div className="assistant-chart">{walletOrder.map(type => { const value = message.chart?.[type] ?? 0; const maximum = Math.max(1, ...Object.values(message.chart!).filter((v): v is number => typeof v === 'number')); return <div key={type}><span>{envelopeMeta[type].name}</span><span className="assistant-chart-track"><i style={{ width: `${Math.max(0, value) / maximum * 100}%`, backgroundColor: envelopeMeta[type].color }} /></span><strong>{money.format(value)}</strong></div> })}</div>}
         {message.stopped && <p className="workspace-note">Response stopped.</p>}
-        {message.role === 'assistant' && message.text && !busy && <div className="assistant-message-tools"><button onClick={() => { void navigator.clipboard?.writeText(message.text).then(() => setCopied(message.id)).catch(() => setCopied(null)) }} aria-label={copied === message.id ? 'Copied' : 'Copy response'}>{copied === message.id ? <Check size={14} /> : <Copy size={14} />}</button>{message.id === lastAnswer?.id && <button onClick={() => void ask(latestQuestion.current, true)} disabled={!online} aria-label="Regenerate response"><RefreshCw size={14} /></button>}</div>}
+        {message.role === 'assistant' && message.text && !busy && <div className="assistant-message-tools"><button onClick={() => void copyResponse(message)} aria-label={copied === message.id ? 'Copied' : 'Copy response'}>{copied === message.id ? <Check size={14} /> : <Copy size={14} />}</button>{message.id === lastAnswer?.id && <button onClick={() => void ask(latestQuestion.current, true)} disabled={!online} aria-label="Regenerate response"><RefreshCw size={14} /></button>}</div>}
       </article>)}</div>}
+      {copyError && <p role="alert" className="workspace-field-error">{copyError}</p>}
       {error && <div className="assistant-error" role="alert"><strong>I couldn’t finish that answer.</strong><p>{error}</p><span>Nothing in your account changed.</span><button onClick={() => void ask(latestQuestion.current, true)} disabled={busy || !online}>Try again</button></div>}
     </div>
     <div className="assistant-compose-wrap">

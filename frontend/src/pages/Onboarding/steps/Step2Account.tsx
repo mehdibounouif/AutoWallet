@@ -55,6 +55,7 @@ export function Step2Account({
             minLength={3}
             maxLength={50}
             aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'account-number-error' : 'account-number-help'}
             disabled={disabled}
             autoFocus
             value={bankAccount}
@@ -71,12 +72,12 @@ export function Step2Account({
             }`}
           />
           {error ? (
-            <p role="alert" className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
+            <p id="account-number-error" role="alert" className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span>{error}</span>
             </p>
           ) : (
-            <p className="text-xs text-[#5E6B7E] leading-normal">{t.accountNumberHint}</p>
+            <p id="account-number-help" className="text-xs text-[#5E6B7E] leading-normal">{t.accountNumberHint}</p>
           )}
         </div>
 

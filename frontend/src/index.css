@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  transform: translateY(-150%);
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #fff;
+  color: #354153;
+  box-shadow: 0 0 0 2px #5a64b4;
+}
+.skip-link:focus { transform: translateY(0); }
+
 @theme {
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
