@@ -150,6 +150,15 @@ export function ActivityView({ payments, search, onSearchChange, onSelect, onRec
     <div className="activity-heading"><div><h1 id="activity-heading">Activity</h1><p>Every payment and how it was split.</p></div><button type="button" className="dashboard-primary-button" onClick={onRecord} disabled={recordDisabled}><Plus className="h-4 w-4" />Record payment</button></div>
 
     <label className="activity-mobile-search"><Search className="h-5 w-5" aria-hidden="true" /><input ref={searchInputRef} value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="e.g. INV-2026-047" aria-label="Search payments by reference" type="search" /></label>
+    <label className="activity-mobile-sort">Sort payments<select aria-label="Sort payments" value={`${sortField}:${sortDirection}`} onChange={event => {
+      const [field, direction] = event.target.value.split(':') as [SortField, SortDirection]
+      setSortField(field); setSortDirection(direction)
+    }}>
+      <option value="received:desc">Received: newest first</option><option value="received:asc">Received: oldest first</option>
+      <option value="amount:desc">Amount: highest first</option><option value="amount:asc">Amount: lowest first</option>
+      <option value="reference:asc">Reference: A to Z</option><option value="reference:desc">Reference: Z to A</option>
+      <option value="status:asc">Status: A to Z</option><option value="status:desc">Status: Z to A</option>
+    </select></label>
 
     <div className="activity-filter-bar" ref={filtersRef}>
       <div className="activity-filter-scroll" role="group" aria-label="Filter payments">

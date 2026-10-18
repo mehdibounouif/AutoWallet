@@ -130,3 +130,8 @@
 .activity-pagination > div { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .activity-pagination button { min-height: 44px; }
 .activity-pagination button:disabled { opacity: .45; cursor: default; }
+.activity-mobile-sort { display: none; }
+@media (max-width: 767px) {
+  .activity-mobile-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--aw-muted, #66758d); font-size: 12px; }
+  .activity-mobile-sort select { min-width: 0; flex: 1; min-height: 44px; padding: 8px 12px; border: 1px solid var(--aw-border, #dce3eb); border-radius: 9px; background: var(--aw-surface, #fff); color: var(--aw-ink, #263246); }
+}

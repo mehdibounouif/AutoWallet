@@ -62,10 +62,11 @@
   .envelopes-card-value { font-size: 22px; }
 }
 @media (max-width: 767px) {
-  .envelopes-page-heading { align-items: center; margin: 0 0 20px; }
+  .envelopes-page-heading { align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 0 20px; }
+  .envelopes-page-heading > div { flex: 1 1 120px; min-width: 0; }
   .envelopes-page-heading h1 { font-size: 22px; }
   .envelopes-page-heading p { max-width: 235px; margin-top: 6px; font-size: 12px; line-height: 1.45; }
-  .envelopes-move-button { min-height: 37px; padding: 0 9px; font-size: 11px; }
+  .envelopes-page-heading .envelopes-move-button { flex: 0 0 auto; max-width: 100%; min-height: 37px; padding: 0 9px; font-size: 11px; }
   .envelopes-move-button svg { width: 14px; }
   .envelopes-overview { min-height: 0; padding: 17px 16px; gap: 20px; }
   .envelopes-overview-total strong { margin-top: 5px; font-size: 23px; }

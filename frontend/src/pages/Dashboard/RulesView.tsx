@@ -10,6 +10,7 @@ import { useDismissibleLayer } from '../../hooks/useDismissibleLayer'
 import { isValidRuleValue } from '../../utils/format'
 import { apiFetch } from '../../api/request'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
+import { usePendingNavigation } from '../../hooks/usePendingNavigation'
 import './rules.css'
 
 const previewAmount = 8500
@@ -90,6 +91,7 @@ export function RulesView({ data, onSaved, onSessionEnded }: RulesViewProps) {
     const token = localStorage.getItem('autowallet_token')
     if (!token) { onSessionEnded(); return }
     const signal = requestSignal()
+    let saved = false
     setSaving(true)
     setError(null)
     try {
@@ -104,13 +106,21 @@ export function RulesView({ data, onSaved, onSessionEnded }: RulesViewProps) {
         setError('Could not save this rule. Please try again.')
         return
       }
-      setEditing(null)
-      setNotice('Rule saved. Future payments use the updated value.')
-      await onSaved()
+      saved = true
     } catch {
       if (!signal.aborted) setError('The rule update could not be confirmed. Close this editor and refresh Rules before trying again.')
     } finally {
-      if (!signal.aborted) setSaving(false)
+      if (!signal.aborted) {
+        // Reconcile success and uncertain outcomes before allowing navigation.
+        await onSaved()
+        if (!signal.aborted) {
+          setSaving(false)
+          if (saved) {
+            setEditing(null)
+            setNotice('Rule saved. Future payments use the updated value.')
+          }
+        }
+      }
     }
   }
 
@@ -159,8 +169,14 @@ export function RulesView({ data, onSaved, onSessionEnded }: RulesViewProps) {
           <div className="rules-drawer-active"><span className={`rules-switch ${editing.is_active ? '' : 'rules-switch--off'}`} aria-hidden="true" />Rule is {editing.is_active ? 'active' : 'paused'}</div>
           <p className="rules-drawer-note">You can change this rule’s value here. Its name, envelope, and active state can’t be changed yet. Past payment splits stay as they were.</p>
           {error && <p role="alert" className="rules-form-error">{error}</p>}
+          <RuleSaveNavigation saving={saving} />
           <div className="rules-drawer-footer"><button type="button" className="dashboard-secondary-button" onClick={() => setEditing(null)} disabled={saving}>Cancel</button><button type="submit" className="dashboard-primary-button" disabled={saving}>{saving ? 'Saving…' : 'Save rule'}</button></div>
         </form>
     </Dialog>}
   </section>
+}
+
+function RuleSaveNavigation({ saving }: { saving: boolean }) {
+  const navigationBlocked = usePendingNavigation(saving)
+  return navigationBlocked ? <p role="status" className="workspace-note">Wait for the rule update to finish before leaving this page.</p> : null
 }

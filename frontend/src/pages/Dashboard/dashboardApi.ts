@@ -40,7 +40,8 @@ export interface DashboardRule {
   is_active: boolean
 }
 
-export type DashboardResource = 'wallets' | 'transactions' | 'rules'
+export const dashboardResources = ['wallets', 'transactions', 'rules'] as const
+export type DashboardResource = typeof dashboardResources[number]
 
 export interface DashboardData {
   user: DashboardUser
@@ -162,23 +163,22 @@ export async function fetchDashboardUser(token: string, signal: AbortSignal): Pr
   return parseUser(await getJson('/api/auth/me', token, signal))
 }
 
-export async function fetchDashboardResources(user: DashboardUser, token: string, signal: AbortSignal): Promise<DashboardData> {
+export async function fetchDashboardResources(user: DashboardUser, token: string, signal: AbortSignal, resources: readonly DashboardResource[] = dashboardResources): Promise<DashboardData> {
   if (!user.bank_account_id) return { user, wallets: [], transactions: [], rules: [] }
 
   // Parse within each request so malformed data only affects that resource.
   const results = await Promise.allSettled([
-    getJson('/api/wallets/', token, signal).then(value => parseArray(value, parseWallet)),
-    getJson('/api/transactions/', token, signal).then(value => newestPaymentsFirst(parseArray(value, parseTransaction))),
-    getJson('/api/rules/', token, signal).then(value => parseArray(value, parseRule).sort((a, b) => a.priority - b.priority)),
+    resources.includes('wallets') ? getJson('/api/wallets/', token, signal).then(value => parseArray(value, parseWallet)) : Promise.resolve([]),
+    resources.includes('transactions') ? getJson('/api/transactions/', token, signal).then(value => newestPaymentsFirst(parseArray(value, parseTransaction))) : Promise.resolve([]),
+    resources.includes('rules') ? getJson('/api/rules/', token, signal).then(value => parseArray(value, parseRule).sort((a, b) => a.priority - b.priority)) : Promise.resolve([]),
   ])
   signal.throwIfAborted()
   const resourceErrors: NonNullable<DashboardData['resourceErrors']> = {}
-  const resources = ['wallets', 'transactions', 'rules'] as const
   results.forEach((result, index) => {
     if (result.status === 'rejected') {
       // An expired session must never be treated as a partial service outage.
       if (result.reason instanceof DashboardApiError && result.reason.status === 401) throw result.reason
-      const resource = resources[index]
+      const resource = dashboardResources[index]
       resourceErrors[resource] = `Could not load ${resource}.`
     }
   })
