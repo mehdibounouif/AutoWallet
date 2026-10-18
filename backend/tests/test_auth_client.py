@@ -245,15 +245,6 @@ def test_real_service_accepts_backend_token_once_role_claim_exists(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #24 (owner: MEHDI): the rules router has no gateway hop "
-           "— app/api/rules.py:13 creates the APIRouter without "
-           "dependencies=[Depends(require_client)] (the import even sits "
-           "commented out in the file). Requests are authenticated locally "
-           "but never authorized by the api-gateway, unlike wallets/"
-           "transactions. Fix: add the dependency like the other routers.",
-)
 def test_rules_routes_go_through_the_gateway_hop(
     client, auth_headers, authorization_service
 ):

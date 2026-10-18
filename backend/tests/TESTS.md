@@ -24,14 +24,11 @@ cd backend
 - No server, no database server, no Redis, no bank simulator, no
   authorization service, no AI provider, no SMTP server needed — see §2
   (fake infrastructure).
-- Current baseline: **109 passed, 5 xfailed** (verified: merged state). Findings
-  #15/#17/#18/#19 are closed (§4); open and xfail-strict by design:
-  #20/#24/#25/#27/#28 (§4). #26 (Allocation-model deletion, PR #63/#64
-  stack) is filed as an issue — no test needed, the suite cannot even
-  import while the branch is unmerged.
-- ⚠️ **main's settings currently block the suite at import** (finding #20):
-  until that fix lands, run with the four missing vars supplied —
-  `FRONTEND_GOOGLE_CALLBACK_URL=... POSTGRES_USER=... POSTGRES_PASSWORD=... POSTGRES_DB=... ./venv/bin/pytest -q`
+- Current baseline: **111 passed, 3 xfailed** (verified on the #89-merge
+  tree after the #20/#24 conversions). Findings #15/#17/#18/#19/#20/#24 are
+  closed (§4); open and xfail-strict by design: #25/#27/#28 (§4).
+  #26 (Allocation-model deletion, PR #63/#64 stack) was fixed by PR #89
+  (restore) — no test existed for it; the suite importing again is the pin.
 
 ---
 
@@ -282,8 +279,6 @@ outside the repo, in QA's shared documents):
 
 | Test | Finding | Owner | The missing fix |
 |---|---|---|---|
-| `test_the_app_boots_from_the_committed_env_example` (test_oauth.py) | **#20** | MEHDI | 4 required settings (`frontend_google_callback_url`, `postgres_user/password/db`) with no defaults and incomplete `.env.example` — the app can't boot from `cp .env.example .env`; 3 CI jobs red at import. Fix: defaults or complete the example. |
-| `test_rules_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#24** | MEHDI | the rules router has no gateway hop — `app/api/rules.py:13` creates the APIRouter without `dependencies=[Depends(require_client)]` (the import sits commented out). Locally authenticated, never authorized by the api-gateway, unlike wallets/transactions. Fix: add the dependency like the other routers. |
 | `test_gdpr_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#25** | MTARZA | same gap on `app/gdpr/router.py:22` — export/delete paths never cross the hop. Fix: add the dependency. |
 | `test_login_rejects_2fa_after_repeated_failed_attempts` (test_2fa.py) | **#27** (PR #64 review) | MEHDI | `/login` grades TOTP/recovery second factors with no attempt counting or lockout — a stolen password can brute-force the 6-digit factor (10^6 keyspace, valid_window=1) at request speed. Fix: Redis-backed failed-attempt window per user, checked BEFORE the verify call, refuse with 429 past the threshold. |
 | `test_2fa_can_be_disabled_by_the_user` (test_2fa.py) | **#28** (PR #64 review) | MEHDI | auth.py ships 2FA setup/verify/regenerate but NO disable endpoint — a user who loses device AND recovery codes is locked out forever. Fix: POST `/api/auth/2fa/disable` gated by password + one valid second factor, clearing the secret and outstanding recovery codes atomically. |
@@ -301,6 +296,8 @@ Closed-cycle log:
 | `test_unverified_google_email_never_links_onto_an_existing_account` | #18 | MEHDI | FIXED: `email_verified` required; silent email-linking removed entirely (existing email → 409). Acceptance test XPASSed (strict); marker removed, plain pin |
 | `test_userinfo_without_sub_answers_401_not_500` | #19 | MEHDI | FIXED: `.get()` + explicit 401s on incomplete identity. Acceptance test XPASSed (strict); marker removed, plain pin |
 | `test_ai_routes_go_through_the_gateway_authorization_hop` | #15 | MTARZA | `app/ai/router.py:17` now creates the router WITH `dependencies=[Depends(require_client)]` — marker removed, test kept as a plain pin (this PR). |
+| `test_rules_routes_go_through_the_gateway_hop` | #24 | MEHDI | `app/api/rules.py` now creates the router WITH `dependencies=[Depends(require_client)]`; XPASSed (strict) as soon as the Allocation restore (PR #89) let the suite import again — marker removed, plain pin. |
+| `test_the_app_boots_from_the_committed_env_example` | #20 | MEHDI | FIXED via PR #88: `backend/.env.example` carries `POSTGRES_USER/PASSWORD/DB` so `cp .env.example .env` boots the app; XPASSed (strict) once PR #89 unblocked imports — marker removed, plain pin. |
 | `test_google_callback_garbage_userinfo_response` | (not a numbered finding) | QA | the app's safe generic error was reworded to "Could not verify Google identity" while keeping the clean 401 — test assertion updated to match (this PR). |
 
 ---
