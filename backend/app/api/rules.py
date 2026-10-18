@@ -7,10 +7,10 @@ from app.core.deps import get_current_user, require_linked_account
 from app.models.models import Rule, User
 from app.api.schemas import OnboardingRulesUpdate
 
-# from app.core.auth_client import require_client
+from app.core.auth_client import require_client
 
 # , dependencies=[Depends(require_client)
-router = APIRouter(prefix="/api/rules", tags=["rules"]) 
+router = APIRouter(prefix="/api/rules", tags=["rules"], dependencies=[Depends(require_client)]) 
 
 
 @router.get("/", response_model=list[RuleOut])

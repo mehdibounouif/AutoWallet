@@ -16,7 +16,8 @@ from app.core.security import generate_totp_secret, get_totp_uri, verify_totp_co
 from app.api.schemas import (
     ResendVerificationRequest,
     VerifyEmailRequest,
-    MessageResponse
+    MessageResponse,
+    DisableTwoFactorRequest
 )
 
 from sqlalchemy import delete
@@ -469,4 +470,82 @@ def verify_email(
 
     return MessageResponse(
         message="Email verified successfully"
+    )
+
+
+@router.post("/2fa/disable", response_model=MessageResponse)
+def disable_2fa(
+    payload: DisableTwoFactorRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.two_factor_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="2FA is not enabled",
+        )
+
+    if (
+        not current_user.hashed_password
+        or not verify_password(
+            payload.password,
+            current_user.hashed_password,
+        )
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials",
+        )
+
+    if bool(payload.totp_code) == bool(payload.recovery_code):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one 2FA method",
+        )
+
+    if payload.totp_code:
+        if (
+            not current_user.two_factor_secret
+            or not verify_totp_code(
+                current_user.two_factor_secret,
+                payload.totp_code,
+            )
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials",
+            )
+
+    else:
+        code_hash = hash_recovery_code(payload.recovery_code)
+
+        existing_code = db.query(TwoFactorRecoveryCode.id).filter(
+            TwoFactorRecoveryCode.user_id == current_user.id,
+            TwoFactorRecoveryCode.code_hash == code_hash,
+        ).first()
+
+        if existing_code is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials",
+            )
+
+    try:
+        db.execute(
+            delete(TwoFactorRecoveryCode).where(
+                TwoFactorRecoveryCode.user_id == current_user.id
+            )
+        )
+
+        current_user.two_factor_enabled = False
+        current_user.two_factor_secret = None
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return MessageResponse(
+        message="Two-factor authentication disabled successfully"
     )

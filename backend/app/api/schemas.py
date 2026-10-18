@@ -113,3 +113,9 @@ class RecoveryCodesOut(BaseModel):
 class RegenerateRecoveryCodesRequest(BaseModel):
     password: str
     totp_code: str
+
+
+class DisableTwoFactorRequest(BaseModel):
+    password: str
+    totp_code: str | None = None
+    recovery_code: str | None = None
