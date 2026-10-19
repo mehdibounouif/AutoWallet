@@ -14,6 +14,7 @@ import { previewPayment } from '../../Dashboard/dashboardSplit'
 import type { DashboardRule } from '../../Dashboard/dashboardApi'
 import { walletTypes } from '../../../api/walletTypes'
 import { money as moneyFormatter, parseAmount } from '../../../utils/format'
+import '../paymentPreview.css'
 
 interface Props {
   simulatedAmount: string
@@ -104,6 +105,7 @@ const PIPE_BEND = 24
 const SPLIT_X = [156, 300, 444, 588]
 
 function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: Allocation[]; t: Translations }) {
+  const largeAmount = money(amount).length > 12
   const remainingHeights = allocations.map((item) => (item.remaining / amount) * PIPE_HEIGHT)
   const pipeOutline = [
     `M 60 ${PIPE_TOP}`,
@@ -121,30 +123,32 @@ function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: 
   ].join(' ')
 
   return (
-    <div className="hidden min-[1200px]:grid grid-cols-[128px_664px_116px_132px] w-[1040px] mx-auto h-[250px]">
-      <div className="pt-[56px] pr-4 text-right">
+    <div className={`onboarding-payment-pipe ${largeAmount ? 'onboarding-payment-pipe--large' : ''} hidden min-[1200px]:grid grid-cols-[128px_664px_116px_132px] w-[1040px] mx-auto h-[250px]`}>
+      <div className="onboarding-pipe-amount pt-[56px] pr-4 text-right">
         <div className="whitespace-nowrap text-lg font-bold text-[#1A2330]">
           {money(amount)} <span className="text-xs text-[#65748C]">MAD</span>
         </div>
         <div className="text-sm text-[#65748C]">{t.firstPaymentLabel}</div>
       </div>
 
-      <div className="relative w-[664px] h-[250px]">
-        {allocations.slice(0, 3).map((item, index) => (
-          <span
-            key={item.name}
-            className="absolute -top-1 whitespace-nowrap text-xs text-[#65748C]"
-            style={{ left: SPLIT_X[index] + 8 }}
-          >
-            {money(item.remaining)} {t.leftText}
-          </span>
-        ))}
+      <div className="onboarding-pipe-graphic relative w-[664px] h-[250px]">
+        <div className="onboarding-pipe-remaining">
+          {allocations.slice(0, 3).map((item, index) => (
+            <span
+              key={item.name}
+              className="absolute -top-1 whitespace-nowrap text-xs text-[#65748C]"
+              style={{ left: SPLIT_X[index] + 8 }}
+            >
+              {money(item.remaining)} {t.leftText}
+            </span>
+          ))}
+        </div>
 
         <svg
           className="absolute inset-0 overflow-visible"
           width="664"
           height="190"
-          viewBox="0 0 664 190"
+          viewBox={`0 0 ${largeAmount ? 752 : 664} 190`}
           role="img"
           aria-label={`Payment of ${money(amount)} MAD split into ${allocations.map((item) => `${item.name}: ${money(item.amount)} MAD`).join(', ')}`}
         >
@@ -168,23 +172,25 @@ function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: 
           <path d={pipeOutline} fill="#8A95D2" />
         </svg>
 
-        {allocations.map((item, index) => (
-          <div
-            key={item.name}
-            className="absolute top-[197px] whitespace-nowrap text-[#1A2330]"
-            style={{ left: SPLIT_X[index] + PIPE_BEND }}
-          >
-            <div className="flex items-center gap-1 text-sm font-semibold">
-              <span style={{ color: item.color }}><item.Icon className="w-4 h-4" /></span>
-              <span>{item.name}</span>
+        <div className="onboarding-pipe-labels">
+          {allocations.map((item, index) => (
+            <div
+              key={item.name}
+              className="absolute top-[197px] whitespace-nowrap text-[#1A2330]"
+              style={{ left: SPLIT_X[index] + PIPE_BEND }}
+            >
+              <div className="flex items-center gap-1 text-sm font-semibold">
+                <span style={{ color: item.color }}><item.Icon className="w-4 h-4" /></span>
+                <span>{item.name}</span>
+              </div>
+              <div className="mt-0.5 text-base font-bold leading-5">{money(item.amount)}</div>
             </div>
-            <div className="mt-0.5 text-base font-bold leading-5">{money(item.amount)}</div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      <div aria-hidden="true" />
-      <div className="pt-[46px] text-[#1A2330]">
+      <div className="onboarding-pipe-spacer" aria-hidden="true" />
+      <div className="onboarding-pipe-total pt-[46px] text-[#1A2330]">
         <div className="text-sm text-[#52617A]">{t.leftoverToMainLabel}</div>
         <div className="text-base font-bold">0.00</div>
         <div className="mt-2 flex items-center gap-1 text-sm font-semibold">
@@ -209,12 +215,13 @@ export function Step5TryPayment({
 }: Props) {
   const amount = parseAmount(simulatedAmount)
   const validAmount = Number.isFinite(amount) && amount > 0
+  const largeAmount = validAmount && money(amount).length > 12
   const allocations = validAmount
     ? getAllocations(amount, rentAmount, taxPercent, savingsPercent, savingsCap, t)
     : []
   const total = allocations.reduce((sum, item) => sum + item.amount, 0)
   return (
-    <div className="max-w-[1200px] mx-auto space-y-6 animate-fadeIn w-full">
+    <div className={`onboarding-payment ${largeAmount ? 'onboarding-payment--large' : ''} max-w-[1200px] mx-auto space-y-6 animate-fadeIn w-full`}>
       <div className="text-center space-y-2 max-w-[640px] mx-auto pb-1.5">
         <h1 className="text-2xl sm:text-3xl font-bold text-[#1A2330] tracking-tight">
           {t.tryPaymentTitle}
@@ -321,7 +328,7 @@ export function Step5TryPayment({
             </div>
 
             <div className="max-w-[720px] mx-auto w-full mt-8 min-[1200px]:mt-12">
-              <div className="py-3 px-1 flex items-center justify-between border-b border-[#DDE3EA]">
+              <div className="onboarding-receipt-heading py-3 px-1 flex items-center justify-between border-b border-[#DDE3EA]">
                 <span className="font-semibold text-sm text-[#1A2330]">{t.firstPaymentLabel}</span>
                 <span className="font-bold text-base text-[#1A2330]">{money(amount)} <span className="text-xs text-[#65748C]">MAD</span></span>
               </div>
@@ -329,7 +336,7 @@ export function Step5TryPayment({
                 {allocations.map((item, index) => (
                   <div
                     key={item.name}
-                    className="py-3 px-1 flex flex-wrap min-[850px]:grid min-[850px]:grid-cols-[24px_224px_96px_minmax(0,1fr)_100px_86px] items-center gap-x-2 gap-y-1"
+                    className="onboarding-rule-row py-3 px-1 flex flex-wrap min-[850px]:grid min-[850px]:grid-cols-[24px_minmax(0,1fr)_max-content_max-content_minmax(0,100px)_minmax(0,110px)] items-center gap-x-2 gap-y-1"
                   >
                     <span className="w-4 text-[#65748C] font-medium text-xs">{index + 1}</span>
                     <span className="font-semibold text-[#1A2330]">{index === 0 ? t.rule1Title.replace(/^\d+\.\s*/, '') : item.name}</span>
@@ -338,8 +345,8 @@ export function Step5TryPayment({
                       {item.amount > 0 && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
                       {item.amount > 0 ? t.ranStatusBadge : t.skippedStatusBadge}
                     </span>
-                    <span className="ml-auto font-semibold text-[#1A2330]">{money(item.amount)}</span>
-                    <span className="ml-auto text-[#65748C] whitespace-nowrap">{money(item.remaining)} {t.leftText}</span>
+                    <span className="onboarding-rule-value ml-auto font-semibold text-[#1A2330]">{money(item.amount)}</span>
+                    <span className="onboarding-rule-remaining min-w-0 ml-auto text-right text-[#65748C]">{money(item.remaining)} {t.leftText}</span>
                   </div>
                 ))}
                 <div className="py-3.5 px-1 flex items-center justify-between text-xs sm:text-sm text-[#5E6B7E]">
@@ -348,7 +355,7 @@ export function Step5TryPayment({
                 </div>
                 <div className="pt-2">
                   <div className="border-t-2 border-[#DDE3EA]" />
-                  <div className="py-2.5 px-1 flex items-center justify-between text-sm font-bold text-[#1A2330]">
+                  <div className="onboarding-receipt-total py-2.5 px-1 flex items-center justify-between text-sm font-bold text-[#1A2330]">
                     <span>{t.totalLabel}</span>
                     <span className="inline-flex items-center gap-4">
                       {money(total)} <Check className="w-3.5 h-3.5 text-[#1F7A3A]" />{' '}

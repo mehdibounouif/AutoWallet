@@ -1,0 +1,16 @@
+.onboarding-payment { min-width: 0; overflow-wrap: anywhere; }
+.onboarding-payment input { min-width: 0; }
+.onboarding-payment--large :is(.onboarding-receipt-heading, .onboarding-receipt-total) { flex-wrap: wrap; gap: 12px; }
+.onboarding-payment--large .onboarding-receipt-total > span { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+.onboarding-payment--large .onboarding-rule-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.onboarding-payment--large .onboarding-rule-row > * { min-width: 0; max-width: 100%; }
+.onboarding-payment--large :is(.onboarding-rule-value, .onboarding-rule-remaining) { flex: 1 1 100%; text-align: right; white-space: normal; }
+.onboarding-payment-pipe--large { width: 100%; height: auto; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.onboarding-payment-pipe--large :is(.onboarding-pipe-amount, .onboarding-pipe-total) { min-width: 0; padding: 0; text-align: left; }
+.onboarding-payment-pipe--large .onboarding-pipe-graphic { width: 100%; height: auto; }
+.onboarding-payment-pipe--large .onboarding-pipe-graphic > svg { position: static; width: 100%; height: auto; }
+.onboarding-payment-pipe--large .onboarding-pipe-remaining { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 8px; }
+.onboarding-payment-pipe--large .onboarding-pipe-labels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.onboarding-payment-pipe--large :is(.onboarding-pipe-remaining > span, .onboarding-pipe-labels > div) { position: static; min-width: 0; }
+.onboarding-payment-pipe--large :is(div, span) { white-space: normal; }
+.onboarding-payment-pipe--large .onboarding-pipe-spacer { display: none; }

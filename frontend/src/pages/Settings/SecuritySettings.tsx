@@ -29,6 +29,7 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
   const [disableOpen, setDisableOpen] = useState(false)
   const [disabling, setDisabling] = useState(false)
   const [disableNotice, setDisableNotice] = useState<string | null>(null)
+  const securityPending = busy || regenerating || disabling
   const controller = useRef<AbortController | null>(null)
   const inFlight = useRef(false)
   const setupHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -36,7 +37,7 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
   useEffect(() => { if (setup) setupHeadingRef.current?.focus() }, [setup])
 
   const startSetup = async () => {
-    if (inFlight.current || !online || info.twoFactorEnabled === true) return
+    if (inFlight.current || securityPending || !online || info.twoFactorEnabled === true) return
     if (info.signInMethod !== 'google' && !password) { setError('Enter your current password to continue.'); return }
     if (info.signInMethod === 'google' && info.twoFactorEnabled !== false) { setError('Download your JSON data export in Privacy and data to check your security status first.'); return }
     inFlight.current = true
@@ -113,8 +114,8 @@ export function SecuritySettings({ email, info, onEnabled, onSessionEnded, onlin
       {!setup && !confirming && !disableOpen && <>
         <p>{info.twoFactorEnabled === true ? 'You’ll need a code from your app each time you log in.' : 'Add a 6-digit code from an authenticator app each time you log in, so a stolen password is not enough.'}</p>
         <div className="settings-actions">
-          {info.twoFactorEnabled !== true && <button className="dashboard-primary-button" onClick={() => { setConfirming(true); setError(null) }} disabled={!online}><ShieldCheck size={16} />Turn on two-factor login</button>}
-          {info.twoFactorEnabled !== false && <button className="settings-danger-outline" disabled={!online || busy || regenerating || info.signInMethod === 'google'} onClick={() => { setDisableOpen(true); setDisableNotice(null); setError(null) }}>Turn off two-factor login</button>}
+          {info.twoFactorEnabled !== true && <button className="dashboard-primary-button" onClick={() => { if (!securityPending) { setConfirming(true); setError(null) } }} disabled={!online || securityPending}><ShieldCheck size={16} />Turn on two-factor login</button>}
+          {info.twoFactorEnabled !== false && <button className="settings-danger-outline" disabled={!online || securityPending || info.signInMethod === 'google'} onClick={() => { if (!securityPending) { setDisableOpen(true); setDisableNotice(null); setError(null) } }}>Turn off two-factor login</button>}
         </div>
         {info.twoFactorEnabled === null && <p className="workspace-note">Your status was not provided. You can confirm your password and a second factor to turn off an existing authenticator.</p>}
         {info.signInMethod === 'google' && info.twoFactorEnabled !== false && <p className="settings-availability">The account service requires a password to turn off two-factor login. This action is unavailable for Google-only accounts.</p>}

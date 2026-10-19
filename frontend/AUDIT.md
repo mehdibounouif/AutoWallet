@@ -6,6 +6,11 @@ The frontend includes authentication, onboarding, Home, Envelopes and details, R
 
 ## Latest fixes and optimizations
 
+- Keep security panels stable during recovery-code generation: disable competing two-factor actions until the request settles so the recovery form stays mounted and can display its new codes or error.
+- Bound long payment-reference breadcrumbs within the dashboard header at tablet/desktop widths. Shared breadcrumb styles now live with the shared header; search and account controls stay on screen.
+- Give signup receipt percentage chips intrinsic column space beside their run status. Large amounts wrap/stack within balances, receipts and split previews instead of widening their containers; native inputs remain bounded.
+- Accept omitted zero-value wallets only when the recorded payment split is complete. Preserve explicitly returned wallet amounts and require history to reconcile with the current balance; missing or unconfirmed allocations remain unavailable.
+- Improve onboarding envelope-note/badge contrast, give Analytics histogram bars valid image semantics, and make the horizontally scrolling API example a named keyboard-focusable region.
 - Protect signup registration, onboarding rule saving, and final sign-in against Back/Forward navigation and reload, including requests made before a sign-in token exists. Release protection before response-driven redirects, reject duplicate submissions, preserve non-secret drafts, and offer prefilled sign-in recovery when account creation cannot be confirmed.
 - Centralize readable light-theme muted text and shared status-pill foregrounds. Home and payment fallback text now use the shared theme token; obsolete dark-mode utility overrides are removed. Status pills and success notices retain readable foreground/background pairs in both themes.
 - Coordinate pending payment recording, account-deletion requests, rule saves, and security/recovery flows through one router blocker. Keep pending dialogs mounted on Back/Forward and warn before reload/close; show the result and release navigation after completion. Session cleanup and account-deletion redirects remain allowed.
@@ -61,7 +66,7 @@ Settings reads account data independently of money services. Local previews do n
 
 ## Remaining backend and deployment dependencies
 
-- The last read-only runtime check found that the service at `http://127.0.0.1:8000` answers `/health` but exposes an older API than this checkout. Its public schema lacks Analytics, email verification/resend, recovery-code regeneration, and disabling 2FA; its login schema also lacks `recovery_code`. Analytics summary/live returned 404. Rebuild/recreate the intended backend or use the correct proxy target, then verify authenticated workflows. Frontend changes do not update a running backend image.
+- The latest read-only runtime check found no running Compose services and no backend listening at `http://127.0.0.1:8000`. An earlier runtime check found an older API missing newer routes, but that service is no longer available to inspect. Start/rebuild the intended stack or configure the correct proxy target, then verify authenticated workflows. Source/fixture checks do not confirm deployed backend behavior.
 - Transaction responses still omit `created_at` and persisted `allocations`; complete historical split bars, ledgers, receipts and per-payment analysis require those fields. Aggregate Analytics APIs are connected separately.
 - `/api/auth/me` lacks security metadata. The current security-status workaround uses password confirmation or a user-requested JSON export. The backend rejects setup for an already-enabled authenticator; concurrency behavior remains backend-owned.
 - `/api/auth/me` also omits email-verification status, so Settings offers verification/resend without showing a verified/unverified badge.
@@ -73,6 +78,8 @@ Settings reads account data independently of money services. Local previews do n
 - Main now includes the restored `Allocation` model and transaction relationship. The earlier missing-model startup finding is resolved in source; deployed payment processing and Analytics still need live verification.
 
 ## Verification and limits
+
+The latest fix checks cover 50 combinations of five affected workspace routes, five viewport widths (320–1440px), and light/dark themes. No page/container overflow, automated accessibility violations, or uncaught application exceptions were found in those cases. All five signup steps also complete at 320, 768 and 1440px with no reported layout/accessibility failures. Receipt chips no longer overlap status text at 850, 1024 or 1440px. Recovery-code generation keeps competing security controls disabled and displays the returned codes; sparse complete splits, explicitly recorded wallet amounts, missing/incomplete omitted amounts, and balance reconciliation are checked separately. Keyboard scrolling of the API example and SSE-triggered balance refresh also pass. These browser checks use controlled responses and temporary scripts outside the repository; QA-owned tests remain unchanged.
 
 Lint, the strict production build and all 68 existing tests across 12 files pass. Temporary browser checks outside the repository verify notification loading/history/errors, selective API reads and cache refresh, pending rule-save navigation/reload protection, reset URL handling, navigation focus/titles, login failure/rate-limit states, and Clipboard API fallback.
 

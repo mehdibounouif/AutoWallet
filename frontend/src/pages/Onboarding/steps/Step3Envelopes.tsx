@@ -117,7 +117,7 @@ export function Step3Envelopes({ t }: Step3EnvelopesProps) {
                   </div>
 
                   {card.isFocal && card.badge && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#B26A00] bg-[#FDF3DC] px-2.5 py-0.5 rounded-full border border-[#EDA100]/30 shrink-0 select-none">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#7A5200] bg-[#FDF3DC] px-2.5 py-0.5 rounded-full border border-[#EDA100]/30 shrink-0 select-none">
                       <Sparkles className="w-3 h-3 text-[#EDA100]" />
                       <span>{card.badge}</span>
                     </span>
@@ -136,7 +136,7 @@ export function Step3Envelopes({ t }: Step3EnvelopesProps) {
               </div>
 
               {/* Bottom Status / Rule Note */}
-              <div className="pt-3 border-t border-[#F3F6FA] text-xs text-[#8C9BAE] flex items-center gap-1.5 leading-tight">
+              <div className="pt-3 border-t border-[#F3F6FA] text-xs text-[#5E6B7E] flex items-center gap-1.5 leading-tight">
                 <span>{card.status}</span>
               </div>
             </div>
