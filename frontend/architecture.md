@@ -1,6 +1,6 @@
 # Frontend architecture
 
-Updated October 16, 2026. This document describes the current frontend; backend endpoint coverage and outstanding contracts are maintained in [AUDIT.md](AUDIT.md).
+Updated October 19, 2026. This document describes the current frontend; backend endpoint coverage and outstanding contracts are maintained in [AUDIT.md](AUDIT.md).
 
 ## File organization
 
@@ -10,10 +10,10 @@ src/
   assets/               Imported assets (Google logo)
   auth/                 Validation, session synchronization, safe return URLs, signup drafts, in-memory credentials
   components/
-    common/             Dialog, OTP, password meter, stepper, top bar, legal footer
+    common/             Dialog, navigation protection, route accessibility, OTP, password meter, stepper, top bar, legal footer
     icons/              Google icon wrapper
     onboarding/         Reusable onboarding inputs and envelope tokens
-  hooks/                Countdown, request cancellation, dismissible menus
+  hooks/                Countdown, request cancellation, dismissible menus, navigation protection registration
   i18n/                 English copy and its inferred TypeScript type
   pages/
     Auth/               Login, signup, two-factor, recovery, OAuth callback
@@ -45,7 +45,7 @@ The development proxy forwards relative `/api` requests to the configured backen
 
 ## Dashboard data flow
 
-`DashboardPage` owns account loading, refresh/error state, navigation, menus, and record/link actions. `HomeView` owns Home balances, envelope rows, the split ribbon, and recent payments. Other views receive typed data and callbacks. Analytics and Assistant load their additional API data through their clients. Settings only requires `/api/auth/me`, so a failed transaction read does not block account settings.
+`useDashboardData` owns account/resource loading, independent errors, refresh state, and a 30-second cache for successful resource reads. `DashboardPage` selects the resources each route needs and coordinates navigation, menus, and record/link actions. `DashboardNavigation` renders desktop/mobile navigation; `HomeView` renders balances, envelope rows, the split ribbon, and recent payments. Other views receive typed data and callbacks. Analytics and Assistant load their additional API data through their clients; `AnalyticsResults` renders the Analytics charts and tables. Settings only requires `/api/auth/me`, so a failed transaction read does not block account settings.
 
 `usePaymentLiveUpdates` subscribes after a linked user is known. It resynchronizes after subscribing or reconnecting, batches bursts of payment events, backs off on disconnects, expires the session on 401, and stops while hidden, offline, or viewing Settings. Payment events trigger fresh resource reads rather than treating an event as a complete ledger. The backend has no replay cursor, so reconnecting must read current state.
 
@@ -58,11 +58,14 @@ The development proxy forwards relative `/api` requests to the configured backen
 - Signup and two-factor passwords are page-memory data; non-secret drafts and a short-lived Google return destination use session storage.
 - The Bearer token is currently stored in local storage. Backend authorization remains authoritative.
 - Theme and payment-alert preferences use external-store subscriptions. Notification read IDs are scoped to the user and synchronized across tabs; unavailable storage falls back to memory for the visit.
-- Dialogs share focus trapping/restoration, Escape dismissal, scroll locking, and background isolation. Menus share outside-click/Escape handling.
+- `NavigationProtectionProvider` owns the data router's single blocker. Signup, payment/deletion dialogs, rule saves, and recovery-code/security flows register protection through `useNavigationProtection`; `usePendingNavigation` exposes the blocked state for pending-write messages. Each registration belongs to its original session, allowing session cleanup and deletion redirects. Signup explicitly permits an anonymous session and supplies a stable pending-request predicate, released synchronously before expected response-driven navigation. Closing/reloading also warns while protected; other completed writes cancel the blocked navigation so their result stays visible.
+- Dialogs share focus trapping/restoration, Escape dismissal, scroll locking, and background isolation. Menus share outside-click/Escape handling; Escape restores the opening control, while outside clicks keep their natural focus behavior. Background menus defer to active modal dialogs.
 - Views cancel requests and streams when leaving. Object URLs are revoked when replaced or unmounted. Persistent streams have an idle timeout rather than a fixed total duration.
 
 ## Styling and verification
 
 Feature styles live beside their views. Dashboard shell/theme styles are shared by workspace pages; Settings styles load with Settings. Responsive layouts include phone navigation and the Settings index. Chart scroll areas intentionally scroll inside the page.
+
+Workspace descriptions, dates, notes and fallback payment text share `--aw-muted` in both themes. Status pills use separate ink tokens because their pale backgrounds remain the same in light and dark mode.
 
 Run the commands in [README.md](README.md). Preserve QA-owned test files when implementing frontend changes; record mismatched test expectations for the QA owner. Current audit results, integration limits, and deployment gaps belong in [AUDIT.md](AUDIT.md).

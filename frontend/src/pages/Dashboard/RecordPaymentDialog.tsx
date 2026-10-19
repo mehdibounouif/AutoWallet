@@ -5,12 +5,14 @@ import { parseAmount } from '../../utils/format'
 import { apiFetch } from '../../api/request'
 import { apiErrorDetail } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
+import { usePendingNavigation } from '../../hooks/usePendingNavigation'
 
 export function RecordPaymentDialog({ onClose, onRecorded, onSessionEnded, available }: { onClose: () => void; onRecorded: (reference: string) => void; onSessionEnded: () => void; available: boolean }) {
   const requestSignal = useRequestSignal()
   const [amount, setAmount] = useState('')
   const [reference, setReference] = useState('')
   const [saving, setSaving] = useState(false)
+  const navigationBlocked = usePendingNavigation(saving)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const amountRef = useRef<HTMLInputElement>(null)
@@ -56,6 +58,7 @@ export function RecordPaymentDialog({ onClose, onRecorded, onSessionEnded, avail
       <label>Amount<span className="workspace-amount-input"><input ref={amountRef} className="dashboard-input" inputMode="decimal" aria-label="Amount (MAD)" value={amount} onChange={event => setAmount(event.target.value)} placeholder="12,000.00" disabled={saving} aria-invalid={invalidAmount} aria-describedby={invalidAmount ? 'record-amount-error' : undefined} /><span>MAD</span></span>{invalidAmount && <span id="record-amount-error" className="workspace-field-error" role="alert">Enter an amount above 0.00.</span>}</label>
       <label>Reference<input aria-label="Reference" ref={referenceRef} className="dashboard-input" value={reference} onChange={event => setReference(event.target.value)} maxLength={100} placeholder="INV-2026-048" disabled={saving} aria-invalid={invalidReference} aria-describedby={invalidReference ? 'record-reference-error' : undefined} />{invalidReference && <span id="record-reference-error" className="workspace-field-error" role="alert">Enter a payment reference.</span>}</label>
       {error && <p className="workspace-field-error" role="alert">{error}</p>}
+      {navigationBlocked && <p className="workspace-note" role="status">Wait for the payment result before leaving this page.</p>}
       {!available && <p className="workspace-field-error" role="alert">Recording is unavailable while the payment service is disconnected.</p>}
       <footer><button type="button" className="dashboard-secondary-button" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" disabled={saving || !available} className="dashboard-primary-button">{saving ? 'Recording…' : 'Record payment'}</button></footer>
     </form>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
@@ -20,9 +20,12 @@ import { apiFetch } from '../../api/request'
 import { saveAccessToken } from '../../auth/session'
 import { apiErrorDetail, apiValidationErrors } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
+import { usePendingNavigation } from '../../hooks/usePendingNavigation'
 
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
   value ? value.replaceAll(',', '').trim() || fallback : fallback
+
+const registrationUnconfirmed = 'Account creation could not be confirmed. Try signing in with this email before creating another account.'
 
 export function OnboardingPage() {
   const t = translations
@@ -79,6 +82,9 @@ export function OnboardingPage() {
 
   // Submission & Validation States
   const [loading, setLoading] = useState(false)
+  const inFlight = useRef(false)
+  const isRequestPending = useCallback(() => inFlight.current, [])
+  const navigationBlocked = usePendingNavigation(loading, { allowSignedOut: true, isActive: isRequestPending })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [firstNameError, setFirstNameError] = useState<string | null>(null)
   const [lastNameError, setLastNameError] = useState<string | null>(null)
@@ -132,7 +138,7 @@ export function OnboardingPage() {
   }
 
   const handleStep2Continue = async () => {
-    if (loading || registered) return
+    if (inFlight.current || registered) return
     setErrorMessage(null)
     setBankAccountError(null)
 
@@ -156,6 +162,8 @@ export function OnboardingPage() {
     }
 
     const signal = requestSignal()
+    persistDraft({ bankAccount: cleanAcc })
+    inFlight.current = true
     setLoading(true)
     try {
       const response = await apiFetch('/api/auth/register', {
@@ -182,6 +190,7 @@ export function OnboardingPage() {
             setFirstNameError(nameError.message)
             setLastNameError(nameError.message)
             persistDraft({ bankAccount: cleanAcc })
+            inFlight.current = false
             navigate('/welcome/about')
           }
           return
@@ -192,6 +201,8 @@ export function OnboardingPage() {
         } else if (response.status === 400 && detail.includes('bank account')) {
           setBankAccountError(t.bankAccountExists)
           setErrorMessage(t.bankAccountExists)
+        } else if (response.status >= 500) {
+          setErrorMessage(registrationUnconfirmed)
         } else {
           setErrorMessage(t.serviceUnavailable)
         }
@@ -200,10 +211,12 @@ export function OnboardingPage() {
 
       persistDraft({ bankAccount: cleanAcc, registered: true })
       setRegistered(true)
+      inFlight.current = false
       navigate('/welcome/envelopes')
     } catch {
-      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(registrationUnconfirmed)
     } finally {
+      inFlight.current = false
       if (!signal.aborted) setLoading(false)
     }
   }
@@ -215,7 +228,7 @@ export function OnboardingPage() {
   }
 
   const handleStep4Continue = async () => {
-    if (loading) return
+    if (inFlight.current) return
     setErrorMessage(null)
     const invalidInput = [
       { id: 'rule1-token-amount-1', value: rentAmount, max: Infinity },
@@ -237,6 +250,7 @@ export function OnboardingPage() {
     }
 
     const signal = requestSignal()
+    inFlight.current = true
     setLoading(true)
     try {
       const loginResponse = await apiFetch('/api/auth/login', {
@@ -275,10 +289,12 @@ export function OnboardingPage() {
         return
       }
 
+      inFlight.current = false
       navigate('/welcome/try')
     } catch {
       if (!signal.aborted) setErrorMessage(t.rulesSaveFailed)
     } finally {
+      inFlight.current = false
       if (!signal.aborted) setLoading(false)
     }
   }
@@ -298,7 +314,7 @@ export function OnboardingPage() {
   }
 
   const handleComplete = async () => {
-    if (loading) return
+    if (inFlight.current) return
     setErrorMessage(null)
 
     const email = draftEmail.trim()
@@ -311,6 +327,7 @@ export function OnboardingPage() {
     }
 
     const signal = requestSignal()
+    inFlight.current = true
     setLoading(true)
 
     try {
@@ -325,18 +342,22 @@ export function OnboardingPage() {
         if (typeof tokenData.access_token === 'string') {
           saveAccessToken(tokenData.access_token)
           clearSignupDraft()
+          inFlight.current = false
           navigate('/dashboard', { replace: true })
           return
         }
       }
       clearSignupDraft()
+      inFlight.current = false
       navigate('/login', { replace: true })
     } catch {
       if (signal.aborted) return
       // The account exists; sign-in can be retried without registering again.
       clearSignupDraft()
+      inFlight.current = false
       navigate('/login', { replace: true })
     } finally {
+      inFlight.current = false
       if (!signal.aborted) {
         clearSignupCredentials()
         setLoading(false)
@@ -365,6 +386,7 @@ export function OnboardingPage() {
 
       {/* Main Content Area */}
       <main className={`flex-1 flex flex-col items-center px-4 z-10 ${step === 5 ? 'justify-start pt-8 sm:pt-[54px] pb-32 sm:pb-40' : 'justify-center py-8 sm:py-12'}`}>
+        {navigationBlocked && <p role="status" className="w-full max-w-[560px] mb-5 rounded-xl border border-[#DDE3EA] bg-white p-3.5 text-sm text-[#3B495D]">Wait for your account request to finish before leaving this page.</p>}
         {/* Error Alert Display */}
         {errorMessage && (
           <div
@@ -374,22 +396,22 @@ export function OnboardingPage() {
             <AlertCircle className="w-5 h-5 shrink-0 text-[#C62F31] mt-0.5" />
             <div className="flex-1 leading-snug">
               <span>{errorMessage}</span>
-              {errorMessage === t.emailExists && (
+              {(errorMessage === t.emailExists || errorMessage === registrationUnconfirmed) && (
                 <div className="mt-1.5 flex gap-4 text-xs text-[#5E6B7E]">
                   <button
                     type="button"
-                    onClick={() => navigate('/login')}
+                    onClick={() => navigate(`/login?email=${encodeURIComponent(draftEmail)}`)}
                     className="underline text-[#5A64B4] font-medium cursor-pointer"
                   >
                     {t.loginButton}
                   </button>
-                  <button
+                  {errorMessage === t.emailExists && <button
                     type="button"
                     onClick={() => navigate('/signup')}
                     className="underline text-[#5A64B4] font-medium cursor-pointer"
                   >
                     {t.changeEmail}
-                  </button>
+                  </button>}
                 </div>
               )}
             </div>

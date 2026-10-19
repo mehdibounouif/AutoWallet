@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Dialog } from '../../components/common/Dialog'
 import { SettingsApiError, securityFromExport, settingsRequest } from '../../api/settingsApi'
 import type { SecurityInfo } from '../../api/settingsApi'
+import { usePendingNavigation } from '../../hooks/usePendingNavigation'
 
 interface Props {
   email: string
@@ -74,6 +75,7 @@ function DeleteAccountDialog({ email, online, onClose, onExport, onSessionEnded,
   const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
+  const navigationBlocked = usePendingNavigation(busy)
   const [cooldown, setCooldown] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
@@ -117,6 +119,7 @@ function DeleteAccountDialog({ email, online, onClose, onExport, onSessionEnded,
       <label>Type DELETE to confirm<input className="dashboard-input" value={confirmation} onChange={event => setConfirmation(event.target.value)} disabled={busy} autoComplete="off" spellCheck={false} /></label>
       {sent && <label>Email confirmation code<input aria-label="Email confirmation code" ref={codeRef} className="dashboard-input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={event => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(null) }} maxLength={6} disabled={busy} aria-describedby="delete-code-help" /><span id="delete-code-help" className="workspace-note">Use the latest 6-digit code from your email.</span></label>}
       {status && <p className="workspace-note" role="status">{status}</p>}{error && <p className="workspace-field-error" role="alert">{error}</p>}
+      {navigationBlocked && <p className="workspace-note" role="status">Wait for the account request to finish before leaving this page.</p>}
       {!sent && <p className="workspace-note">Next, we’ll send a code to your account email. Nothing is deleted until you confirm that code.</p>}
       {sent && <button type="button" className="settings-text-button" disabled={busy || cooldown > 0 || !online} onClick={() => void submit(false)}>{cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}</button>}
       <footer className="settings-actions"><button ref={cancelRef} type="button" className="dashboard-secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" className="settings-danger-button" disabled={busy || !online || confirmation !== 'DELETE' || (sent ? !/^\d{6}$/.test(code) : cooldown > 0)}>{busy ? sent ? 'Deleting…' : 'Sending…' : sent ? 'Delete account' : 'Send confirmation code'}</button></footer>

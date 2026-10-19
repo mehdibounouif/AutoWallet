@@ -39,7 +39,7 @@
 .settings-text-button:disabled { opacity: .5; cursor: not-allowed; }
 .settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .settings-status { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-block: 18px 6px; padding: 3px 8px; border-radius: 99px; background: var(--aw-layer, #edf0f5); color: var(--aw-muted, #74839b); font-size: 11px; }
-.settings-status--on { background: #e4f4e9; color: #218445; }
+.settings-status--on { background: #e4f4e9; color: var(--aw-status-success-ink, #176b39); }
 .settings-secret-input { position: relative; display: block; margin-top: 8px; }
 .settings-secret-input > input { padding-right: 48px; }
 .settings-secret-input button { position: absolute; top: 0; right: 3px; display: grid; width: 40px; height: 44px; place-items: center; color: var(--aw-muted, #74839b); }

@@ -1,24 +1,8 @@
-import { useEffect, useState } from 'react'
-import { useBlocker } from 'react-router-dom'
-import { readAccessToken } from '../auth/session'
+import { useNavigationProtection } from './navigationProtection'
+import type { NavigationProtectionOptions } from './navigationProtection'
 
 // Keep writes mounted until their result is reconciled; session cleanup always wins.
-export function usePendingNavigation(pending: boolean) {
-  const [sessionToken] = useState(readAccessToken)
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    pending && sessionToken !== null && sessionToken === readAccessToken() && currentLocation.pathname !== nextLocation.pathname)
-  useEffect(() => {
-    if (!pending) return
-    const warn = (event: BeforeUnloadEvent) => {
-      if (sessionToken !== readAccessToken()) return
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [pending, sessionToken])
-  useEffect(() => {
-    if (!pending && blocker.state === 'blocked') blocker.reset()
-  }, [pending, blocker])
-  return blocker.state === 'blocked'
+export function usePendingNavigation(pending: boolean, options?: NavigationProtectionOptions) {
+  const blocker = useNavigationProtection(pending, true, options)
+  return blocker?.state === 'blocked'
 }

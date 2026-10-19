@@ -33,15 +33,17 @@ See [AUDIT.md](AUDIT.md) for the current verification results, endpoint coverage
 
 ## Backend connection
 
-Authentication, registration, bank account ID linking, wallet and payment reads, payment recording, saved starter-rule edits, analytics reads/downloads, streaming Assistant, authenticator setup/verification, recovery-code login/regeneration, email verification/resend, data exports, and account deletion use the backend APIs. Live payment refresh uses authenticated **Server-Sent Events** at `/api/analytics/live`, with reconnect and resynchronization. Settings loads account data independently of payment services.
+Authentication, registration, bank account ID linking, wallet and payment reads, payment recording, saved starter-rule edits, analytics reads/downloads, streaming Assistant, authenticator setup/verification/disabling, recovery-code login/regeneration, email verification/resend, data exports, and account deletion use the backend APIs. Live payment refresh uses authenticated **Server-Sent Events** at `/api/analytics/live`, with reconnect and resynchronization. Settings loads account data independently of payment services.
 
 Sandbox and onboarding payment simulation calculate local previews. Themes, payment-alert preferences, and notification read IDs are browser preferences. Entering a bank account ID records that ID; it does not verify ownership or connect a real bank. Historical payment details display only data actually supplied by the API.
 
-Password recovery and reset have frontend request handlers, but their backend routes are missing. Custom rule management, profile/password changes, session revocation, personal API keys, and disabling two-factor login also need backend support. The UI identifies unsupported actions. See the [endpoint matrix and remaining work](AUDIT.md#backend-endpoint-coverage).
+Password recovery and reset have frontend request handlers, but their backend routes are missing. Custom rule management, profile/password changes, session revocation, and personal API keys also need backend support. The UI identifies unsupported actions. See the [endpoint matrix and remaining work](AUDIT.md#backend-endpoint-coverage).
 
 Recovery codes returned after 2FA activation or regeneration are displayed once with copy/download controls and stay in component memory. The backend requires a password and authenticator code for regeneration, so Google-only accounts cannot regenerate codes with the current contract. Email links work at both `/verify-email` and `/auth/verify-email`.
 
 Leaving unsaved recovery codes through app navigation or Back/Forward asks for confirmation. Closing/reloading uses a browser warning. Signing out or replacing the account in another tab clears the old dashboard state and recovery codes. Profile settings includes a verification/resend link; signup opens that link in a separate tab to preserve setup progress.
+
+Pending signup registration, onboarding rule saving/final sign-in, payment recording, account-deletion requests, starter-rule saves, and recovery-code/security updates block route changes and warn before closing or reloading. Signup protection also works before a sign-in token exists. Successful signup responses advance normally; an unconfirmed account-creation result offers sign-in recovery with the email prefilled. Other completed writes keep their result visible and release navigation. Session expiry and successful account deletion can still redirect to sign-in.
 
 Signup and two-factor passwords remain in memory; refreshing those flows requires signing in again. Non-secret signup drafts use session storage. Sign-in tokens currently use local storage. Moving tokens to HttpOnly cookies would require a coordinated backend authentication change.
 

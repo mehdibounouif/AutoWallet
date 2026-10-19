@@ -1,33 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
-import { useBlocker } from 'react-router-dom'
+import { useRef } from 'react'
 import { Dialog } from '../../components/common/Dialog'
-import { readAccessToken } from '../../auth/session'
+import { useNavigationProtection } from '../../hooks/navigationProtection'
 
 export function RecoveryNavigationGuard({ pending, hasCodes, onDiscard, pendingAction = 'generate' }: {
   pending: boolean; hasCodes: boolean; onDiscard: () => void; pendingAction?: 'generate' | 'disable'
 }) {
-  const [sessionToken] = useState(readAccessToken)
   const stayRef = useRef<HTMLButtonElement>(null)
   const protectedCodes = pending || hasCodes
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    protectedCodes && sessionToken !== null && sessionToken === readAccessToken() && currentLocation.pathname !== nextLocation.pathname)
+  const blocker = useNavigationProtection(protectedCodes, pending)
 
-  useEffect(() => {
-    if (!protectedCodes) return
-    const warn = (event: BeforeUnloadEvent) => {
-      if (sessionToken !== readAccessToken()) return
-      event.preventDefault(); event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [protectedCodes, sessionToken])
-
-  // A failed request with no codes should leave the user on the error screen.
-  useEffect(() => {
-    if (!protectedCodes && blocker.state === 'blocked') blocker.reset()
-  }, [protectedCodes, blocker])
-
-  if (blocker.state !== 'blocked') return null
+  if (blocker?.state !== 'blocked') return null
   return <Dialog labelledBy="leave-recovery-title" role="alertdialog" initialFocusRef={stayRef} onClose={() => blocker.reset()} panelClassName="dashboard-modal">
     <h2 id="leave-recovery-title">{pending ? pendingAction === 'disable' ? 'Two-factor login is being updated' : 'Recovery codes are being prepared' : 'Have you saved your recovery codes?'}</h2>
     <p>{pending ? pendingAction === 'disable' ? 'Wait for this request to finish before leaving. Your authenticator and recovery codes may be disabled when it completes.' : 'Wait for this request to finish so you can save your codes. Leaving now could lose the new codes even if the account service completes the request.' : 'Leaving this page hides these codes. You won’t be able to display this set again. Stay to copy or download them first.'}</p>
