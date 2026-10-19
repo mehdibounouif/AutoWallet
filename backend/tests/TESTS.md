@@ -24,11 +24,13 @@ cd backend
 - No server, no database server, no Redis, no bank simulator, no
   authorization service, no AI provider, no SMTP server needed — see §2
   (fake infrastructure).
-- Current baseline: **111 passed, 3 xfailed** (verified on the #89-merge
-  tree after the #20/#24 conversions). Findings #15/#17/#18/#19/#20/#24 are
-  closed (§4); open and xfail-strict by design: #25/#27/#28 (§4).
-  #26 (Allocation-model deletion, PR #63/#64 stack) was fixed by PR #89
-  (restore) — no test existed for it; the suite importing again is the pin.
+| `test_2fa_can_be_disabled_by_the_user` | #28 | MEHDI | FIXED: `/api/auth/2fa/disable` landed (9f9dfec) with password + one-second-factor step-up; tripwire updated to the real contract; marker removed, plain pin. |
+
+- Current baseline: **112 passed, 5 xfailed** (verified after the #28
+  conversion + the backend security scan). Findings #15/#17/#18/#19/#20/#24/
+  #28 are closed (§4); open and xfail-strict by design: #25/#27 + the
+  scan series S1/S2/S3 (§4). #26 (Allocation-model deletion) was fixed
+  by PR #89 — no test existed for it; the suite importing again is the pin.
 
 ---
 
@@ -279,9 +281,11 @@ outside the repo, in QA's shared documents):
 
 | Test | Finding | Owner | The missing fix |
 |---|---|---|---|
+| `test_a_transaction_amount_must_be_a_finite_number` (test_security_scan.py) | **S1** | MEHDI | `TransactionCreate.amount` is `Field(gt=0)` — `Infinity` passes and poisons the wallet balance permanently. Fix: `allow_inf_nan=False` + a sane upper bound. |
+| `test_the_password_reset_contract_exists` (test_security_scan.py) | **S2** | MEHDI | the frontend's recovery flow posts to `/api/auth/password/forgot` + `/api/auth/password/reset` — neither exists; forgotten password = permanent lockout. Fix: implement both endpoints. |
+| `test_long_passwords_do_not_collide_via_truncation` (test_security_scan.py) | **S3** | MEHDI | bcrypt truncates at 72 bytes with no upper bound — two passwords sharing 72 bytes are one credential. Fix: `Field(max_length=72)`. |
 | `test_gdpr_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#25** | MTARZA | same gap on `app/gdpr/router.py:22` — export/delete paths never cross the hop. Fix: add the dependency. |
 | `test_login_rejects_2fa_after_repeated_failed_attempts` (test_2fa.py) | **#27** (PR #64 review) | MEHDI | `/login` grades TOTP/recovery second factors with no attempt counting or lockout — a stolen password can brute-force the 6-digit factor (10^6 keyspace, valid_window=1) at request speed. Fix: Redis-backed failed-attempt window per user, checked BEFORE the verify call, refuse with 429 past the threshold. |
-| `test_2fa_can_be_disabled_by_the_user` (test_2fa.py) | **#28** (PR #64 review) | MEHDI | auth.py ships 2FA setup/verify/regenerate but NO disable endpoint — a user who loses device AND recovery codes is locked out forever. Fix: POST `/api/auth/2fa/disable` gated by password + one valid second factor, clearing the secret and outstanding recovery codes atomically. |
 
 (#21 — `/login` Redis-key spam, LOW — is report-only in the review doc: the
 fix shape is a design decision.)
