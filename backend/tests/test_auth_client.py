@@ -259,13 +259,6 @@ def test_rules_routes_go_through_the_gateway_hop(
         "finding #24: rules answered WITHOUT crossing the gateway hop"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #25 (owner: MTARZA): the gdpr router has no gateway hop "
-           "— app/gdpr/router.py:22 creates the APIRouter without "
-           "dependencies=[Depends(require_client)]. Same gap as #24/#15; "
-           "the export/delete paths are as sensitive as any money endpoint.",
-)
 def test_gdpr_routes_go_through_the_gateway_hop(
     client, auth_headers, authorization_service
 ):
