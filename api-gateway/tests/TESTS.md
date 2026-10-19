@@ -123,4 +123,32 @@ distinct failure clusters.
    `tests/setup.ts` (deliberately a non-test module — importing a test
    file from another test file re-registers its tests).
 5. Run `npm test` before proposing a PR: the documented baseline is
-   **16 passed** — a red suite is not a reviewable PR.
+   **20 passed + 4 expected fail** — a red suite is not a reviewable PR.
+6. QA decision (2026-10-19): the §3 "demand file" mechanism is REPLACED by
+   vitest `it.fails` inside the main suite (`security-findings.test.ts`) —
+   same contract as the frontend convention and the backend xfail-strict
+   one: the suite stays green while the finding lives, and flips RED the
+   moment the fix lands. The demand-file approach as documented would have
+   kept the main suite red, violating the rule above. Convert `it.fails`
+   tests to plain pins when their finding closes, and log the closure here.
+
+## 7. Open findings — gateway security scan (2026-10-19)
+
+Full-source scan report: `~/Documents/api-gateway-security-scan.md` (QA).
+Tests: `tests/security-findings.test.ts` (`it.fails` = desired behavior,
+fails today; converts to a plain pin when the fix lands).
+
+| Test | Finding | Owner | The missing fix |
+|---|---|---|---|
+| `G3: ...answers 401, not 500` (×2) | G3 | helfatih | `middleware/authenticate.ts` non-null assertions — valid-signature tokens without sub/role crash to 500 instead of answering 401; mirror `websocket.auth.ts`'s typeof checks |
+| `G4: an HS512-signed token is rejected` | G4 | gateway owners | no `algorithms: ["HS256"]` pin on either `jwt.verify` call |
+| `G2: ...origin-less upgrade with a VALID cookie is still rejected` | G2 | fibonnacc | the origin check is accidental: with `FRONTEND_ORIGIN` unset (active compose block), origin-less clients slip through; fail closed when the var is unset. Infra half (compose var = `https://localhost`) landed with QA |
+| G1 (no test possible at this layer) | G1 | mtarza/fibonnacc | the backend never issues the `access_token` cookie the WS upgrade reads — design decision: WS ticket or real session cookie (see `frontend/AUDIT.md:86`) |
+
+Regression pins added to `websocket.test.ts` / `security-findings.test.ts`
+(passing today, keep them passing): wrong origin → 403, matching origin →
+accepted, no cookie → 401, garbage cookie → 401.
+
+Each `it.fails` prints its finding + owner + fix as an `[xfail]` line in the
+normal `npm test` output (vitest has no xfail "reason" field — the body
+console.info is our parity with pytest's XFAIL reason display).
