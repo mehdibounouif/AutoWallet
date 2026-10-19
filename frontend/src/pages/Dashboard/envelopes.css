@@ -9,11 +9,11 @@
 .envelopes-overview-total strong { display: block; margin-top: 11px; color: var(--aw-ink, #202b3b); font-size: 28px; font-weight: 800; letter-spacing: -.04em; white-space: nowrap; }
 .envelopes-overview-total strong small { color: var(--aw-muted, #718099); font-size: 11px; font-weight: 700; letter-spacing: 0; }
 .envelopes-overview-total > span { display: block; margin-top: 14px; color: var(--aw-muted, #8290a5); font-size: 12px; line-height: 1.5; }
-.envelopes-allocation-bar { display: flex; width: 100%; height: 27px; overflow: hidden; border-radius: 4px; background: #e8edf2; }
+.envelopes-allocation-bar { display: flex; width: 100%; height: 27px; overflow: hidden; border-radius: 4px; background: var(--aw-layer, #e8edf2); }
 .envelopes-allocation-bar > span + span { border-left: 2px solid #fff; }
 .envelopes-allocation-list { margin-top: 8px; }
 .envelopes-allocation-row { display: grid; grid-template-columns: minmax(0, 1fr) 94px 50px; align-items: center; gap: 12px; width: 100%; min-height: 26px; padding: 2px 0; border-radius: 4px; text-align: left; font-size: 12px; }
-.envelopes-allocation-row:hover { background: #f6f8fb; }
+.envelopes-allocation-row:hover { background: var(--aw-layer, #f6f8fb); }
 .envelopes-allocation-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .envelopes-allocation-name span { overflow: hidden; color: var(--aw-muted, #64738a); text-overflow: ellipsis; white-space: nowrap; }
 .envelopes-allocation-row strong { color: var(--aw-ink, #2b3648); font-size: 12px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
@@ -37,12 +37,12 @@
 .envelopes-card-value { display: block; margin: 16px 0 0; color: var(--aw-ink, #202b3c); font-size: clamp(22px, 2vw, 27px); font-weight: 800; letter-spacing: -.035em; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .envelopes-card-value small { color: var(--aw-muted, #718099); font-size: 11px; font-weight: 700; letter-spacing: 0; }
 .envelopes-card-progress { display: block; margin-top: 17px; }
-.envelopes-card-track { display: block; height: 4px; overflow: hidden; border-radius: 99px; background: #e8edf2; }
+.envelopes-card-track { display: block; height: 4px; overflow: hidden; border-radius: 99px; background: var(--aw-layer, #e8edf2); }
 .envelopes-card-track > span { display: block; height: 100%; border-radius: inherit; }
 .envelopes-card-progress-caption { display: flex; align-items: center; gap: 3px; margin-top: 8px; color: var(--aw-muted, #7b8aa0); font-size: 11px; line-height: 1.3; }
-.envelopes-card--rent .envelopes-card-progress-caption:has(svg) { color: #228852; }
+.envelopes-card--rent .envelopes-card-progress-caption:has(svg) { color: var(--aw-success, #228852); }
 .envelopes-card-footnote { display: block; margin-top: auto; padding-top: 18px; color: var(--aw-muted, #8998ab); font-size: 11px; line-height: 1.4; }
-.envelopes-skeleton-line { display: block; height: 13px; border-radius: 4px; background: #e8edf2; }
+.envelopes-skeleton-line { display: block; height: 13px; border-radius: 4px; background: var(--aw-layer, #e8edf2); }
 .envelopes-skeleton-title { width: 150px; height: 28px; }
 .envelopes-skeleton-subtitle { width: min(100%, 260px); margin-top: 12px; }
 .envelopes-skeleton-label { width: 105px; }

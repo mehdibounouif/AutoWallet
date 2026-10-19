@@ -1,4 +1,4 @@
-# Frontend audit — October 18, 2026
+# Frontend audit — October 19, 2026
 
 ## Current scope
 
@@ -6,6 +6,11 @@ The frontend includes authentication, onboarding, Home, Envelopes and details, R
 
 ## Latest fixes and optimizations
 
+- Protect signup registration, onboarding rule saving, and final sign-in against Back/Forward navigation and reload, including requests made before a sign-in token exists. Release protection before response-driven redirects, reject duplicate submissions, preserve non-secret drafts, and offer prefilled sign-in recovery when account creation cannot be confirmed.
+- Centralize readable light-theme muted text and shared status-pill foregrounds. Home and payment fallback text now use the shared theme token; obsolete dark-mode utility overrides are removed. Status pills and success notices retain readable foreground/background pairs in both themes.
+- Coordinate pending payment recording, account-deletion requests, rule saves, and security/recovery flows through one router blocker. Keep pending dialogs mounted on Back/Forward and warn before reload/close; show the result and release navigation after completion. Session cleanup and account-deletion redirects remain allowed.
+- Bound Activity loading placeholders to the container and wrap mobile month headings/totals, including 60-payment histories at 320px. Use existing theme tokens for Activity, Envelopes, Rules, dashboard links, Analytics and Assistant interaction colors so hover/selected states and priority badges stay readable in dark mode.
+- Return keyboard focus to menu triggers after Escape without moving focus on outside clicks or interfering with modal dialogs. Correct the README's obsolete unsupported-2FA claim and document the extracted dashboard loading/navigation components.
 - Guard pending starter-rule saves against router navigation and page unload. Refresh cached resources after success or uncertain outcomes before finishing the save flow; session cleanup remains allowed.
 - Load payment notifications on demand from Settings, with distinct loading, failure/retry and empty states. Keep full-page read history after marking it read; the compact popover remains unread-only.
 - Report login service failures, invalid credentials and rate limits separately. Respect a bounded Retry-After cooldown. Support the backend's default `/auth/reset-password` URL alongside `/reset-password`, preserving the token.
@@ -56,6 +61,7 @@ Settings reads account data independently of money services. Local previews do n
 
 ## Remaining backend and deployment dependencies
 
+- The last read-only runtime check found that the service at `http://127.0.0.1:8000` answers `/health` but exposes an older API than this checkout. Its public schema lacks Analytics, email verification/resend, recovery-code regeneration, and disabling 2FA; its login schema also lacks `recovery_code`. Analytics summary/live returned 404. Rebuild/recreate the intended backend or use the correct proxy target, then verify authenticated workflows. Frontend changes do not update a running backend image.
 - Transaction responses still omit `created_at` and persisted `allocations`; complete historical split bars, ledgers, receipts and per-payment analysis require those fields. Aggregate Analytics APIs are connected separately.
 - `/api/auth/me` lacks security metadata. The current security-status workaround uses password confirmation or a user-requested JSON export. The backend rejects setup for an already-enabled authenticator; concurrency behavior remains backend-owned.
 - `/api/auth/me` also omits email-verification status, so Settings offers verification/resend without showing a verified/unverified badge.
@@ -69,6 +75,10 @@ Settings reads account data independently of money services. Local previews do n
 ## Verification and limits
 
 Lint, the strict production build and all 68 existing tests across 12 files pass. Temporary browser checks outside the repository verify notification loading/history/errors, selective API reads and cache refresh, pending rule-save navigation/reload protection, reset URL handling, navigation focus/titles, login failure/rate-limit states, and Clipboard API fallback.
+
+October 19 fix verification also covers pending payment and account-deletion Back/unload protection, guard release after errors, payment-reference retention after an uncertain result, and the successful deletion sign-in redirect. Recovery-code Stay/Leave, Back, Escape, focus, and cross-tab logout pass at 320px and 1440px. Delayed-read layouts fit at 320px, 768px and 1440px; 60-payment Activity histories with long references fit at 320px, 390px, 768px, 1024px and 1440px. Dark Activity hover and desktop/mobile menu focus pass, including switching filter triggers and outside-click focus behavior. Signup still completes all five steps at 320px with controlled responses.
+
+Signup regression checks now cover token-free registration, duplicate submits, blocked Back/unload during registration and rule authentication/writes, successful progression after a blocked Back action, failed/uncertain responses, preserved rule values, prefilled sign-in recovery, and final sign-in redirects at 320px and 1440px. No passwords are stored in local/session storage. A computed-text contrast scan across 17 workspace routes in both themes reports no failures for the visible solid-color text it checks, including processed/pending/failed payment badges and target-met text; this is not a complete accessibility certification.
 
 Additional browser regressions pass for rapid route changes during delayed reads, uncertain rule-write reconciliation, safe removal of stale notification IDs, mobile sorting/More navigation, SSE resynchronization of payments and balances, and cross-tab logout during a blocked rule save. All 96 combinations of 24 routes, desktop/320px widths, and light/dark themes pass without horizontal page overflow or uncaught exceptions, including fallback-font layouts. The Envelopes heading now wraps safely at narrow widths.
 

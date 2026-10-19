@@ -9,8 +9,8 @@ export function PaymentStatus({ status }: { status: DashboardTransaction['status
 }
 
 export function PaymentSplitBar({ payment }: { payment: DashboardTransaction }) {
-  if (payment.status === 'pending') return <span className="text-xs text-[#7A879B]">Splitting…</span>
-  if (!hasCompleteSplit(payment)) return <span className="text-xs text-[#96A2B2]">Breakdown unavailable</span>
+  if (payment.status === 'pending') return <span className="text-xs text-[color:var(--aw-muted)]">Splitting…</span>
+  if (!hasCompleteSplit(payment)) return <span className="text-xs text-[color:var(--aw-muted)]">Breakdown unavailable</span>
   const types: WalletType[] = ['rent', 'tax', 'savings', 'free', 'main']
   const label = types.filter((type) => (payment.allocations?.[type] ?? 0) > 0)
     .map((type) => `${envelopeMeta[type].name} ${money.format(payment.allocations?.[type] ?? 0)} MAD`).join(', ')

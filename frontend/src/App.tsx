@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { createBrowserRouter, createRoutesFromElements, RouterProvider, Outlet, Route, Navigate } from 'react-router-dom'
 import { RouteErrorPage } from './components/common/RouteErrorPage'
 import { RouteAccessibility } from './components/common/RouteAccessibility'
+import { NavigationProtectionProvider } from './components/common/NavigationProtectionProvider'
 import { AuthPage } from './pages/Auth/AuthPage'
 
 import { useDashboardTheme } from './pages/Settings/settingsPreferences'
@@ -35,15 +36,15 @@ const authRoutes = {
   '/auth/verify-email': 'verify-email',
 } as const
 
-// A data router lets recovery-code screens block links and Back/Forward navigation.
+// One shared blocker protects pending writes and unsaved recovery codes.
 const router = createBrowserRouter(createRoutesFromElements(
   <Route errorElement={<RouteErrorPage />} element={
-    <>
+    <NavigationProtectionProvider>
       <RouteAccessibility />
       <Suspense fallback={<div role="status" className="min-h-screen flex items-center justify-center">Loading…</div>}>
         <Outlet />
       </Suspense>
-    </>
+    </NavigationProtectionProvider>
   }>
     {Object.entries(authRoutes).map(([path, mode]) => (
       <Route
