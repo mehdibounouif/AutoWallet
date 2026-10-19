@@ -24,12 +24,9 @@ cd backend
 - No server, no database server, no Redis, no bank simulator, no
   authorization service, no AI provider, no SMTP server needed — see §2
   (fake infrastructure).
-| `test_2fa_can_be_disabled_by_the_user` | #28 | MEHDI | FIXED: `/api/auth/2fa/disable` landed (9f9dfec) with password + one-second-factor step-up; tripwire updated to the real contract; marker removed, plain pin. |
-
-- Current baseline: **112 passed, 5 xfailed** (verified after the #28
-  conversion + the backend security scan). Findings #15/#17/#18/#19/#20/#24/
-  #28 are closed (§4); open and xfail-strict by design: #25/#27 + the
-  scan series S1/S2/S3 (§4). #26 (Allocation-model deletion) was fixed
+- Current baseline: **113 passed, 4 xfailed** (verified after the #25
+  conversion). Findings #15/#17/#18/#19/#20/#24/#25/#28 are closed (§4);
+  open and xfail-strict by design: #27 + the scan series S1/S2/S3 (§4). #26 (Allocation-model deletion) was fixed
   by PR #89 — no test existed for it; the suite importing again is the pin.
 
 ---
@@ -128,7 +125,7 @@ The mapping contract (`service answer → endpoint status`):
 | `test_real_service_grants_token_with_role_claim` | realish + token WITH role → 200 (the contract the backend must reach) |
 | `test_real_service_accepts_backend_token_once_role_claim_exists` ⚠️ xfail | realish + REAL backend token → DESIRED 200; fails today (403): finding **#12** (owner **HOMIE**) |
 | `test_rules_routes_go_through_the_gateway_hop` ⚠️ xfail | rules answers WITHOUT crossing the hop (0 seam calls): finding **#24** (owner **MEHDI**) — see §4 |
-| `test_gdpr_routes_go_through_the_gateway_hop` ⚠️ xfail | gdpr answers WITHOUT crossing the hop (0 seam calls): finding **#25** (owner **MTARZA**) — see §4 |
+| `test_gdpr_routes_go_through_the_gateway_hop` | gdpr crosses the hop exactly once — plain pin since the #25 conversion (fix: PR #97) |
 
 ### `tests/test_oauth.py` — Google OAuth + linked-account gate (17 tests)
 
@@ -284,7 +281,6 @@ outside the repo, in QA's shared documents):
 | `test_a_transaction_amount_must_be_a_finite_number` (test_security_scan.py) | **S1** | MEHDI | `TransactionCreate.amount` is `Field(gt=0)` — `Infinity` passes and poisons the wallet balance permanently. Fix: `allow_inf_nan=False` + a sane upper bound. |
 | `test_the_password_reset_contract_exists` (test_security_scan.py) | **S2** | MEHDI | the frontend's recovery flow posts to `/api/auth/password/forgot` + `/api/auth/password/reset` — neither exists; forgotten password = permanent lockout. Fix: implement both endpoints. |
 | `test_long_passwords_do_not_collide_via_truncation` (test_security_scan.py) | **S3** | MEHDI | bcrypt truncates at 72 bytes with no upper bound — two passwords sharing 72 bytes are one credential. Fix: `Field(max_length=72)`. |
-| `test_gdpr_routes_go_through_the_gateway_hop` (test_auth_client.py) | **#25** | MTARZA | same gap on `app/gdpr/router.py:22` — export/delete paths never cross the hop. Fix: add the dependency. |
 | `test_login_rejects_2fa_after_repeated_failed_attempts` (test_2fa.py) | **#27** (PR #64 review) | MEHDI | `/login` grades TOTP/recovery second factors with no attempt counting or lockout — a stolen password can brute-force the 6-digit factor (10^6 keyspace, valid_window=1) at request speed. Fix: Redis-backed failed-attempt window per user, checked BEFORE the verify call, refuse with 429 past the threshold. |
 
 (#21 — `/login` Redis-key spam, LOW — is report-only in the review doc: the
@@ -303,6 +299,8 @@ Closed-cycle log:
 | `test_rules_routes_go_through_the_gateway_hop` | #24 | MEHDI | `app/api/rules.py` now creates the router WITH `dependencies=[Depends(require_client)]`; XPASSed (strict) as soon as the Allocation restore (PR #89) let the suite import again — marker removed, plain pin. |
 | `test_the_app_boots_from_the_committed_env_example` | #20 | MEHDI | FIXED via PR #88: `backend/.env.example` carries `POSTGRES_USER/PASSWORD/DB` so `cp .env.example .env` boots the app; XPASSed (strict) once PR #89 unblocked imports — marker removed, plain pin. |
 | `test_google_callback_garbage_userinfo_response` | (not a numbered finding) | QA | the app's safe generic error was reworded to "Could not verify Google identity" while keeping the clean 401 — test assertion updated to match (this PR). |
+| `test_2fa_can_be_disabled_by_the_user` | #28 | MEHDI | FIXED: `/api/auth/2fa/disable` landed (9f9dfec) with password + one-second-factor step-up; tripwire updated to the real contract — marker removed, plain pin (scan PR #100). |
+| `test_gdpr_routes_go_through_the_gateway_hop` | #25 | MTARZA | FIXED via PR #97: `app/gdpr/router.py` creates the router WITH `dependencies=[Depends(require_client)]`; XPASSed (strict) on merged main — marker removed, plain pin (this PR). |
 
 ---
 
