@@ -12,6 +12,7 @@ import redis
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
+from app.core.auth_client import require_client
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.redis_client import redis_client
@@ -19,7 +20,8 @@ from app.gdpr.email import EmailError, send_email
 from app.gdpr.schemas import DeleteConfirm, GdprMessage
 from app.models.models import Rule, Transaction, User, Wallet
 
-router = APIRouter(prefix="/api/gdpr", tags=["gdpr"])
+# Like the money and AI routes, every GDPR request first asks the api-gateway if it is allowed.
+router = APIRouter(prefix="/api/gdpr", tags=["gdpr"], dependencies=[Depends(require_client)])
 
 CODE_VALID_SECONDS = 15 * 60  # the deletion code works for 15 minutes
 RESEND_WAIT_SECONDS = 60  # a new code can be asked for 1 minute after the last one
