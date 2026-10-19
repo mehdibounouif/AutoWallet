@@ -93,6 +93,7 @@ services:
       JWT_SECRET: ${SECRET_KEY}
       NODE_ENV: 'test1'
       PORT: "3000"
+      FRONTEND_ORIGIN: "https://localhost"
     depends_on:
       backend:
         condition: service_healthy
