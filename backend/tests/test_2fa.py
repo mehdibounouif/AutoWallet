@@ -81,29 +81,23 @@ def test_login_rejects_2fa_after_repeated_failed_attempts(client, test_user, aut
 # Finding #28 — no way to disable 2FA once enabled
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #28 (owner: MEHDI): auth.py has POST /2fa/setup, "
-           "/2fa/verify and /2fa/recovery-codes/regenerate — but NO "
-           "disable endpoint, so a user who loses both the TOTP device and "
-           "the recovery codes is locked out of his own account forever "
-           "(no support path turns two_factor_enabled off). Fix: add POST "
-           "/api/auth/2fa/disable, gated by password + one valid second "
-           "factor (TOTP or recovery code), that clears two_factor_secret "
-           "and flushes outstanding recovery codes in one transaction.",
-)
 def test_2fa_can_be_disabled_by_the_user(client, test_user, auth_headers):
     """SCENARIO:   the user still holds one second factor (device) but
                 wants 2FA gone (e.g. rotating devices, ditching the app).
-    EXPECTED:   a single authenticated call turns 2FA off and the NEXT
-                login needs no second factor again."""
-    _enable_2fa(client, auth_headers)
+    EXPECTED:   an authenticated call with the password + one valid
+                second factor turns 2FA off, and the NEXT login needs no
+                second factor again."""
+    secret = _enable_2fa(client, auth_headers)
 
-    disable = client.post("/api/auth/2fa/disable", headers=auth_headers)
-    assert disable.status_code == 200, (
-        f"finding #28 NOT fixed: /api/auth/2fa/disable answers "
-        f"{disable.status_code} ({disable.json().get('detail')}) — endpoint missing"
+    disable = client.post(
+        "/api/auth/2fa/disable",
+        headers=auth_headers,
+        json={
+            "password": "SuperSecret1337!",
+            "totp_code": pyotp.TOTP(secret).now(),
+        },
     )
+    assert disable.status_code == 200, disable.text
 
     fresh = client.post(
         "/api/auth/login",
