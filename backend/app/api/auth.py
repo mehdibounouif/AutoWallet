@@ -33,6 +33,7 @@ from app.api.schemas import (
     RegenerateRecoveryCodesRequest,
 )
 
+
 from app.core.security import (
     generate_recovery_codes,
     hash_recovery_code,
@@ -139,13 +140,19 @@ def login(
 
     if user.two_factor_enabled:
         # Check the limit BEFORE evaluating the second factor.
-        check_2fa_rate_limit(user.id)
+        if not payload.totp_code and not payload.recovery_code:
+            raise HTTPException(
+                status_code=401,
+                detail="2FA code required",
+            )
 
-        if bool(payload.totp_code) == bool(payload.recovery_code):
+        if payload.totp_code and payload.recovery_code:
             raise HTTPException(
                 status_code=400,
                 detail="Provide exactly one 2FA method",
             )
+
+        check_2fa_rate_limit(user.id)
 
         if payload.totp_code:
             if not verify_totp_code(
@@ -153,7 +160,6 @@ def login(
                 payload.totp_code,
             ):
                 record_failed_2fa_attempt(user.id)
-
                 raise HTTPException(
                     status_code=401,
                     detail="Invalid 2FA code",
