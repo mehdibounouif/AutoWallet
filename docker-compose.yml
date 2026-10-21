@@ -1,12 +1,12 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
       interval: 5s
@@ -14,20 +14,15 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.10-alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
 
-  # DEV MOCK — never expose in a real deployment: it has no auth and
-  # publishes 8001. The backend poller depends on it locally, so it stays
-  # in this dev stack, but a production compose must not carry it.
   bank-simulator:
     build: bank-simulator/
-    ports:
-      - "8001:8001"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('localhost', 8001), 2)\""]
       interval: 5s
@@ -36,8 +31,6 @@ services:
 
   backend:
     build: backend/
-    ports:
-      - "8000:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SECRET_KEY: ${SECRET_KEY}
@@ -55,7 +48,12 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
-      FRONTEND_GOOGLE_CALLBACK_URL: ${FRONTEND_GOOGLE_CALLBACK_URL}
+      FRONTEND_GOOGLE_CALLBACK_URL: ${FRONTEND_GOOGLE_CALLBACK_URL} ## not setted
+      SMTP_HOST: "mailpit"
+      SMTP_PORT: "1025"
+      FRONTEND_EMAIL_VERIFY_URL: https://localhost/auth/verify-email
+      # FRONTEND_PASSWORD_RESET_URL: https://localhost/auth/reset-password
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,24 +67,6 @@ services:
       start_period: 20s
 
 
-  # api-gateway:
-  #   build: api-gateway/
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     JWT_SECRET: ${SECRET_KEY}
-  #     NODE_ENV: "test1"
-  #     PORT: "3000"
-  #     FRONTEND_ORIGIN: "http://localhost:5173"
-  #   depends_on:
-  #     backend:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));"]
-  #     interval: 10s
-  #     timeout: 3s
-  #     retries: 5
-  #     start_period: 10s
   api-gateway:
     build: api-gateway/
     environment:
@@ -116,7 +96,7 @@ services:
       retries: 10
 
   proxy:
-    image: caddy:2-alpine
+    image: caddy:2.11-alpine
     ports:
       - "80:80"
       - "443:443"
@@ -130,6 +110,11 @@ services:
       frontend:
         condition: service_healthy
 
+  mailpit:
+    image: axllent/mailpit:v1.31
+    ports:
+      - "8025:8025"
+   
 volumes:
   pgdata:
   proxy-caddy-data:
