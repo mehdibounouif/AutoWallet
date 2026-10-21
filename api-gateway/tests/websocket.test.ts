@@ -8,6 +8,7 @@ describe("WebSocket", () => {
     let server: Server;
 
     afterEach(async () => {
+        delete process.env.FRONTEND_ORIGIN;
         if (server?.listening) {
             await new Promise<void>((resolve, reject) => {
                 server.close((err) => {
@@ -45,11 +46,16 @@ describe("WebSocket", () => {
         const cookieName =
             process.env.AUTH_COOKIE_NAME ?? "access_token";
 
+        // FRONTEND_ORIGIN + matching Origin keep this test green both before
+        // and after the G2 fail-closed origin fix lands.
+        process.env.FRONTEND_ORIGIN = "https://frontend.local";
+
         const ws = new WebSocket(
             `ws://127.0.0.1:${address.port}/ws`,
             {
                 headers: {
                     Cookie: `${cookieName}=${token}`,
+                    origin: "https://frontend.local",
                 },
             },
         );

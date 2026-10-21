@@ -22,7 +22,7 @@ interface LegalDocument {
 }
 
 const CONTACT_EMAIL = 'mohamedamintarza@gmail.com'
-const LAST_UPDATED = '14 October 2026'
+const LAST_UPDATED = '18 October 2026'
 
 const documents: Record<LegalPageProps['document'], LegalDocument> = {
   privacy: {
@@ -40,9 +40,9 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
       {
         title: 'What we collect',
         items: [
-          'Account: your full name, email address, password and bank account ID. We store only a bcrypt hash of your password, never the password itself.',
+          'Account: your full name, email address, password and bank account ID, and whether your email address has been verified. We store only a bcrypt hash of your password, never the password itself.',
           'Google sign-in, if you use it: your Google account ID, name and email address. We never receive your Google password.',
-          'Two-factor authentication, if you turn it on: a secret key used to check your 6-digit codes.',
+          'Two-factor authentication, if you turn it on: a secret key used to check your 6-digit codes, and your recovery codes, stored only as hashes. Each recovery code works once.',
           'Your budget: the balances of your five envelopes (main, rent, tax, savings and free), your splitting rules, your payments (reference, amount, status and dates), and how much of each payment went into each envelope.',
           'AI assistant: the questions you ask it (see "The AI assistant and Google Gemini" below).',
         ],
@@ -54,7 +54,7 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
           'To split each payment between your envelopes according to your rules, and to show you your balances and history.',
           'To show you charts and totals of your payments for the period you choose (the Analytics page), and to export them as a CSV or PDF file when you ask.',
           'To answer your questions with the AI assistant, using your own envelopes and rules.',
-          'To email you about your account, for example the code that confirms deleting it, or a notice when your data is exported.',
+          'To email you about your account: the link that verifies your email address when you sign up, the code that confirms deleting your account, or a notice when your data is exported.',
           'To keep the service safe, for example by limiting how many AI questions each account can send per minute.',
         ],
       },
@@ -70,7 +70,8 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
         items: [
           'After you sign in, your browser keeps an access token in local storage. It is removed when you log out, and it stops working after 24 hours.',
           "While you sign up, the details you type (email address, first and last name, bank account ID and rule values) are kept in session storage, and your password stays only in the page's memory. They are deleted when you finish signing up or close the tab.",
-          'If you sign in with Google, the server sets one small security cookie that protects the sign-in from attacks. It lasts 10 minutes at most.',
+          'Your preferences on this browser: the display theme (light, dark or system), whether payment alerts are on, and which payment notifications you have read. They stay in local storage until you change them or clear your browser data.',
+          'If you sign in with Google, the server sets one small security cookie that protects the sign-in from attacks, and your browser keeps the page you came from in session storage so we can bring you back to it. Both last 10 minutes at most.',
           'AutoWallet does not use advertising or tracking cookies.',
         ],
       },
@@ -89,14 +90,16 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
           'Your account, envelopes, rules and payments: until you delete your account or ask us to delete it.',
           'Your AI questions and answers: not stored by AutoWallet.',
           'The counter that limits AI questions: deleted automatically after 60 seconds.',
+          'The link that verifies your email address: 15 minutes at most.',
           'The code that confirms deleting your account: 15 minutes at most.',
+          'Your two-factor recovery codes: until you use them, make new ones, turn off two-factor authentication or delete your account.',
           'The access token in your browser: until you log out. It stops working after 24 hours.',
         ],
       },
       {
         title: 'How we protect it',
         items: [
-          'Passwords are stored only as bcrypt hashes.',
+          'Passwords are stored only as bcrypt hashes, and two-factor recovery codes only as hashes.',
           'Sign-in tokens are signed by our server and stop working after 24 hours.',
           'You can turn on two-factor authentication for extra protection.',
           'Each account can only read its own envelopes, rules and payments.',
@@ -107,9 +110,9 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
         title: 'Your rights',
         pageLink: {
           before: 'You can download a copy of your data (JSON or CSV) or delete your account yourself, at any time, on the',
-          to: '/account/privacy',
-          label: 'Privacy & data',
-          after: ' page of your account. To delete it, you type a 6-digit code that we send to your email address.',
+          to: '/app/settings/privacy',
+          label: 'Privacy and data',
+          after: ' page of your settings. To delete it, you type a 6-digit code that we send to your email address.',
         },
         paragraphs: [
           'You can also write to us to see a copy of your data, to correct it, or to delete your account and all its data. We answer within 30 days.',
@@ -139,7 +142,7 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
         title: 'Your account',
         items: [
           'Give accurate information, and only link a bank account ID that you are allowed to use.',
-          'Keep your password private. We recommend turning on two-factor authentication.',
+          'Keep your password and your two-factor recovery codes private. We recommend turning on two-factor authentication.',
           'You are responsible for what happens in your account. Tell us quickly if you think someone else is using it.',
           'One account per person.',
         ],

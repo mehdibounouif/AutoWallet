@@ -129,6 +129,10 @@ jobs:
             -e GOOGLE_CLIENT_ID=not-configured \
             -e GOOGLE_CLIENT_SECRET=not-configured \
             -e GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/oauth/google/callback \
+            -e FRONTEND_GOOGLE_CALLBACK_URL=http://localhost:5173/auth/google/callback \
+            -e POSTGRES_USER=autowallet \
+            -e POSTGRES_PASSWORD=autowallet \
+            -e POSTGRES_DB=autowallet \
             -p 19000:8000 bk:smoke
           ok=""
           for i in 1 2 3 4 5 6 7 8; do
