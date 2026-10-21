@@ -7,7 +7,7 @@
 .activity-filter-bar { position: relative; margin-bottom: 20px; }
 .activity-filter-scroll { display: flex; align-items: center; gap: 7px; min-height: 28px; }
 .activity-filter-wrap { position: relative; flex: 0 0 auto; }
-.activity-filter-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 27px; max-width: 270px; padding: 2px 10px; border: 1px dashed var(--aw-border, #9eacc0); border-radius: 999px; background: var(--aw-surface, #fff); color: var(--aw-ink, #37465d); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.activity-filter-chip { overflow-wrap: anywhere; display: inline-flex; align-items: center; gap: 5px; min-height: 27px; max-width: 270px; padding: 2px 10px; border: 1px dashed var(--aw-border, #9eacc0); border-radius: 999px; background: var(--aw-surface, #fff); color: var(--aw-ink, #37465d); font-size: 12px; font-weight: 600; white-space: normal; }
 .activity-filter-chip:hover, .activity-filter-chip[aria-expanded="true"] { border-color: var(--aw-accent, #5963b6); color: var(--aw-accent, #4c57a9); }
 .activity-filter-chip--selected { border: 1px solid transparent; background: var(--aw-selected, #e9ebfa); color: var(--aw-accent, #4f59aa); }
 .activity-filter-chip svg { flex: 0 0 auto; }
@@ -49,6 +49,7 @@
 .activity-payment-row td { overflow: hidden; padding: 0 8px; border-bottom: 1px solid var(--aw-border, #dce3eb); color: var(--aw-ink, #253247); text-overflow: ellipsis; white-space: nowrap; }
 .activity-payment-row td:nth-child(2) { color: var(--aw-muted, #708099); }
 .activity-payment-row td:nth-child(3) { font-weight: 700; font-variant-numeric: tabular-nums; }
+.activity-payment-row td.activity-amount-cell { white-space: normal; overflow-wrap: anywhere; }
 .activity-payment-row td:first-child button { max-width: 100%; overflow: hidden; color: var(--aw-ink, #253247); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .activity-payment-row td:first-child button:hover { color: var(--aw-accent, #5963b6); text-decoration: underline; }
 .activity-payment-row .dashboard-payment-split { max-width: 200px; }
@@ -113,7 +114,7 @@
   .activity-mobile-row-top, .activity-mobile-row-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .activity-mobile-row-top { color: var(--aw-ink, #243044); font-size: 12px; }
   .activity-mobile-row-top strong { min-width: 0; overflow: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-  .activity-mobile-row-top b { font-size: 12px; font-variant-numeric: tabular-nums; }
+  .activity-mobile-row-top b { min-width: 0; overflow-wrap: anywhere; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
   .activity-mobile-row-bottom { margin-top: 9px; color: var(--aw-muted, #728198); font-size: 11px; }
   .activity-mobile-row-bottom > span:first-child { flex: 0 0 auto; }
   .activity-mobile-split { flex: 1; min-width: 20px; }
