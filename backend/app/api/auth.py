@@ -19,6 +19,11 @@ from app.api.schemas import (
     MessageResponse,
     DisableTwoFactorRequest
 )
+from app.core.two_factor_rate_limit import (
+    check_2fa_rate_limit,
+    record_failed_2fa_attempt,
+    clear_2fa_rate_limit,
+)
 
 from sqlalchemy import delete
 
@@ -27,6 +32,7 @@ from app.api.schemas import (
     RecoveryCodesOut,
     RegenerateRecoveryCodesRequest,
 )
+
 
 from app.core.security import (
     generate_recovery_codes,
@@ -131,40 +137,49 @@ def login(
             detail="Incorrect email or password",
         )
 
+
     if user.two_factor_enabled:
+        # Check the limit BEFORE evaluating the second factor.
+        if not payload.totp_code and not payload.recovery_code:
+            raise HTTPException(
+                status_code=401,
+                detail="2FA code required",
+            )
+
         if payload.totp_code and payload.recovery_code:
             raise HTTPException(
                 status_code=400,
-                detail="Provide only one 2FA method",
+                detail="Provide exactly one 2FA method",
             )
+
+        check_2fa_rate_limit(user.id)
 
         if payload.totp_code:
             if not verify_totp_code(
                 user.two_factor_secret,
                 payload.totp_code,
             ):
+                record_failed_2fa_attempt(user.id)
                 raise HTTPException(
                     status_code=401,
                     detail="Invalid 2FA code",
                 )
 
-        elif payload.recovery_code:
-            code_hash = hash_recovery_code(
-                payload.recovery_code
-            )
+        else:
+            code_hash = hash_recovery_code(payload.recovery_code)
 
             try:
                 result = db.execute(
                     delete(TwoFactorRecoveryCode).where(
-                        TwoFactorRecoveryCode.user_id
-                        == user.id,
-                        TwoFactorRecoveryCode.code_hash
-                        == code_hash,
+                        TwoFactorRecoveryCode.user_id == user.id,
+                        TwoFactorRecoveryCode.code_hash == code_hash,
                     )
                 )
 
                 if result.rowcount != 1:
                     db.rollback()
+                    record_failed_2fa_attempt(user.id)
+
                     raise HTTPException(
                         status_code=401,
                         detail="Invalid recovery code",
@@ -179,11 +194,7 @@ def login(
                 db.rollback()
                 raise
 
-        else:
-            raise HTTPException(
-                status_code=401,
-                detail="2FA code required",
-            )
+        clear_2fa_rate_limit(user.id)
 
     return Token(
         access_token=create_access_token(
