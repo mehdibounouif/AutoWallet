@@ -8,6 +8,7 @@ import { translations } from '../../i18n'
 import { isValidEmail } from '../../auth/validation'
 import { apiFetch } from '../../api/request'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
+import { usePendingNavigation } from '../../hooks/usePendingNavigation'
 
 export function ForgotPasswordCard() {
   const t = translations
@@ -15,8 +16,9 @@ export function ForgotPasswordCard() {
   const requestSignal = useRequestSignal()
 
   const [email, setEmail] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const navigationBlocked = usePendingNavigation(loading, { allowSignedOut: true })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [emailTouched, setEmailTouched] = useState(false)
   const { countdown, startCountdown } = useCountdown()
@@ -24,7 +26,8 @@ export function ForgotPasswordCard() {
   const sendResetLink = async () => {
     if (loading) return
     setEmailTouched(true)
-    if (!isValidEmail(email)) return
+    const requestedEmail = (submittedEmail ?? email).trim()
+    if (!isValidEmail(requestedEmail)) return
 
     const signal = requestSignal()
     setLoading(true)
@@ -33,7 +36,7 @@ export function ForgotPasswordCard() {
       const response = await apiFetch('/api/auth/password/forgot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: requestedEmail }),
         signal,
       })
       if (response.status === 404) {
@@ -41,7 +44,7 @@ export function ForgotPasswordCard() {
         return
       }
       if (!response.ok) throw new Error('Reset request failed')
-      setSubmitted(true)
+      setSubmittedEmail(requestedEmail)
       startCountdown(60)
     } catch {
       if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
@@ -64,7 +67,8 @@ export function ForgotPasswordCard() {
       {/* 440px Centered Card per Figma #116:816 & #116:868 */}
       <div className="w-full max-w-[440px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-9 shadow-[0_8px_24px_-4px_rgba(27,36,50,0.08),0_2px_6px_-1px_rgba(27,36,50,0.04)] transition-all">
         {errorMessage && <p role="alert" className="mb-4 text-sm text-[#C62F31]">{errorMessage}</p>}
-        {submitted ? (
+        {navigationBlocked && <p role="status" className="mb-4 text-sm text-[#5E6B7E]">Wait for the reset-link request to finish before leaving this page.</p>}
+        {submittedEmail !== null ? (
           /* Screen 2: Link sent / Check your inbox (#116:868) */
           <div className="flex flex-col items-center text-center space-y-5">
             <div className="w-12 h-12 rounded-full bg-[#ECEEFA] flex items-center justify-center text-[#5A64B4]">
@@ -76,7 +80,7 @@ export function ForgotPasswordCard() {
                 {t.checkInboxTitle}
               </h1>
               <p className="text-[15px] text-[#5E6B7E] leading-relaxed max-w-[340px]">
-                {t.resetLinkSentSubtitle.replace('{email}', email)}
+                {t.resetLinkSentSubtitle.replace('{email}', submittedEmail)}
               </p>
             </div>
 
@@ -85,10 +89,10 @@ export function ForgotPasswordCard() {
               <button
                 type="button"
                 onClick={handleResend}
-                disabled={countdown > 0}
+                disabled={loading || countdown > 0}
                 className="w-full h-11 sm:h-12 px-4 rounded-[10px] bg-[#EDF0F4] hover:bg-[#E2E7ED] disabled:opacity-60 disabled:hover:bg-[#EDF0F4] text-[#1A2330] font-medium text-sm transition cursor-pointer"
               >
-                {countdown > 0
+                {loading ? 'Sending…' : countdown > 0
                   ? `${t.sendLinkAgainIn} (${countdown}s)`
                   : t.sendLinkAgain}
               </button>
@@ -134,6 +138,7 @@ export function ForgotPasswordCard() {
                   required
                   autoFocus
                   value={email}
+                  disabled={loading}
                   onChange={(e) => setEmail(e.target.value)}
                   onBlur={() => setEmailTouched(true)}
                   aria-invalid={emailTouched && !isValidEmail(email)}

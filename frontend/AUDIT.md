@@ -1,4 +1,4 @@
-# Frontend audit — October 19, 2026
+# Frontend audit — October 21, 2026
 
 ## Current scope
 
@@ -6,6 +6,11 @@ The frontend includes authentication, onboarding, Home, Envelopes and details, R
 
 ## Latest fixes and optimizations
 
+- Update Vite to 8.3.3 and refresh its required build dependencies; the dependency audit reports zero vulnerabilities.
+- Disable all Rules amount, percentage, slider, and savings-cap inputs during saving and reconciliation.
+- Protect dashboard bank linking and password recovery/reset against input changes and navigation during submission. Reset-link success copy and resends use the submitted email address.
+- Separate envelope actions from descriptive content while preserving full-card pointer activation and keyboard focus. Use visible content for mobile Activity button names and include avatar initials in the account-menu name.
+- Integrate main's GDPR gateway authorization and payment splits in JSON/CSV exports. Regular transaction responses still lack historical dates and allocations. Active Compose now configures the gateway origin as `https://localhost`.
 - Keep security panels stable during recovery-code generation: disable competing two-factor actions until the request settles so the recovery form stays mounted and can display its new codes or error.
 - Bound long payment-reference breadcrumbs within the dashboard header at tablet/desktop widths. Shared breadcrumb styles now live with the shared header; search and account controls stay on screen.
 - Give signup receipt percentage chips intrinsic column space beside their run status. Large amounts wrap/stack within balances, receipts and split previews instead of widening their containers; native inputs remain bounded.
@@ -79,6 +84,8 @@ Settings reads account data independently of money services. Local previews do n
 
 ## Verification and limits
 
+October 21 fix verification: lint, production build, and all 68 existing tests pass. Temporary browser checks pass for 30 combinations of five affected routes, three widths (320, 768, 1440px), and light/dark themes, with no detected page overflow, automated accessibility violations, or uncaught application errors. Six envelope interaction checks confirm keyboard focus/activation and full-card clicks. Twelve delayed-request scenarios confirm bank-link and signed-out recovery/reset input disabling, blocked internal navigation, unload protection, correct submitted-email confirmation, and guard release after success or server error. These 48 checks use simulated responses; recovery/reset backend endpoints remain absent. QA-owned files were not edited.
+
 The latest fix checks cover 50 combinations of five affected workspace routes, five viewport widths (320–1440px), and light/dark themes. No page/container overflow, automated accessibility violations, or uncaught application exceptions were found in those cases. All five signup steps also complete at 320, 768 and 1440px with no reported layout/accessibility failures. Receipt chips no longer overlap status text at 850, 1024 or 1440px. Recovery-code generation keeps competing security controls disabled and displays the returned codes; sparse complete splits, explicitly recorded wallet amounts, missing/incomplete omitted amounts, and balance reconciliation are checked separately. Keyboard scrolling of the API example and SSE-triggered balance refresh also pass. These browser checks use controlled responses and temporary scripts outside the repository; QA-owned tests remain unchanged.
 
 Lint, the strict production build and all 68 existing tests across 12 files pass. Temporary browser checks outside the repository verify notification loading/history/errors, selective API reads and cache refresh, pending rule-save navigation/reload protection, reset URL handling, navigation focus/titles, login failure/rate-limit states, and Clipboard API fallback.
@@ -99,4 +106,4 @@ PR #60 at `f8e19eb` had backend test/startup failures, including missing Postgre
 
 ## WebSocket integration boundary after the main merge
 
-The gateway now checks a cookie named `access_token` (or its configured cookie name), validates the Origin, and tracks connections per user. The browser login flow still receives a Bearer token and stores it in local storage; no server-issued WebSocket authentication cookie/ticket is provided. The active Compose gateway configuration omits `FRONTEND_ORIGIN`, and the Redis subscriber/event forwarding remain empty. Complete those backend/gateway contracts before replacing the frontend's authenticated SSE payment updates. No JavaScript-readable authentication cookie or nonfunctional WebSocket transport was added as a workaround.
+The gateway checks a cookie named `access_token` (or its configured cookie name), validates the Origin, and tracks connections per user. The browser login flow still receives a Bearer token and stores it in local storage; no server-issued WebSocket authentication cookie/ticket is provided. Active Compose sets `FRONTEND_ORIGIN` to `https://localhost`; other origins require matching configuration. Redis subscription and application-event forwarding remain empty. Complete those backend/gateway contracts before replacing the frontend's authenticated SSE payment updates. No JavaScript-readable authentication cookie or nonfunctional WebSocket transport was added as a workaround.

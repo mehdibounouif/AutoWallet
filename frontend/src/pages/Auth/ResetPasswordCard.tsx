@@ -14,6 +14,7 @@ import {
 import { translations } from '../../i18n'
 import { apiFetch } from '../../api/request'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
+import { usePendingNavigation } from '../../hooks/usePendingNavigation'
 
 export function ResetPasswordCard() {
   const t = translations
@@ -26,6 +27,7 @@ export function ResetPasswordCard() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const navigationBlocked = usePendingNavigation(loading, { allowSignedOut: true })
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -126,6 +128,7 @@ export function ResetPasswordCard() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {errorMessage && <p role="alert" className="text-sm text-[#C62F31]">{errorMessage}</p>}
+              {navigationBlocked && <p role="status" className="text-sm text-[#5E6B7E]">Wait for the password update to finish before leaving this page.</p>}
               <div className="space-y-1.5">
                 <label htmlFor="new-password-input" className="block text-sm font-medium text-[#1A2330]">
                   {t.newPasswordLabel}
@@ -139,6 +142,7 @@ export function ResetPasswordCard() {
                     required
                     autoFocus
                     value={password}
+                    disabled={loading}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t.passwordPlaceholder}
                     className="w-full h-11 pl-3.5 pr-10 rounded-[10px] border border-[#DDE3EA] bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20 transition"
