@@ -3,7 +3,6 @@ alembic==1.18.5
 annotated-doc==0.0.4
 annotated-types==0.8.0
 anyio==4.14.2
-APScheduler==3.11.0
 bcrypt==4.0.1
 click==8.4.2
 dnspython==2.8.0
@@ -33,12 +32,7 @@ uvicorn==0.51.0
 uvloop==0.22.1
 watchfiles==1.2.0
 websockets==16.1.1
-pytest==8.4.2
 httpx==0.28.1
-fakeredis[lua]==2.30.0
-respx==0.23.1
-# PDF reports for the analytics export (app/analytics)
 fpdf2==2.8.9
 pillow==12.3.0
 fonttools==4.66.1
-defusedxml==0.7.1
