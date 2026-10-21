@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { ArrowLeftRight, Check } from 'lucide-react'
 import type { DashboardData, DashboardTransaction, WalletType } from './dashboardApi'
 import { envelopeDescription, envelopeMeta, envelopeTarget, money, walletOrder } from './envelopeDisplay'
@@ -16,6 +17,7 @@ function EnvelopeCard({ type, data, onOpen }: {
   data: DashboardData
   onOpen: (type: WalletType) => void
 }) {
+  const descriptionId = useId()
   const meta = envelopeMeta[type]
   const Icon = meta.icon
   const balance = data.wallets.find((wallet) => wallet.wallet_type === type)?.balance ?? 0
@@ -25,11 +27,10 @@ function EnvelopeCard({ type, data, onOpen }: {
   const change = latestChange?.allocations?.[type]
 
   return (
-    <button type="button" className={`envelopes-card envelopes-card--${type}`} onClick={() => onOpen(type)}
-      aria-label={`Open ${meta.name} envelope, ${money.format(balance)} MAD`}>
+    <article className={`envelopes-card envelopes-card--${type}`}>
       <span className="envelopes-card-heading">
         <span className="envelopes-card-icon" style={{ color: meta.color, backgroundColor: meta.tint }}><Icon className="h-[19px] w-[19px]" aria-hidden="true" /></span>
-        <span><strong>{meta.name}</strong><small>{envelopeDescription(type, data.rules)}</small></span>
+        <span><strong><button type="button" className="envelopes-card-open" onClick={() => onOpen(type)} aria-label={`Open ${meta.name} envelope, ${money.format(balance)} MAD`} aria-describedby={`${descriptionId}-rule ${descriptionId}-change${progress !== null && target !== null ? ` ${descriptionId}-progress` : ''}`}>{meta.name}</button></strong><small id={`${descriptionId}-rule`}>{envelopeDescription(type, data.rules)}</small></span>
       </span>
       <span className="envelopes-card-value">{money.format(balance)} <small>MAD</small></span>
       {progress !== null && target !== null && (
@@ -38,18 +39,18 @@ function EnvelopeCard({ type, data, onOpen }: {
             aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
             <span style={{ width: `${progress}%`, backgroundColor: meta.color }} />
           </span>
-          <span className="envelopes-card-progress-caption">
+          <span id={`${descriptionId}-progress`} className="envelopes-card-progress-caption">
             {progress >= 100 && type === 'rent' ? <><Check className="h-3 w-3" aria-hidden="true" />Target met · {money.format(balance)} of {money.format(target)}</>
               : `${Math.round(progress)}% of the ${money.format(target)} ${type === 'savings' ? 'cap' : 'target'}`}
           </span>
         </span>
       )}
-      <span className="envelopes-card-footnote">
+      <span id={`${descriptionId}-change`} className="envelopes-card-footnote">
         {latestChange && change !== undefined
           ? `Last change +${money.format(change)}${latestChange.created_at ? ` · ${paymentDate(latestChange.created_at)}` : ''}`
           : type === 'main' && balance === 0 ? 'Nothing so far: your rules use every payment' : 'Payment changes will appear here when available'}
       </span>
-    </button>
+    </article>
   )
 }
 
