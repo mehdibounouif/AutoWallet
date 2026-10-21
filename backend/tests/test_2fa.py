@@ -42,18 +42,6 @@ def _login_body(email: str, password: str, totp_code: str | None = None) -> dict
 # Finding #27 — no rate limiting on 2FA attempts at /login
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding #27 (owner: MEHDI): /login verifies the TOTP/recovery "
-           "second factor with NO rate limiting and NO attempt lockout "
-           "(app/api/auth.py login — the verify_totp_code call sits before "
-           "token issuance and nothing counts failures). A client who "
-           "captured email+password can brute-force a 6-digit TOTP "
-           "(10^6 keyspace, valid_window=1) at request speed; recovery "
-           "codes share the same hole. Fix: count failed 2FA attempts per "
-           "user (Redis EXPIRE window) BEFORE the verify call and refuse "
-           "with 429 once a small threshold is crossed.",
-)
 def test_login_rejects_2fa_after_repeated_failed_attempts(client, test_user, auth_headers):
     """SCENARIO:   the attacker HAS the password (phish/leak) but not the
                 second factor; he hammers /login with wrong TOTP codes.
