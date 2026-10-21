@@ -8,3 +8,5 @@ tests
 Dockerfile
 .dockerignore
 npm-debug.log*
+test-client.mjs
+README.md

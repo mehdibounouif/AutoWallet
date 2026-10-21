@@ -4,9 +4,6 @@ set -e
 
 echo "[entrypoint] starting AutoWallet backend..."
 
-DB_HOST="${POSTGRES_HOST}"
-DB_PORT="${POSTGRES_PORT}"
-
 if [[ "$DATABASE_URL" == postgresql* ]]; then
     python - <<'EOF'
 import os, sys, time
