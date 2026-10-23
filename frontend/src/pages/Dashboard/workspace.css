@@ -4,18 +4,11 @@
 .workspace-heading h2 { font-size: 20px; font-weight: 750; letter-spacing: -.015em; }
 .workspace-heading p { margin-top: 10px; color: var(--aw-muted, #65748c); font-size: 14px; line-height: 1.7; }
 .workspace-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.workspace-card { min-width: 0; padding: 22px; border: 1px solid var(--aw-border, #dce3eb); border-radius: 16px; background: var(--aw-surface, #fff); }
-.workspace-card h2, .workspace-card h3 { font-size: 16px; font-weight: 750; }
 .workspace-note { margin-top: 12px; color: var(--aw-muted, #74839b); font-size: 12px; line-height: 1.7; }
 .workspace-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 99px; background: var(--aw-layer, #eef1f6); color: var(--aw-muted, #66758d); font-size: 10px; font-weight: 600; }
 .workspace-back, .workspace-text-button { display: inline-flex; align-items: center; gap: 6px; color: var(--aw-accent, #5963b6); font-size: 12px; font-weight: 650; }
 .workspace-back { margin-bottom: 16px; }
 .workspace-text-button:hover, .workspace-back:hover { text-decoration: underline; }
-.workspace-banner { display: flex; align-items: center; gap: 10px; margin-block: 20px; padding: 13px 16px; border-radius: 10px; background: #e8f1fc; color: #2164b1; font-size: 13px; line-height: 1.6; }
-.workspace-banner > svg { flex-shrink: 0; }
-.workspace-banner button { margin-left: auto; font-weight: 650; text-decoration: underline; }
-.workspace-banner--success { background: #e4f4e9; color: var(--aw-status-success-ink, #176b39); }
-.workspace-banner--error { background: #ffefed; color: #ad3c3c; }
 .workspace-empty { display: flex; min-height: 320px; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 40px 24px; text-align: center; }
 .workspace-empty > svg { color: var(--aw-muted, #8b9fc0); }
 .workspace-empty h1, .workspace-empty h2 { font-size: 23px; font-weight: 750; }
@@ -244,8 +237,6 @@
   .workspace-heading h2 { font-size: 18px; }
   .workspace-heading p { font-size: 12px; }
   .workspace-title-row { gap: 8px; }
-  .workspace-card { padding: 19px 16px; border-radius: 13px; }
-  .workspace-banner { align-items: flex-start; padding: 12px; font-size: 12px; }
   .payment-detail .workspace-back { margin-bottom: 12px; }
   .payment-detail-ribbon { padding-top: 5px; padding-bottom: 30px; }
   .payment-detail-grid, .payment-detail-aside { grid-template-columns: minmax(0, 1fr); gap: 18px; }

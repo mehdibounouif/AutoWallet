@@ -1,3 +1,4 @@
+import { TextInput } from '../../../components/ui/TextInput'
 import {
   Check,
   CheckCircle2,
@@ -9,7 +10,6 @@ import {
   ShoppingBag,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
-import type { Translations } from '../../../i18n'
 import { previewPayment } from '../../Dashboard/dashboardSplit'
 import type { DashboardRule } from '../../Dashboard/dashboardApi'
 import { walletTypes } from '../../../api/walletTypes'
@@ -26,7 +26,7 @@ interface Props {
   hasSimulated: boolean
   isSimulating: boolean
   onSimulate: () => void
-  t: Translations
+
 }
 
 interface Allocation {
@@ -46,7 +46,6 @@ function getAllocations(
   taxPercent: string,
   savingsPercent: string,
   savingsCap: string,
-  t: Translations,
 ): Allocation[] {
   // Match the backend starter rules and reuse the Dashboard/Sandbox engine.
   // Keep fractional cents during allocation; format to two decimals for display.
@@ -64,34 +63,34 @@ function getAllocations(
 
   return [
     {
-      name: t.rentName,
+      name: "Rent",
       amount: rent,
       remaining: afterRent,
-      rule: t.fixedAmountType,
+      rule: "Fixed amount",
       color: '#2A78D6',
       Icon: Home,
     },
     {
-      name: t.taxName,
+      name: "Tax",
       amount: tax,
       remaining: afterTax,
-      rule: `${parseAmount(taxPercent)}% ${t.percentOfLeftType}`,
+      rule: `${parseAmount(taxPercent)}% of what's left`,
       color: '#EB6834',
       Icon: Landmark,
     },
     {
-      name: t.savingsName,
+      name: "Savings",
       amount: savings,
       remaining: free,
-      rule: `${parseAmount(savingsPercent)}% ${t.percentOfLeftType}`,
+      rule: `${parseAmount(savingsPercent)}% of what's left`,
       color: '#1BAF7A',
       Icon: PiggyBank,
     },
     {
-      name: t.freeToSpendName,
+      name: "Free to spend",
       amount: free,
       remaining: 0,
-      rule: `100% ${t.percentOfLeftType}`,
+      rule: "100% of what's left",
       color: '#EDA100',
       Icon: ShoppingBag,
     },
@@ -104,7 +103,7 @@ const PIPE_END = 188
 const PIPE_BEND = 24
 const SPLIT_X = [156, 300, 444, 588]
 
-function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: Allocation[]; t: Translations }) {
+function PaymentPipe({ amount, allocations }: { amount: number; allocations: Allocation[] }) {
   const largeAmount = money(amount).length > 12
   const remainingHeights = allocations.map((item) => (item.remaining / amount) * PIPE_HEIGHT)
   const pipeOutline = [
@@ -125,10 +124,10 @@ function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: 
   return (
     <div className={`onboarding-payment-pipe ${largeAmount ? 'onboarding-payment-pipe--large' : ''} hidden min-[1200px]:grid grid-cols-[128px_664px_116px_132px] w-[1040px] mx-auto h-[250px]`}>
       <div className="onboarding-pipe-amount pt-[56px] pr-4 text-right">
-        <div className="whitespace-nowrap text-lg font-bold text-[#1A2330]">
+        <div className="whitespace-nowrap text-lg font-bold text-brand-ink">
           {money(amount)} <span className="text-xs text-[#65748C]">MAD</span>
         </div>
-        <div className="text-sm text-[#65748C]">{t.firstPaymentLabel}</div>
+        <div className="text-sm text-[#65748C]">First payment</div>
       </div>
 
       <div className="onboarding-pipe-graphic relative w-[664px] h-[250px]">
@@ -139,7 +138,7 @@ function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: 
               className="absolute -top-1 whitespace-nowrap text-xs text-[#65748C]"
               style={{ left: SPLIT_X[index] + 8 }}
             >
-              {money(item.remaining)} {t.leftText}
+              {money(item.remaining)} left
             </span>
           ))}
         </div>
@@ -176,7 +175,7 @@ function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: 
           {allocations.map((item, index) => (
             <div
               key={item.name}
-              className="absolute top-[197px] whitespace-nowrap text-[#1A2330]"
+              className="absolute top-[197px] whitespace-nowrap text-brand-ink"
               style={{ left: SPLIT_X[index] + PIPE_BEND }}
             >
               <div className="flex items-center gap-1 text-sm font-semibold">
@@ -190,11 +189,11 @@ function PaymentPipe({ amount, allocations, t }: { amount: number; allocations: 
       </div>
 
       <div className="onboarding-pipe-spacer" aria-hidden="true" />
-      <div className="onboarding-pipe-total pt-[46px] text-[#1A2330]">
-        <div className="text-sm text-[#52617A]">{t.leftoverToMainLabel}</div>
+      <div className="onboarding-pipe-total pt-[46px] text-brand-ink">
+        <div className="text-sm text-[#52617A]">Leftover → Main</div>
         <div className="text-base font-bold">0.00</div>
         <div className="mt-2 flex items-center gap-1 text-sm font-semibold">
-          = {money(amount)} <Check className="h-4 w-4 text-[#1F7A3A]" />
+          = {money(amount)} <Check className="h-4 w-4 text-status-success" />
         </div>
       </div>
     </div>
@@ -211,23 +210,22 @@ export function Step5TryPayment({
   hasSimulated,
   isSimulating,
   onSimulate,
-  t,
 }: Props) {
   const amount = parseAmount(simulatedAmount)
   const validAmount = Number.isFinite(amount) && amount > 0
   const largeAmount = validAmount && money(amount).length > 12
   const allocations = validAmount
-    ? getAllocations(amount, rentAmount, taxPercent, savingsPercent, savingsCap, t)
+    ? getAllocations(amount, rentAmount, taxPercent, savingsPercent, savingsCap)
     : []
   const total = allocations.reduce((sum, item) => sum + item.amount, 0)
   return (
     <div className={`onboarding-payment ${largeAmount ? 'onboarding-payment--large' : ''} max-w-[1200px] mx-auto space-y-6 animate-fadeIn w-full`}>
       <div className="text-center space-y-2 max-w-[640px] mx-auto pb-1.5">
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#1A2330] tracking-tight">
-          {t.tryPaymentTitle}
+        <h1 className="text-2xl sm:text-3xl font-bold text-brand-ink tracking-tight">
+          See your first payment split
         </h1>
-        <p className="text-sm sm:text-base text-[#5E6B7E] leading-relaxed">
-          {t.tryPaymentSubtitle}
+        <p className="text-sm sm:text-base text-brand-muted leading-relaxed">
+          Simulate a payment to watch your rules work. It stays in Sandbox, so nothing real changes.
         </p>
       </div>
 
@@ -235,12 +233,12 @@ export function Step5TryPayment({
         <div className="w-full sm:w-80 space-y-1.5 text-left">
           <label
             htmlFor="simulated-amount"
-            className="block text-sm font-medium text-[#1A2330]"
+            className="block text-sm font-medium text-brand-ink"
           >
-            {t.amountInputLabel}
+            Amount
           </label>
           <div className="relative flex items-center">
-            <input
+            <TextInput appearance="auth"
               id="simulated-amount"
               type="text"
               inputMode="decimal"
@@ -248,7 +246,7 @@ export function Step5TryPayment({
               onChange={(event) => setSimulatedAmount(event.target.value)}
               disabled={isSimulating}
               aria-invalid={Boolean(simulatedAmount) && !validAmount}
-              className="w-full h-11 pl-3 pr-14 rounded-[10px] border border-[#7A879B] bg-white text-[#1A2330] font-semibold text-base focus:outline-none focus:border-[#5A64B4] focus:ring-3 focus:ring-[#5A64B4]/15 transition"
+              className="text-base"
             />
             <span className="absolute right-3 text-sm font-semibold text-[#65748C]">
               MAD
@@ -260,7 +258,7 @@ export function Step5TryPayment({
           id={hasSimulated ? 'simulate-again-btn' : 'simulate-payment-btn'}
           onClick={onSimulate}
           disabled={isSimulating || !validAmount}
-          className={`w-full sm:w-auto h-[52px] px-5 rounded-[12px] font-medium text-sm transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 ${hasSimulated ? 'bg-[#ECEFF4] hover:bg-[#E1E6EE] text-[#1A2330]' : 'bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white'}`}
+          className={`w-full sm:w-auto h-[52px] px-5 rounded-[12px] font-medium text-sm transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 ${hasSimulated ? 'bg-[#ECEFF4] hover:bg-[#E1E6EE] text-brand-ink' : 'bg-action-primary hover:bg-action-primary-hover active:bg-action-primary-pressed text-white'}`}
         >
           {isSimulating ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -269,10 +267,10 @@ export function Step5TryPayment({
           )}
           <span>
             {isSimulating
-              ? t.simulatingPayment
+              ? "Simulating…"
               : hasSimulated
-                ? t.simulateAgainButton
-                : t.simulatePaymentButton}
+                ? "Simulate again"
+                : "Simulate payment"}
           </span>
         </button>
       </div>
@@ -283,20 +281,20 @@ export function Step5TryPayment({
             id="split-success-alert"
             role="status"
             aria-live="polite"
-            className="min-h-[46px] px-4 py-2.5 rounded-xl bg-[#E4F3E8] text-[#1F7A3A] text-sm flex items-center gap-3 max-w-[640px] mx-auto animate-fadeIn"
+            className="min-h-[46px] px-4 py-2.5 rounded-xl bg-[#E4F3E8] text-status-success text-sm flex items-center gap-3 max-w-[640px] mx-auto animate-fadeIn"
           >
             <CheckCircle2 className="w-5 h-5 shrink-0" />
             <p className="leading-relaxed">
-              {t.splitSuccessAlert.replace('{amount}', money(amount))}
+              {`Split with your 4 rules. It adds up to ${money(amount)}. Your real balances didn't change.`}
             </p>
           </div>
-          <div className="w-full bg-white rounded-2xl border border-[#DDE3EA] px-5 sm:px-8 pt-11 pb-12 animate-fadeIn">
-            <PaymentPipe amount={amount} allocations={allocations} t={t} />
+          <div className="w-full bg-white rounded-2xl border border-border-subtle px-5 sm:px-8 pt-11 pb-12 animate-fadeIn">
+            <PaymentPipe amount={amount} allocations={allocations} />
 
             <div className="min-[1200px]:hidden">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-4 text-sm">
-                <span className="font-semibold">{t.firstPaymentLabel}: {money(amount)} MAD</span>
-                <span className="text-[#5E6B7E]">{t.leftoverToMainLabel}: 0.00</span>
+                <span className="font-semibold">First payment: {money(amount)} MAD</span>
+                <span className="text-brand-muted">Leftover → Main: 0.00</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {allocations.map((item) => (
@@ -312,15 +310,15 @@ export function Step5TryPayment({
                       >
                         <item.Icon className="w-3.5 h-3.5" />
                       </span>
-                      <span className="font-semibold text-[#1A2330] text-sm truncate">
+                      <span className="font-semibold text-brand-ink text-sm truncate">
                         {item.name}
                       </span>
                     </div>
-                    <div className="font-bold text-[#1A2330] text-base">
+                    <div className="font-bold text-brand-ink text-base">
                       {money(item.amount)} MAD
                     </div>
-                    <div className="text-[11px] text-[#5E6B7E]">
-                      {money(item.remaining)} {t.leftText}
+                    <div className="text-[11px] text-brand-muted">
+                      {money(item.remaining)} left
                     </div>
                   </div>
                 ))}
@@ -328,38 +326,38 @@ export function Step5TryPayment({
             </div>
 
             <div className="max-w-[720px] mx-auto w-full mt-8 min-[1200px]:mt-12">
-              <div className="onboarding-receipt-heading py-3 px-1 flex items-center justify-between border-b border-[#DDE3EA]">
-                <span className="font-semibold text-sm text-[#1A2330]">{t.firstPaymentLabel}</span>
-                <span className="font-bold text-base text-[#1A2330]">{money(amount)} <span className="text-xs text-[#65748C]">MAD</span></span>
+              <div className="onboarding-receipt-heading py-3 px-1 flex items-center justify-between border-b border-border-subtle">
+                <span className="font-semibold text-sm text-brand-ink">First payment</span>
+                <span className="font-bold text-base text-brand-ink">{money(amount)} <span className="text-xs text-[#65748C]">MAD</span></span>
               </div>
-              <div className="divide-y divide-[#DDE3EA] text-xs sm:text-sm">
+              <div className="divide-y divide-border-subtle text-xs sm:text-sm">
                 {allocations.map((item, index) => (
                   <div
                     key={item.name}
                     className="onboarding-rule-row py-3 px-1 flex flex-wrap min-[850px]:grid min-[850px]:grid-cols-[24px_minmax(0,1fr)_max-content_max-content_minmax(0,100px)_minmax(0,110px)] items-center gap-x-2 gap-y-1"
                   >
                     <span className="w-4 text-[#65748C] font-medium text-xs">{index + 1}</span>
-                    <span className="font-semibold text-[#1A2330]">{index === 0 ? t.rule1Title.replace(/^\d+\.\s*/, '') : item.name}</span>
-                    <span className="bg-[#EDF0F4] text-[#3B495D] text-[11px] px-2 py-0.5 rounded-full w-fit whitespace-nowrap">{item.rule}</span>
-                    <span className={`inline-flex items-center gap-1 text-xs ${item.amount > 0 ? 'text-[#1F7A3A]' : 'text-[#5E6B7E]'}`}>
+                    <span className="font-semibold text-brand-ink">{index === 0 ? 'Rent lock' : item.name}</span>
+                    <span className="bg-[#EDF0F4] text-brand-navy text-[11px] px-2 py-0.5 rounded-full w-fit whitespace-nowrap">{item.rule}</span>
+                    <span className={`inline-flex items-center gap-1 text-xs ${item.amount > 0 ? 'text-status-success' : 'text-brand-muted'}`}>
                       {item.amount > 0 && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
-                      {item.amount > 0 ? t.ranStatusBadge : t.skippedStatusBadge}
+                      {item.amount > 0 ? "Ran" : "Skipped"}
                     </span>
-                    <span className="onboarding-rule-value ml-auto font-semibold text-[#1A2330]">{money(item.amount)}</span>
-                    <span className="onboarding-rule-remaining min-w-0 ml-auto text-right text-[#65748C]">{money(item.remaining)} {t.leftText}</span>
+                    <span className="onboarding-rule-value ml-auto font-semibold text-brand-ink">{money(item.amount)}</span>
+                    <span className="onboarding-rule-remaining min-w-0 ml-auto text-right text-[#65748C]">{money(item.remaining)} left</span>
                   </div>
                 ))}
-                <div className="py-3.5 px-1 flex items-center justify-between text-xs sm:text-sm text-[#5E6B7E]">
-                  <span>{t.leftoverToMainLabel}</span>
+                <div className="py-3.5 px-1 flex items-center justify-between text-xs sm:text-sm text-brand-muted">
+                  <span>Leftover → Main</span>
                   <span>0.00</span>
                 </div>
                 <div className="pt-2">
-                  <div className="border-t-2 border-[#DDE3EA]" />
-                  <div className="onboarding-receipt-total py-2.5 px-1 flex items-center justify-between text-sm font-bold text-[#1A2330]">
-                    <span>{t.totalLabel}</span>
+                  <div className="border-t-2 border-border-subtle" />
+                  <div className="onboarding-receipt-total py-2.5 px-1 flex items-center justify-between text-sm font-bold text-brand-ink">
+                    <span>Total</span>
                     <span className="inline-flex items-center gap-4">
-                      {money(total)} <Check className="w-3.5 h-3.5 text-[#1F7A3A]" />{' '}
-                      {t.checksOutBadge}
+                      {money(total)} <Check className="w-3.5 h-3.5 text-status-success" />{' '}
+                      Checks out
                     </span>
                   </div>
                 </div>

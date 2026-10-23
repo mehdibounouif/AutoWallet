@@ -8,7 +8,10 @@
 .activity-filter-scroll { display: flex; align-items: center; gap: 7px; min-height: 28px; }
 .activity-filter-wrap { position: relative; flex: 0 0 auto; }
 .activity-filter-chip { overflow-wrap: anywhere; display: inline-flex; align-items: center; gap: 5px; min-height: 27px; max-width: 270px; padding: 2px 10px; border: 1px dashed var(--aw-border, #9eacc0); border-radius: 999px; background: var(--aw-surface, #fff); color: var(--aw-ink, #37465d); font-size: 12px; font-weight: 600; white-space: normal; }
-.activity-filter-chip:hover, .activity-filter-chip[aria-expanded="true"] { border-color: var(--aw-accent, #5963b6); color: var(--aw-accent, #4c57a9); }
+.activity-filter-chip:hover:not(:disabled), .activity-filter-chip[aria-expanded="true"] { border-color: var(--aw-accent, #5963b6); color: var(--aw-accent, #4c57a9); }
+.activity-filter-chip:disabled { opacity: .65; cursor: not-allowed; }
+.activity-metadata-notes { margin-bottom: 20px; }
+.activity-metadata-notes .workspace-note:first-child { margin-top: 0; }
 .activity-filter-chip--selected { border: 1px solid transparent; background: var(--aw-selected, #e9ebfa); color: var(--aw-accent, #4f59aa); }
 .activity-filter-chip svg { flex: 0 0 auto; }
 .activity-clear { display: inline-flex; align-items: center; gap: 2px; padding: 4px 5px; color: var(--aw-accent, #5d68b7); font-size: 12px; font-weight: 600; white-space: nowrap; }

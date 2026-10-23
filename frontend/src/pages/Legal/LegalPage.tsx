@@ -207,7 +207,7 @@ const documents: Record<LegalPageProps['document'], LegalDocument> = {
 
 function ContactLink() {
   return (
-    <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-[#4A53A0] underline">
+    <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-action-primary-hover underline">
       {CONTACT_EMAIL}
     </a>
   )
@@ -217,52 +217,52 @@ export function LegalPage({ document }: LegalPageProps) {
   const content = documents[document]
 
   return (
-    <div className="min-h-screen bg-[#F3F6FA] flex flex-col">
+    <div className="min-h-screen bg-brand-surface flex flex-col">
       <TopBar />
       <main className="w-full max-w-[760px] mx-auto flex-1 px-4 py-8 sm:py-12">
-        <article className="rounded-2xl border border-[#DDE3EA] bg-white p-6 sm:p-10 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#5A64B4]">AutoWallet</p>
-          <h1 className="mt-2 text-3xl font-bold text-[#1A2330]">{content.title}</h1>
-          <p className="mt-1 text-sm text-[#5E6B7E]">Last updated: {LAST_UPDATED}</p>
-          <p className="mt-3 text-[#5E6B7E] leading-relaxed">{content.intro}</p>
+        <article className="rounded-2xl border border-border-subtle bg-white p-6 sm:p-10 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-action-primary">AutoWallet</p>
+          <h1 className="mt-2 text-3xl font-bold text-brand-ink">{content.title}</h1>
+          <p className="mt-1 text-sm text-brand-muted">Last updated: {LAST_UPDATED}</p>
+          <p className="mt-3 text-brand-muted leading-relaxed">{content.intro}</p>
           <div className="mt-8 space-y-7">
             {content.sections.map((section) => (
               <section key={section.title}>
-                <h2 className="text-lg font-semibold text-[#1A2330]">{section.title}</h2>
+                <h2 className="text-lg font-semibold text-brand-ink">{section.title}</h2>
                 {section.pageLink && (
-                  <p className="mt-2 text-sm leading-7 text-[#3B495D]">
+                  <p className="mt-2 text-sm leading-7 text-brand-navy">
                     {section.pageLink.before}{' '}
-                    <Link to={section.pageLink.to} className="font-medium text-[#4A53A0] underline">
+                    <Link to={section.pageLink.to} className="font-medium text-action-primary-hover underline">
                       {section.pageLink.label}
                     </Link>
                     {section.pageLink.after}
                   </p>
                 )}
                 {section.paragraphs?.map((paragraph) => (
-                  <p key={paragraph} className="mt-2 text-sm leading-7 text-[#3B495D]">
+                  <p key={paragraph} className="mt-2 text-sm leading-7 text-brand-navy">
                     {paragraph}
                   </p>
                 ))}
                 {section.items && (
-                  <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-7 text-[#3B495D]">
+                  <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-7 text-brand-navy">
                     {section.items.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
                 )}
                 {section.contactLine && (
-                  <p className="mt-2 text-sm leading-7 text-[#3B495D]">
+                  <p className="mt-2 text-sm leading-7 text-brand-navy">
                     {section.contactLine} <ContactLink />.
                   </p>
                 )}
               </section>
             ))}
           </div>
-          <p className="mt-8 rounded-xl bg-[#ECEEFA] px-4 py-3 text-sm text-[#3B495D]">
+          <p className="mt-8 rounded-xl bg-action-primary-subtle px-4 py-3 text-sm text-brand-navy">
             AutoWallet is a student project (ft_transcendence at 1337, part of the 42 network). Questions about this
             page or your data? Write to <ContactLink />.
           </p>
-          <nav aria-label="Account and legal pages" className="mt-8 flex flex-wrap gap-5 text-sm font-medium text-[#4A53A0]">
+          <nav aria-label="Account and legal pages" className="mt-8 flex flex-wrap gap-5 text-sm font-medium text-action-primary-hover">
             <Link to="/login" className="hover:underline">Back to login</Link>
             <Link to={document === 'terms' ? '/privacy' : '/terms'} className="hover:underline">
               {document === 'terms' ? 'Privacy Policy' : 'Terms of Service'}

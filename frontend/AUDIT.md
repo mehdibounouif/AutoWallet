@@ -1,109 +1,265 @@
-# Frontend audit — October 21, 2026
+# Frontend audit — October 22, 2026
 
-## Current scope
+## Scope and repository state
 
-The frontend includes authentication, onboarding, Home, Envelopes and details, Rules, Activity and payment details, Analytics, Assistant, Notifications, Sandbox, and Settings. This update builds on PR #60's reconciled dashboard. Backend code and QA-owned tests are unchanged.
+Audited commit `f1699be` on `feature/frontend-form-accessibility-docs`, after fetching origin and fast-forwarding to the current `origin/main`. PR #113 is already merged; its conflict resolution is included. No new conflict remains.
 
-## Latest fixes and optimizations
+This audit covers the React routes, API clients, response schemas, authentication and onboarding, dashboard data loading, payment previews, Settings, real-time transport, responsive layouts, accessibility automation, dependencies, file reachability, and production/development routing.
 
-- Update Vite to 8.3.3 and refresh its required build dependencies; the dependency audit reports zero vulnerabilities.
-- Disable all Rules amount, percentage, slider, and savings-cap inputs during saving and reconciliation.
-- Protect dashboard bank linking and password recovery/reset against input changes and navigation during submission. Reset-link success copy and resends use the submitted email address.
-- Separate envelope actions from descriptive content while preserving full-card pointer activation and keyboard focus. Use visible content for mobile Activity button names and include avatar initials in the account-menu name.
-- Integrate main's GDPR gateway authorization and payment splits in JSON/CSV exports. Regular transaction responses still lack historical dates and allocations. Active Compose now configures the gateway origin as `https://localhost`.
-- Keep security panels stable during recovery-code generation: disable competing two-factor actions until the request settles so the recovery form stays mounted and can display its new codes or error.
-- Bound long payment-reference breadcrumbs within the dashboard header at tablet/desktop widths. Shared breadcrumb styles now live with the shared header; search and account controls stay on screen.
-- Give signup receipt percentage chips intrinsic column space beside their run status. Large amounts wrap/stack within balances, receipts and split previews instead of widening their containers; native inputs remain bounded.
-- Accept omitted zero-value wallets only when the recorded payment split is complete. Preserve explicitly returned wallet amounts and require history to reconcile with the current balance; missing or unconfirmed allocations remain unavailable.
-- Improve onboarding envelope-note/badge contrast, give Analytics histogram bars valid image semantics, and make the horizontally scrolling API example a named keyboard-focusable region.
-- Protect signup registration, onboarding rule saving, and final sign-in against Back/Forward navigation and reload, including requests made before a sign-in token exists. Release protection before response-driven redirects, reject duplicate submissions, preserve non-secret drafts, and offer prefilled sign-in recovery when account creation cannot be confirmed.
-- Centralize readable light-theme muted text and shared status-pill foregrounds. Home and payment fallback text now use the shared theme token; obsolete dark-mode utility overrides are removed. Status pills and success notices retain readable foreground/background pairs in both themes.
-- Coordinate pending payment recording, account-deletion requests, rule saves, and security/recovery flows through one router blocker. Keep pending dialogs mounted on Back/Forward and warn before reload/close; show the result and release navigation after completion. Session cleanup and account-deletion redirects remain allowed.
-- Bound Activity loading placeholders to the container and wrap mobile month headings/totals, including 60-payment histories at 320px. Use existing theme tokens for Activity, Envelopes, Rules, dashboard links, Analytics and Assistant interaction colors so hover/selected states and priority badges stay readable in dark mode.
-- Return keyboard focus to menu triggers after Escape without moving focus on outside clicks or interfering with modal dialogs. Correct the README's obsolete unsupported-2FA claim and document the extracted dashboard loading/navigation components.
-- Guard pending starter-rule saves against router navigation and page unload. Refresh cached resources after success or uncertain outcomes before finishing the save flow; session cleanup remains allowed.
-- Load payment notifications on demand from Settings, with distinct loading, failure/retry and empty states. Keep full-page read history after marking it read; the compact popover remains unread-only.
-- Report login service failures, invalid credentials and rate limits separately. Respect a bounded Retry-After cooldown. Support the backend's default `/auth/reset-password` URL alongside `/reset-password`, preserving the token.
-- Extract account/resource loading into `useDashboardData`, cache successful resources individually for 30 seconds, and fetch missing/stale resources needed by each page. Activity and Notifications do not require wallets or rules. Settings remains independent of money services. Forced refreshes reconcile already-loaded resources after writes/live events; token replacement discards the cache.
-- Extract sidebar/mobile navigation and Analytics results from their parent views. Add current-page semantics, route titles/announcements, a skip link, route focus handling that preserves search/form focus, and explicit onboarding field-error associations.
-- Add mobile Activity sorting controls, safe pruning of removed notification IDs after complete history reads, and visible Assistant clipboard errors. Clarify unavailable profile/Google-linking actions and the UTC Analytics versus local Activity date boundary.
-- Enable TypeScript strict checks for application source. QA-owned test files/configuration remain unchanged.
-- Preserve the integrated main changes: 2FA disabling, Rules gateway authorization, PostgreSQL example settings, and WebSocket authentication/origin/connection management. Security settings use password plus exactly one second factor to disable 2FA, reconcile already-off/uncertain outcomes, and protect pending requests and unsaved recovery codes.
-- Preserve corrected Activity sorting, immutable Assistant previews, independent resource errors, combined-name validation/FastAPI field errors, shared preview calculations, 25-row Activity pagination, and the friendly route error screen.
+The initial audit updated this document. The subsequent frontend fix pass addresses F1–F4 below in application code and development configuration. Backend source, QA-owned tests, and test configuration were not edited. The existing local README, presentation, and design files were preserved.
 
-### Remaining pagination dependency
+## English copy and shared styling follow-up
 
-Activity pagination currently limits rendered rows, not the API response size. The backend still returns the entire transaction list. Server pagination requires an agreed cursor/page, total/count, filter, and sorting contract, with corresponding frontend integration. No backend routes or response schemas were changed.
+The later refactor was performed in two passes: English copy first, shared styling
+second. Page-specific text now lives in the component that renders it; reused
+validation and service messages live in `src/content/messages.ts`. Runtime
+translation imports, translation props, the locale file, and the translation type
+were removed. `src/i18n/index.ts` temporarily retains only 24 compatibility strings
+for the unchanged QA-owned tests. Application code does not import it.
 
-## Completed frontend work
+`src/components/ui/` now owns the Tailwind styles for buttons, text inputs, workspace
+cards, notices, and authentication panels. Links reuse the same style helpers.
+Shared dialogs use Tailwind utilities directly. Semantic color utilities replace
+repeated color literals, and workspace tokens preserve light/dark behavior,
+including portal dialogs. Duplicate control CSS and obsolete theme overrides were
+removed. Page composition, tables, charts, and payment-graphic CSS remain.
 
-- Integrated interactive analytics charts and formatted AI responses into the existing dashboard; the older `/analytics`, `/assistant`, and `/account/privacy` URLs redirect to dashboard pages.
-- Preserved one shared SSE reader, validated API clients, authenticated payment refresh, reconnect/resynchronization, and cancellation on navigation.
-- Connected recovery-code login using `recovery_code`, with the backend's 32-character hexadecimal format. Passwords stay in memory during the login handoff.
-- Displayed recovery codes returned by 2FA activation, with copy/download and explicit dismissal. Codes are held in component memory, never local/session storage. Internal navigation and browser Back/Forward are guarded during code generation and ask for confirmation before discarding unacknowledged codes; closing/reloading the page uses a browser warning. Sign-out and session replacement clear codes without blocking account cleanup.
-- Added recovery-code regeneration using the current password and authenticator code. Incorrect credentials preserve the signed-in session; unknown replacement outcomes explain how to recover. The backend requires a password, so Google-only accounts cannot use this replacement endpoint.
-- Connected email verification and resend, including invalid/expired links, cooldowns, and service errors. Both `/verify-email` and the backend's `/auth/verify-email` link path work. StrictMode effect replay reuses the verification request so it does not consume a token twice.
-- Added visible verification/resend links in Profile settings and after signup registration. Signup opens the verification screen in a separate tab to preserve onboarding progress and in-memory credentials. The profile does not claim a verified status that the API does not provide.
-- Synchronized authentication token changes across tabs, including logout, account replacement, and browser-storage clearing. Replacing the dashboard session unmounts old account data, conversations, pending requests, and live-update subscriptions. Expired tokens still use the session-ended screen.
-- Removed unused styles for the replaced analytics stacked-column implementation; histogram styles remain in use.
-- Reused the Dashboard/Sandbox rule engine in signup's Try a payment preview. Starter rules use zero starting balances; fractional cents are retained during calculation and rounded for display, matching the current backend rule engine.
-- Kept the existing input validation, rule saving, cross-tab notification read state, payment error handling, responsive layouts, and theme support.
+Validation messages remain associated with their inputs, and shared inputs use
+`aria-invalid` for error styling. `STYLING.md` explains these conventions and the
+temporary QA compatibility adapter. Backend API clients and real-time transports
+were not changed by this refactor. The backend dependencies below still apply.
 
-## Backend endpoint coverage
+Verification after the refactor:
 
-| API | Frontend use |
+- Lint and production build pass; all 68 existing tests pass without editing QA tests.
+- 224 browser screen checks cover 28 routes at 320, 390, 768, and 1440 pixels in
+  light and dark themes, with no page overflow or automated accessibility violations.
+- 34 additional browser checks cover large amounts and long references, Activity
+  without metadata, both second-factor methods, shared retry cooldowns, pending
+  navigation, success/error completion, dialog accessibility, validation focus,
+  keyboard payment submission, API payloads, and onboarding footer navigation.
+- These browser checks use controlled API responses. They verify frontend behavior
+  and request contracts; they do not establish that the current Compose database
+  or unfinished backend services are operational.
+- The README, presentation, backend source, and QA tests remain unchanged by this
+  refactor.
+
+### Later local connection verification
+
+The normal Compose stack subsequently started successfully with PostgreSQL 18;
+the database, backend, gateway, and frontend reported healthy. This verifies
+current startup, not preservation or migration of the earlier PostgreSQL 16 data.
+
+The login endpoint responded through Caddy at `https://localhost`. Vite on port
+5173 initially returned HTTP 502 because Caddy's local certificate was not trusted.
+Configuring `API_PROXY_CA_FILE` with Caddy's public root certificate restored API
+forwarding. An empty login POST through Vite then returned the backend's expected
+HTTP 422 missing-field response. No real credentials were used for this check.
+The machine-specific `.env.local` and certificate remain ignored by Git; the
+portable configuration and setup instructions are included in the frontend.
+
+## Recent upstream changes
+
+- Login now limits failed second-factor attempts using Redis: five failures within the configured window result in HTTP 429 with `Retry-After: 300`. An initial password-only request still returns `401 / 2FA code required`, preserving the frontend handoff.
+- Compose now supplies Mailpit SMTP settings and the verification URL `https://localhost/auth/verify-email`.
+- Infrastructure cleanup makes Caddy responsible for `/api/*` and `/ws`; frontend nginx serves the SPA and assets.
+- Compose upgrades PostgreSQL to 18 with a changed volume mount layout, Redis to 8.10, and pins Mailpit. Backend development dependencies and CI tests were adjusted.
+- These commits add no new browser-facing API route or usable WebSocket application event. The frontend's existing route coverage still applies.
+
+## Frontend findings resolved in the working tree
+
+### F1 — Shared 2FA retry cooldown
+
+`src/pages/Auth/TwoFactorCard.tsx` now honors HTTP 429 and the backend's numeric `Retry-After`, with a 60-second fallback and 900-second upper bound. Both TOTP and recovery-code controls display the remaining wait and disable submissions, including OTP auto-submit. Switching methods preserves the same cooldown. The existing countdown hook is reused.
+
+Verified at 320px and 1440px: retries do not issue requests while waiting; the recovery-code modal retains the cooldown; expiry re-enables sign-in; successful sign-in reaches the dashboard. Missing, invalid, zero, fractional, and excessive Retry-After values were checked.
+
+### F2 — Pending second-factor sign-in protection
+
+Both sign-in methods register the shared navigation guard, including when signed out. Back navigation and unload are protected while verification is pending, with the notice visible inside the recovery modal when it is open. A synchronous pending predicate releases protection before successful token installation and navigation. Errors release the guard and keep the result visible; uncertain recovery-code outcomes retain their explanatory message.
+
+Verified both methods at 320px and 1440px with successful, invalid-credential, service-error, and interrupted responses. Back remained on the verification screen during requests, unload warnings were active, success redirects worked after blocked navigation, and warnings were removed after completion.
+
+### F3 — Activity filters reflect available metadata
+
+`src/pages/Dashboard/ActivityView.tsx` now requires received dates for every payment before enabling date filtering, and complete recorded splits for every payment before enabling envelope filtering. Visible notices report missing-data counts. Mixed histories are treated as incomplete rather than silently omitting unknown payments.
+
+When refreshed data becomes incomplete, only the affected date/envelope selections and menu are cleared. Search, amount, and status filters remain available. Empty histories have disabled metadata filters without misleading missing-data messages. Complete sparse splits remain supported by the shared split-completeness helper.
+
+Verified empty, complete, missing, and mixed histories in light/dark themes at 320px and 1440px, including a refresh from complete to incomplete data. These states did not produce page overflow or automated accessibility violations.
+
+### F4 — Development proxy configuration matches Compose
+
+`vite.config.ts` now defaults `/api` to Caddy at `https://localhost`, reads server-only `API_PROXY_` settings from Vite environment files or the shell, and accepts `API_PROXY_CA_FILE` for a trusted local public CA. HTTPS certificate verification remains enabled. A direct host backend is supported with `API_PROXY_TARGET=http://127.0.0.1:8000`.
+
+[DEVELOPMENT.md](DEVELOPMENT.md) documents copying Caddy's public root certificate, setting `.env.local`, starting Vite, and choosing the direct-host alternative. `.env.example` provides the supported settings. Local certificate files are ignored through `.certs/`.
+
+Temporary HTTP and HTTPS servers verified forwarding of the request method, JSON body, Bearer authorization, and SSE. A trusted test certificate succeeded; an untrusted certificate was rejected. These checks exercise the actual Vite configuration. The initial database startup failure was separate from proxy configuration; the later local connection verification above records the now-running stack. A local Caddy CA must be trusted by Node or supplied through `API_PROXY_CA_FILE` as documented.
+
+### Fix verification
+
+- Lint, production build, and all 68 existing tests pass.
+- 59 focused browser checks pass: 36 layout/accessibility checks and 23 behavior checks, covering the flows above. Controlled responses were used; the backend was not modified.
+- Three proxy scenarios pass: HTTP forwarding, trusted HTTPS forwarding, and untrusted HTTPS rejection. Both successful transports preserve authentication and SSE.
+- Temporary verification scripts are outside the repository; QA-owned tests remain unchanged.
+- Prior audit results below describe the original base revision. The focused checks in this section cover the subsequent frontend fixes.
+
+## Backend and deployment dependencies
+
+### B1 — Initial PostgreSQL volume startup failure (historical)
+
+`docker compose up -d --build` built the backend, gateway, simulator, and frontend successfully. PostgreSQL then exited because the existing data volume uses the earlier layout/version. Its log reports existing data at `/var/lib/postgresql` and requires an appropriate upgrade/migration for PostgreSQL 18. Dependent backend/frontend services could not start.
+
+**Owner:** infrastructure/database. The old volume was confirmed as PostgreSQL 16. The normal stack now runs PostgreSQL 18, but preservation of the previous data has not been verified. Any remaining old data requires a backup and compatible migration or restore; do not delete an existing volume as a shortcut.
+
+A separate Compose project with a fresh disposable PostgreSQL 18 volume started successfully and was used for live integration verification. The original volume was preserved. Temporary audit containers/volumes were removed afterward; services started during the normal-stack attempt were stopped again. Rebuilt images and recreated stopped containers remain locally.
+
+### B2 — WebSocket transport is incomplete
+
+`api-gateway/src/websocket/websocket.server.ts` exposes `/ws`, validates Origin, authenticates a cookie, and manages connections. However:
+
+- `api-gateway/src/redis/subscriber.ts` is empty.
+- `api-gateway/src/websocket/event.handler.ts` is empty.
+- The socket sends a connection greeting and `test.ack`; payment, wallet, rule, and security events are not forwarded.
+- The frontend login uses a Bearer token in local storage. No server-issued WebSocket cookie or connection ticket is supplied by that flow.
+- A real browser with a valid frontend login was rejected by `/ws` in the isolated stack, where Origin was configured to match the audit browser.
+
+**Owners:** gateway/WebSocket plus authentication, followed by frontend integration. Define and implement the authentication handshake, user-scoped Redis subscription/event forwarding, payload schema, and reconnect/resynchronization contract. Do not make a JavaScript-written auth cookie the workaround.
+
+Current live payments use authenticated **SSE**, not WebSocket. This works and does not need to be removed before a replacement is ready. There are no implemented WebSocket business events that the frontend has overlooked.
+
+### B3 — Transaction details remain incomplete
+
+`backend/app/api/schemas.py::TransactionOut` still omits transaction dates and persisted allocations, although processing stores allocations and GDPR/Analytics exports expose them. Live `GET /api/transactions/` confirmed the four-field response.
+
+**Owner:** backend. Add `created_at` with an explicit timezone and the actual allocation mapping; keep user ownership checks and stable ordering. Agree on server pagination/filtering/sorting before histories become large.
+
+**Affected frontend:** Activity dates/envelope filters, Home's recorded split, Payment details/receipts, envelope ledgers, last-payment Assistant charts, and Analytics payment-size/variability charts. The frontend deliberately avoids reconstructing historical splits from current rules. Aggregate Analytics totals and allocation charts work independently.
+
+### B4 — Account/security metadata and account operations
+
+Live `GET /api/auth/me` still returns only `id`, `full_name`, `email`, and `bank_account_id`.
+
+**Owner:** backend. Expose supported metadata such as `two_factor_enabled`, `email_verified`, and sign-in method. Currently Settings uses password confirmation or a user-requested GDPR JSON export to discover some security information; it cannot reliably show verification status directly.
+
+Remaining contracts include profile updates, password changes, session listing/revocation, Google-account linking, and personal API-key creation/listing/revocation. Corresponding unavailable controls are explicit. Google-only accounts also need an agreed reauthentication method for disabling 2FA or regenerating recovery codes, because those routes currently require a password.
+
+### B5 — Password recovery/reset routes are still absent
+
+The frontend has forms for `POST /api/auth/password/forgot` and `POST /api/auth/password/reset`, including pending-state protection and `/auth/reset-password` routing. Both API paths returned HTTP 404 in the current isolated backend. Configuration fields for a reset URL/TTL do not implement these routes.
+
+**Owner:** authentication/backend. Implement the request/response and token contracts, SMTP delivery, expiry/single use, rate limiting, and account-enumeration-safe behavior. Then verify the full frontend email-to-reset flow.
+
+### B6 — OAuth and AI configuration remain incomplete
+
+- `FRONTEND_GOOGLE_CALLBACK_URL` is unset in the active Compose environment. The backend constructs its final OAuth redirect from this setting. Configure the actual frontend callback and the provider redirect consistently; external Google completion was not exercised in this audit.
+- Current Compose does not forward AI provider configuration to the backend. Both chat endpoints returned the expected “not configured” HTTP 503 in the live check. Wire the agreed provider settings/key before expecting generated answers. Local Assistant previews/charts are separate features.
+- Mailpit SMTP integration is now working in the isolated stack: registration verification and GDPR deletion email delivery were tested. External production email delivery remains a separate deployment check.
+
+### B7 — Planned product operations have no backend contract yet
+
+| Feature | Current frontend state | Work needed |
+| --- | --- | --- |
+| Custom rules, duplication, pause, deletion, reordering | Existing starter-rule edits work; other controls are disabled | Rules API and validation, then frontend mutations |
+| Transfers, spending, marking rent paid | Clearly unavailable actions | Money-operation endpoints, accounting rules, transaction history/events |
+| Notification preferences/read status across devices | Browser-local preferences/read IDs; notifications derived from payments | Notification storage/API/events |
+| Financial health score | Explicit unavailable state | Agreed calculation and data contract |
+| Currency precision and amount ceilings | Shared frontend preview matches current floating-point engine | Joint backend/frontend policy for rounding, precision, and supported limits |
+
+## Endpoint coverage
+
+These are source-verified connections. Live evidence is identified separately; it is not a claim that every UI variation or external provider was tested.
+
+| Backend route | Frontend consumer | Verification/status |
+| --- | --- | --- |
+| `POST /api/auth/register` | Onboarding account step | Live success and duplicate email/bank rejection; complete fixture signup flow |
+| `POST /api/auth/login` | Login, 2FA, onboarding, Settings confirmation | Live password/TOTP/recovery login; 429 contract verified; F1/F2 subsequently fixed |
+| `GET /api/auth/me` | Dashboard and Settings account loader | Live; metadata limits apply |
+| `POST /api/auth/link-bank-account` | Dashboard account-link form | Source and existing component test; success not repeated live |
+| `GET /api/auth/oauth/google/login` | Google sign-in button | Source; provider configuration required |
+| `GET /api/auth/oauth/google/callback` | Provider-to-backend callback | Server-side part of browser OAuth; external flow not completed |
+| `POST /api/auth/oauth/google/exchange` | `GoogleCallbackPage` | Source and existing tests; external callback configuration required |
+| `POST /api/auth/email/verify` | `VerifyEmailCard`, including `/auth/verify-email` | Real Mailpit link opened in browser; frontend submission succeeded |
+| `POST /api/auth/email/resend` | Verification/resend form | Source and live generic response; delivery tested through registration |
+| `POST /api/auth/2fa/setup` | Security Settings | Live API setup |
+| `POST /api/auth/2fa/verify` | Security Settings and recovery-code display | Live activation returned recovery codes |
+| `POST /api/auth/2fa/recovery-codes/regenerate` | Recovery Codes panel | Live replacement succeeded |
+| `POST /api/auth/2fa/disable` | Disable 2FA form | Live disable succeeded |
+| `GET /api/wallets/` | Dashboard, Envelopes, previews, Analytics/Assistant context | Live balance reads and browser SSE refresh |
+| `GET /api/rules/` | Rules and shared preview engine | Live reads |
+| `PATCH /api/rules/onboarding` | Onboarding and Rules editor | Live save succeeded |
+| `GET /api/transactions/` | Home, Activity, details, notifications, chart context | Live; missing metadata confirmed |
+| `POST /api/transactions/` | Record Payment dialog | Live payment processing; resulting UI refresh verified |
+| `GET /api/analytics/summary` | Analytics overview | Live API and rendered report |
+| `GET /api/analytics/timeseries` | Analytics charts | Live API and rendered report |
+| `GET /api/analytics/export?format=csv|pdf` | Analytics export controls | Both live formats returned successfully |
+| `GET /api/analytics/live` | Shared payment-update subscription | Real browser payment-triggered refresh |
+| `POST /api/ai/chat/stream` | Assistant | Connected; live 503 confirms missing provider configuration |
+| `POST /api/ai/chat` | No frontend consumer | Intentional alternative; frontend uses streaming version |
+| `GET /api/gdpr/export?format=json|csv` | Privacy Settings | Live JSON/CSV ZIP; persisted splits available in export |
+| `POST /api/gdpr/delete-request` | Privacy deletion dialog | Live request and Mailpit delivery |
+| `POST /api/gdpr/delete-confirm` | Privacy deletion dialog | Live deletion of disposable audit account |
+
+Backend health checks, gateway authorization/health, and bank-simulator routes are infrastructure/service interfaces. They do not each need a frontend component. Password-recovery routes listed in B5 are frontend calls without backend implementations, not connected working endpoints.
+
+## Real-time coverage
+
+The backend publishes `payment.processed` to `events:user:{user_id}`. `/api/analytics/live` sends `ready` and `payment` SSE events. `api/paymentLiveApi.ts` validates the payload, and `usePaymentLiveUpdates` batches refreshes, retries with backoff, resynchronizes after reconnect, and suspends while hidden/offline or viewing Settings.
+
+| Component | Current refresh path | Boundary |
+| --- | --- | --- |
+| Home balances and recent payments | SSE triggers account/resource reload | Recorded split still depends on transaction metadata |
+| Envelopes and envelope details | Same reload refreshes wallets/rules/history | Ledger requires persisted per-payment allocations |
+| Activity and payment details | Same reload refreshes transactions | Dates/splits absent in current response |
+| Payment notifications and badge | Derived from refreshed transaction history | Read state is browser-local; Settings pauses SSE |
+| Analytics | Refreshed dashboard data triggers summary/timeseries reads | Payment-size details require dated transactions |
+| Sandbox and Assistant account context | Updated wallet/rule props | Existing Assistant preview messages deliberately retain their original snapshot |
+| Assistant answer generation | Separate POST SSE stream | Provider not configured in current Compose |
+| Rule/profile/security changes elsewhere | No dedicated live event | Own writes refresh/reconcile; unrelated external edits need refresh/new events |
+
+Real proof: posting an 8,500 MAD payment through the isolated backend changed the signed-in browser's free balance from 0.00 to 4,680.00 MAD without manual refresh, using the edited starter rules.
+
+## Organization, redundancy, and performance
+
+- All 100 files under `src` were reachable from the application entry point in the static relative-import scan. No identical source files were found by file hashing.
+- ESLint and TypeScript strict/unused-local/unused-parameter checks passed. These checks do not prove every CSS selector or exported symbol is used in every state; no confirmed unused source file warrants deletion from this audit.
+- `react-is` is required as a Recharts peer dependency even though application files do not import it directly. It should not be removed based on a text search.
+- HTTP timeout/error parsing, wallet types, SSE parsing, money/date formatting, previews, dialogs, and pending navigation already have shared helpers. After the follow-up refactor, application copy is directly in components, with a small shared message module. The remaining `i18n` export serves only the existing QA tests.
+- Route-based loading separates Analytics, Assistant, Settings, onboarding, and secondary auth pages. Build output is approximately 110 KB gzip for the main JS chunk, 29 KB for the dashboard, and 119 KB for the lazy Analytics chunk. There was no build size warning.
+- The dashboard loads resources according to the current page and caches successful reads for 30 seconds. Settings does not depend on wallet/rule/transaction services to render.
+- Activity renders 25 rows per page, but still downloads/filter-sorts the complete API history. Server pagination is the meaningful scaling improvement; changing the UI page size alone does not solve network/memory growth.
+- `OnboardingPage.tsx` remains the largest controller (625 lines). Extracting its request orchestration from rendering is an optional maintainability improvement, with behavior preserved. No rewrite is needed for correctness solely because of file size.
+- Session-token reads remain scattered despite `auth/session.ts`. Reusing its accessor is a small consistency improvement, not a demonstrated normal-browser failure.
+
+## Verification performed on the audited base revision
+
+| Check | Result |
 | --- | --- |
-| `POST /api/auth/register`, `/api/auth/login` | Registration, password/TOTP/recovery-code sign-in |
-| `GET /api/auth/me`, `POST /api/auth/link-bank-account` | Account reads and bank ID linking |
-| Google OAuth login, callback, exchange | Browser OAuth flow and one-time exchange |
-| `POST /api/auth/email/verify`, `/api/auth/email/resend` | Verification link and resend screen |
-| `POST /api/auth/2fa/setup`, `/api/auth/2fa/verify` | Authenticator activation and recovery-code display |
-| `POST /api/auth/2fa/recovery-codes/regenerate` | Replace recovery codes in Security settings |
-| `POST /api/auth/2fa/disable` | Confirm password plus TOTP or recovery code to disable 2FA |
-| `GET /api/wallets/`, `GET/POST /api/transactions/` | Balances, activity and payment recording |
-| `GET /api/rules/`, `PATCH /api/rules/onboarding` | Rule reads and existing starter-rule edits |
-| Analytics summary, timeseries and export | Filtered charts, CSV and PDF downloads |
-| `GET /api/analytics/live` | Authenticated SSE events trigger fresh dashboard/analytics reads |
-| `POST /api/ai/chat/stream` | Streamed Assistant responses; non-streaming chat is intentionally unused |
-| GDPR export, delete-request and delete-confirm | JSON/CSV exports and email-confirmed deletion |
+| `npm run lint` | Passed |
+| `npm run build` | Passed, including strict TypeScript checks |
+| `npm test` | 68/68 tests across 12 files passed |
+| `npm audit --json` | Zero reported vulnerabilities |
+| Production Docker builds | Backend, gateway, simulator, frontend built successfully |
+| Normal local Compose startup | Failed on existing PostgreSQL volume; B1 |
+| Isolated Compose startup | Healthy with fresh temporary database |
+| Live HTTP checks | 35/35 expected statuses, including intentional 400/401/404/503 cases |
+| Browser real integration | Login/dashboard, real SSE balance update, Activity fallback, Analytics report, email verification passed; no uncaught browser exceptions |
+| Standard route/layout matrix | 26 routes × 4 widths × 2 themes = 208 cases; no page overflow, automated WCAG-tagged axe violations, or uncaught page exceptions |
+| Large-value layout matrix | 5 financial routes × 3 widths × 2 themes = 30 cases; large balances and long references stayed within page bounds, no detected axe violations |
+| Onboarding | All 5 steps plus simulated-result state at 320/768/1440px: 18 layout checks passed; 3 storage checks found no password in local/session storage |
+| Targeted regressions | Initial audit reproduced F1/F2/F3; subsequent fixes verified separately above |
+| Local documents | README and presentation hashes unchanged; design files preserved |
 
-Settings reads account data independently of money services. Local previews do not record payments. Themes, payment-alert preferences, and notification read IDs remain browser preferences.
+Widths used for the standard matrix: 320, 390, 768, and 1440px. Themes: light and dark. Financial large-value cases used 320, 768, and 1440px. Browser checks used Chromium, reduced motion, and blocked external fonts to exercise fallback fonts. Selected mobile screenshots were visually inspected. These checks do not establish exact Figma matching, Safari/Firefox behavior, all assistive-technology behavior, or every modal/error/input combination.
 
-## Remaining backend and deployment dependencies
+Layout and targeted regression scripts use controlled responses. Live checks use a separate stack and disposable accounts. Security endpoints were exercised directly; the full recovery-code display/copy/download UI was reviewed in source rather than repeated against the live backend. Google consent/callback completion and external AI/production SMTP delivery remain unverified.
 
-- The latest read-only runtime check found no running Compose services and no backend listening at `http://127.0.0.1:8000`. An earlier runtime check found an older API missing newer routes, but that service is no longer available to inspect. Start/rebuild the intended stack or configure the correct proxy target, then verify authenticated workflows. Source/fixture checks do not confirm deployed backend behavior.
-- Transaction responses still omit `created_at` and persisted `allocations`; complete historical split bars, ledgers, receipts and per-payment analysis require those fields. Aggregate Analytics APIs are connected separately.
-- `/api/auth/me` lacks security metadata. The current security-status workaround uses password confirmation or a user-requested JSON export. The backend rejects setup for an already-enabled authenticator; concurrency behavior remains backend-owned.
-- `/api/auth/me` also omits email-verification status, so Settings offers verification/resend without showing a verified/unverified badge.
-- Password recovery/reset, profile/password updates, session revocation, personal API keys, notification preferences, custom-rule create/delete/reorder/pause, and money transfers still need backend contracts. Their unavailable controls remain explicit.
-- Google OAuth, verification/deletion emails, and external Assistant responses require working provider, SMTP and AI configuration. UI checks with fixtures do not verify provider delivery.
-- Bank ID validation in the frontend accepts 3–50 digits. Ownership verification and matching backend validation remain separate backend work.
-- The current backend uses floating-point money calculations. Shared previews now agree with it, but a future currency-rounding policy must change processing and previews together; displayed allocations can still reflect independent rounding to cents.
-- Production frontend Docker/nginx, SPA fallback, API proxying and Compose integration now exist. The earlier note that the Dockerfile was empty is obsolete.
-- Main now includes the restored `Allocation` model and transaction relationship. The earlier missing-model startup finding is resolved in source; deployed payment processing and Analytics still need live verification.
+Temporary scripts and detailed results are in `/tmp/autowallet-audit-oct22/` for this session, including `layout-results.json`, `edge-results.json`, `signup-results.json`, `filter-results.json`, and `live-results.json`. They are outside QA-owned files and are not part of the commit. Temporary stack resources were removed and the audit dev server stopped.
 
-## Verification and limits
+## Remaining work
 
-October 21 fix verification: lint, production build, and all 68 existing tests pass. Temporary browser checks pass for 30 combinations of five affected routes, three widths (320, 768, 1440px), and light/dark themes, with no detected page overflow, automated accessibility violations, or uncaught application errors. Six envelope interaction checks confirm keyboard focus/activation and full-card clicks. Twelve delayed-request scenarios confirm bank-link and signed-out recovery/reset input disabling, blocked internal navigation, unload protection, correct submitted-email confirmation, and guard release after success or server error. These 48 checks use simulated responses; recovery/reset backend endpoints remain absent. QA-owned files were not edited.
-
-The latest fix checks cover 50 combinations of five affected workspace routes, five viewport widths (320–1440px), and light/dark themes. No page/container overflow, automated accessibility violations, or uncaught application exceptions were found in those cases. All five signup steps also complete at 320, 768 and 1440px with no reported layout/accessibility failures. Receipt chips no longer overlap status text at 850, 1024 or 1440px. Recovery-code generation keeps competing security controls disabled and displays the returned codes; sparse complete splits, explicitly recorded wallet amounts, missing/incomplete omitted amounts, and balance reconciliation are checked separately. Keyboard scrolling of the API example and SSE-triggered balance refresh also pass. These browser checks use controlled responses and temporary scripts outside the repository; QA-owned tests remain unchanged.
-
-Lint, the strict production build and all 68 existing tests across 12 files pass. Temporary browser checks outside the repository verify notification loading/history/errors, selective API reads and cache refresh, pending rule-save navigation/reload protection, reset URL handling, navigation focus/titles, login failure/rate-limit states, and Clipboard API fallback.
-
-October 19 fix verification also covers pending payment and account-deletion Back/unload protection, guard release after errors, payment-reference retention after an uncertain result, and the successful deletion sign-in redirect. Recovery-code Stay/Leave, Back, Escape, focus, and cross-tab logout pass at 320px and 1440px. Delayed-read layouts fit at 320px, 768px and 1440px; 60-payment Activity histories with long references fit at 320px, 390px, 768px, 1024px and 1440px. Dark Activity hover and desktop/mobile menu focus pass, including switching filter triggers and outside-click focus behavior. Signup still completes all five steps at 320px with controlled responses.
-
-Signup regression checks now cover token-free registration, duplicate submits, blocked Back/unload during registration and rule authentication/writes, successful progression after a blocked Back action, failed/uncertain responses, preserved rule values, prefilled sign-in recovery, and final sign-in redirects at 320px and 1440px. No passwords are stored in local/session storage. A computed-text contrast scan across 17 workspace routes in both themes reports no failures for the visible solid-color text it checks, including processed/pending/failed payment badges and target-met text; this is not a complete accessibility certification.
-
-Additional browser regressions pass for rapid route changes during delayed reads, uncertain rule-write reconciliation, safe removal of stale notification IDs, mobile sorting/More navigation, SSE resynchronization of payments and balances, and cross-tab logout during a blocked rule save. All 96 combinations of 24 routes, desktop/320px widths, and light/dark themes pass without horizontal page overflow or uncaught exceptions, including fallback-font layouts. The Envelopes heading now wraps safely at narrow widths.
-
-Security regression checks also pass for TOTP/recovery-code disabling, input and duplicate-submit guards, pending navigation/reload protection, code cleanup, incorrect credentials without logout, unavailable/uncertain responses, Google-only limitations, Rules authorization retry, and expired-session redirects.
-
-Browser checks use controlled API responses. They do not verify live payment processing, external OAuth/SMTP/AI delivery, every accessibility criterion, or exact Figma matching. QA-owned tests and test configuration are unchanged. The older 51-passing/12-failing counts and the empty-Dockerfile finding are obsolete.
-
-### Historical CI context
-
-PR #60 at `f8e19eb` had backend test/startup failures, including missing PostgreSQL settings and the standalone smoke-test OAuth callback setting. This is historical evidence, not a fresh CI result. Main has since added PostgreSQL examples and changed CI jobs; verify the current branch's GitHub checks separately.
-
-## WebSocket integration boundary after the main merge
-
-The gateway checks a cookie named `access_token` (or its configured cookie name), validates the Origin, and tracks connections per user. The browser login flow still receives a Bearer token and stores it in local storage; no server-issued WebSocket authentication cookie/ticket is provided. Active Compose sets `FRONTEND_ORIGIN` to `https://localhost`; other origins require matching configuration. Redis subscription and application-event forwarding remain empty. Complete those backend/gateway contracts before replacing the frontend's authenticated SSE payment updates. No JavaScript-readable authentication cookie or nonfunctional WebSocket transport was added as a workaround.
+1. Confirm preservation or migration of any required PostgreSQL 16 data. The current PostgreSQL 18 stack and local Vite connection are running; other developers should configure their connection using DEVELOPMENT.md.
+2. Add transaction dates and persisted allocations on the backend; the frontend now disables filters that lack this information.
+3. Configure OAuth/AI and implement password recovery/reset.
+4. Finish WebSocket authentication/event forwarding before adding the frontend consumer.
+5. Plan the remaining product contracts and server pagination; keep optional refactoring separate from functional fixes.

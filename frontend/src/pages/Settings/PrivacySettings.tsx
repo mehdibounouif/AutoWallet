@@ -1,3 +1,8 @@
+import { TextInput } from '../../components/ui/TextInput'
+import { Button } from '../../components/ui/Button'
+import { buttonStyles } from '../../components/ui/styles'
+import { Notice } from '../../components/ui/Notice'
+import { Card } from '../../components/ui/Card'
 import { useEffect, useRef, useState } from 'react'
 import { Check, Download, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -57,13 +62,13 @@ export function PrivacySettings({ email, online, onSecurityInfo, onSessionEnded,
   }
 
   return <>
-    <section className="workspace-card settings-card"><h2>Download your data</h2><p>A file with your profile, envelopes, rules and payments.</p>
-      {prepared && <div className="workspace-banner workspace-banner--success" role="status"><Check size={16} /><span>{prepared.message}</span></div>}
-      <div className="settings-export-actions"><label><span className="sr-only">Export format</span><select aria-label="Export format" value={format} disabled={exporting} onChange={event => { setFormat(event.target.value as 'json' | 'csv'); setPrepared(null); setError(null); if (exportUrl.current) { URL.revokeObjectURL(exportUrl.current); exportUrl.current = null } }}><option value="json">JSON</option><option value="csv">CSV (ZIP)</option></select></label>{prepared ? <a className="dashboard-primary-button" href={prepared.url} download={`autowallet-my-data.${prepared.format === 'csv' ? 'zip' : 'json'}`}><Download size={16} />Download export ({prepared.format === 'csv' ? 'ZIP' : 'JSON'})</a> : <button className="dashboard-primary-button" onClick={() => void prepareExport()} disabled={exporting || !online}><Download size={16} />{exporting ? 'Preparing…' : 'Request export'}</button>}</div>
+    <Card as="section" className="workspace-card settings-card"><h2>Download your data</h2><p>A file with your profile, envelopes, rules and payments.</p>
+      {prepared && <Notice as="div" tone="success" className="workspace-banner workspace-banner--success" role="status"><Check size={16} /><span>{prepared.message}</span></Notice>}
+      <div className="settings-export-actions"><label><span className="sr-only">Export format</span><select aria-label="Export format" value={format} disabled={exporting} onChange={event => { setFormat(event.target.value as 'json' | 'csv'); setPrepared(null); setError(null); if (exportUrl.current) { URL.revokeObjectURL(exportUrl.current); exportUrl.current = null } }}><option value="json">JSON</option><option value="csv">CSV (ZIP)</option></select></label>{prepared ? <a className={buttonStyles({ variant: 'primary', className: "dashboard-primary-button" })} href={prepared.url} download={`autowallet-my-data.${prepared.format === 'csv' ? 'zip' : 'json'}`}><Download size={16} />Download export ({prepared.format === 'csv' ? 'ZIP' : 'JSON'})</a> : <Button variant="primary" className="dashboard-primary-button" onClick={() => void prepareExport()} disabled={exporting || !online}><Download size={16} />{exporting ? 'Preparing…' : 'Request export'}</Button>}</div>
       <p className="workspace-note">The file is prepared here for download. The account service may also email you a confirmation.</p>{error && <p className="workspace-field-error" role="alert">{error}</p>}
-    </section>
-    <section className="workspace-card settings-card"><h2>What we keep</h2><dl className="settings-data-list"><div><dt>Profile</dt><dd>Name, email and linked account ID</dd></div><div><dt>Money</dt><dd>Envelopes, rules and payments</dd></div><div><dt>In your browser</dt><dd>Sign-in token, theme and notification preferences</dd></div><div><dt>Read status</dt><dd>Which payment notifications you’ve read</dd></div></dl><Link className="workspace-text-button" to="/privacy">Read our privacy notice</Link></section>
-    <section className="workspace-card settings-card"><h2>Delete your account</h2><p>Deletes your envelopes, rules and payment history for good. This can’t be undone.</p><button className="settings-danger-button" onClick={() => setDeleteOpen(true)} disabled={!online}><Trash2 size={16} />Delete account</button></section>
+    </Card>
+    <Card as="section" className="workspace-card settings-card"><h2>What we keep</h2><dl className="settings-data-list"><div><dt>Profile</dt><dd>Name, email and linked account ID</dd></div><div><dt>Money</dt><dd>Envelopes, rules and payments</dd></div><div><dt>In your browser</dt><dd>Sign-in token, theme and notification preferences</dd></div><div><dt>Read status</dt><dd>Which payment notifications you’ve read</dd></div></dl><Link className="workspace-text-button" to="/privacy">Read our privacy notice</Link></Card>
+    <Card as="section" className="workspace-card settings-card"><h2>Delete your account</h2><p>Deletes your envelopes, rules and payment history for good. This can’t be undone.</p><Button variant="danger" className="settings-danger-button" onClick={() => setDeleteOpen(true)} disabled={!online}><Trash2 size={16} />Delete account</Button></Card>
     {deleteOpen && <DeleteAccountDialog email={email} online={online} onClose={() => setDeleteOpen(false)} onExport={() => { setDeleteOpen(false); document.getElementById('settings-content')?.scrollIntoView({ behavior: 'smooth' }) }} onSessionEnded={onSessionEnded} onDeleted={onDeleted} />}
   </>
 }
@@ -116,13 +121,13 @@ function DeleteAccountDialog({ email, online, onClose, onExport, onSessionEnded,
 
   return <Dialog labelledBy="delete-account-title" role="alertdialog" initialFocusRef={cancelRef} dismissible={!busy} onClose={onClose} panelClassName="dashboard-modal settings-delete-dialog"><button className="dashboard-modal-close" onClick={onClose} disabled={busy} aria-label="Close"><X size={20} /></button><h2 id="delete-account-title">Delete your account?</h2><p>This deletes your envelopes, rules and payment history for good. Download your data first if you want a copy.</p><button className="workspace-text-button" onClick={onExport} disabled={busy}>Download your data</button>
     <form noValidate className="settings-form" onSubmit={event => { event.preventDefault(); void submit(sent) }}>
-      <label>Type DELETE to confirm<input className="dashboard-input" value={confirmation} onChange={event => setConfirmation(event.target.value)} disabled={busy} autoComplete="off" spellCheck={false} /></label>
-      {sent && <label>Email confirmation code<input aria-label="Email confirmation code" ref={codeRef} className="dashboard-input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={event => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(null) }} maxLength={6} disabled={busy} aria-describedby="delete-code-help" /><span id="delete-code-help" className="workspace-note">Use the latest 6-digit code from your email.</span></label>}
+      <label>Type DELETE to confirm<TextInput className="dashboard-input" value={confirmation} onChange={event => setConfirmation(event.target.value)} disabled={busy} autoComplete="off" spellCheck={false} /></label>
+      {sent && <label>Email confirmation code<TextInput aria-label="Email confirmation code" ref={codeRef} className="dashboard-input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={event => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(null) }} maxLength={6} disabled={busy} aria-describedby="delete-code-help" /><span id="delete-code-help" className="workspace-note">Use the latest 6-digit code from your email.</span></label>}
       {status && <p className="workspace-note" role="status">{status}</p>}{error && <p className="workspace-field-error" role="alert">{error}</p>}
       {navigationBlocked && <p className="workspace-note" role="status">Wait for the account request to finish before leaving this page.</p>}
       {!sent && <p className="workspace-note">Next, we’ll send a code to your account email. Nothing is deleted until you confirm that code.</p>}
       {sent && <button type="button" className="settings-text-button" disabled={busy || cooldown > 0 || !online} onClick={() => void submit(false)}>{cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}</button>}
-      <footer className="settings-actions"><button ref={cancelRef} type="button" className="dashboard-secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" className="settings-danger-button" disabled={busy || !online || confirmation !== 'DELETE' || (sent ? !/^\d{6}$/.test(code) : cooldown > 0)}>{busy ? sent ? 'Deleting…' : 'Sending…' : sent ? 'Delete account' : 'Send confirmation code'}</button></footer>
+      <footer className="settings-actions"><Button variant="secondary" ref={cancelRef} type="button" className="dashboard-secondary-button" onClick={onClose} disabled={busy}>Cancel</Button><Button variant="danger" type="submit" className="settings-danger-button" disabled={busy || !online || confirmation !== 'DELETE' || (sent ? !/^\d{6}$/.test(code) : cooldown > 0)}>{busy ? sent ? 'Deleting…' : 'Sending…' : sent ? 'Delete account' : 'Send confirmation code'}</Button></footer>
     </form>
   </Dialog>
 }

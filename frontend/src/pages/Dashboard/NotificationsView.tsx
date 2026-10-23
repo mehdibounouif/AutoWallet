@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import { ArrowDownLeft, ArrowLeft, ChevronRight, Mail } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { DashboardTransaction } from './dashboardApi'
@@ -21,7 +22,7 @@ export function NotificationsView({ payments, readIds, unread, onRead, onSelect,
       return <button key={payment.id} className={`notification-item ${isUnread ? 'notification-item--unread' : ''}`} onClick={() => { onRead([payment.id]); onSelect(payment) }}>
         <span className="notification-icon"><ArrowDownLeft size={18} /></span><span className="notification-content"><strong>+{money.format(payment.amount)} MAD from {payment.reference}</strong><span>{payment.status === 'failed' ? 'Payment processing failed.' : payment.status === 'pending' ? 'Waiting for the payment to finish processing.' : split.length ? `Split into ${split.join(', ')}.` : 'Payment processed. Open to view its status.'}</span><small>{formatDate(payment.created_at, true) || 'Time not provided'}</small></span>{isUnread && <span className="notification-dot" aria-label="Unread" />}
       </button>
-    })}</div>{!compact && <div className="notifications-pagination"><p role="status">Showing {visible.length} of {payments.length} payment updates</p>{visible.length < payments.length && <button type="button" className="dashboard-secondary-button" onClick={() => setLimit(value => value + 30)}>Load more notifications</button>}</div>}</> : <div className="notifications-empty"><div className="notifications-art" aria-hidden="true"><Mail /><Mail /><Mail /></div><h2>{enabled ? 'You’re all caught up.' : 'Payment alerts are off.'}</h2><p>{enabled ? 'New payment updates show up here.' : 'Turn them on in Notification settings to see payment updates here.'}</p></div>}
+    })}</div>{!compact && <div className="notifications-pagination"><p role="status">Showing {visible.length} of {payments.length} payment updates</p>{visible.length < payments.length && <Button variant="secondary" type="button" className="dashboard-secondary-button" onClick={() => setLimit(value => value + 30)}>Load more notifications</Button>}</div>}</> : <div className="notifications-empty"><div className="notifications-art" aria-hidden="true"><Mail /><Mail /><Mail /></div><h2>{enabled ? 'You’re all caught up.' : 'Payment alerts are off.'}</h2><p>{enabled ? 'New payment updates show up here.' : 'Turn them on in Notification settings to see payment updates here.'}</p></div>}
     <footer>{onSettings && <button onClick={onSettings}>Notification settings <ChevronRight size={13} /></button>}<span>Payment updates · Read status saved in this browser</span>{compact && <button onClick={onBack}>View notifications <ChevronRight size={13} /></button>}</footer>
   </section>
 }

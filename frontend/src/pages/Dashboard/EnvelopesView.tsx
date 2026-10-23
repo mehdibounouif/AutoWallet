@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import { useId } from 'react'
 import { ArrowLeftRight, Check } from 'lucide-react'
 import type { DashboardData, DashboardTransaction, WalletType } from './dashboardApi'
@@ -77,7 +78,7 @@ export function EnvelopesView({ data, onOpen }: {
   return <section className="envelopes-view" aria-labelledby="envelopes-title">
     <div className="envelopes-page-heading">
       <div><h1 id="envelopes-title">Envelopes</h1><p>What each envelope holds and the rule that fills it.</p></div>
-      <button type="button" className="dashboard-primary-button envelopes-move-button" disabled title="Coming soon"><ArrowLeftRight className="h-4 w-4" aria-hidden="true" />Move money <span className="dashboard-soon-badge">Soon</span></button>
+      <Button variant="primary" type="button" className="dashboard-primary-button envelopes-move-button" disabled title="Coming soon"><ArrowLeftRight className="h-4 w-4" aria-hidden="true" />Move money <span className="dashboard-soon-badge">Soon</span></Button>
     </div>
 
     <section className="envelopes-overview" aria-label="Envelope balance overview">

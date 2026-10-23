@@ -1,3 +1,5 @@
+import { TextInput } from '../../components/ui/TextInput'
+import { Button } from '../../components/ui/Button'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowDown, ArrowUp, Copy, GripVertical, MoreVertical, Pause, Pencil, Plus, Trash2, X } from 'lucide-react'
@@ -127,7 +129,7 @@ export function RulesView({ data, onSaved, onSessionEnded }: RulesViewProps) {
   return <section className="rules-view" aria-labelledby="rules-heading">
     <div className="rules-heading">
       <div><h1 id="rules-heading">Rules</h1><p>Every payment runs through these rules from top to bottom. What’s left goes to Main.</p></div>
-      <button type="button" className="dashboard-primary-button" disabled title="Creating custom rules is coming soon"><Plus className="h-4 w-4" />New rule <span className="dashboard-soon-badge">Soon</span></button>
+      <Button variant="primary" type="button" className="dashboard-primary-button" disabled title="Creating custom rules is coming soon"><Plus className="h-4 w-4" />New rule <span className="dashboard-soon-badge">Soon</span></Button>
     </div>
 
     {notice && <p className="rules-notice" role="status">{notice}</p>}
@@ -162,15 +164,15 @@ export function RulesView({ data, onSaved, onSessionEnded }: RulesViewProps) {
 
     {editing && <Dialog labelledBy="edit-rule-title" onClose={() => setEditing(null)} dismissible={!saving} className="rules-drawer-backdrop" panelClassName="rules-drawer"><div className="rules-drawer-header"><h2 id="edit-rule-title">Edit rule</h2><button type="button" onClick={() => setEditing(null)} disabled={saving} aria-label="Close editor"><X className="h-5 w-5" /></button></div>
         <form onSubmit={(event) => void saveRule(event)} className="rules-drawer-form">
-          <label>Rule name<input className="dashboard-input" value={editing.name} readOnly /></label>
+          <label>Rule name<TextInput className="dashboard-input" value={editing.name} readOnly /></label>
           <label>Into envelope<div className="rules-readonly-envelope"><span className="rules-envelope-icon" style={{ backgroundColor: envelopeMeta[editing.target_wallet].tint, color: envelopeMeta[editing.target_wallet].color }}>{(() => { const Icon = envelopeMeta[editing.target_wallet].icon; return <Icon className="h-4 w-4" /> })()}</span>{envelopeMeta[editing.target_wallet].name}</div></label>
-          <label>{editing.rule_type === 'lock_fixed' ? 'Fixed amount (MAD)' : "Percentage of what’s left"}<div className="rules-value-row"><input className="dashboard-input" type="number" min="0" max={editing.rule_type === 'lock_fixed' ? undefined : 100} step="0.01" value={value} onChange={(event) => setValue(event.target.value)} disabled={saving} required /><span>{editing.rule_type === 'lock_fixed' ? 'MAD' : '%'}</span>{editing.rule_type !== 'lock_fixed' && <input className="rules-range" type="range" min="0" max="100" step="1" value={Number(value) || 0} onChange={(event) => setValue(event.target.value)} disabled={saving} aria-label="Percentage" />}</div></label>
-          {editing.name === 'Savings (capped)' && <label>Savings cap (MAD)<input className="dashboard-input" type="number" min="0" step="0.01" value={cap} onChange={(event) => setCap(event.target.value)} disabled={saving} required /></label>}
+          <label>{editing.rule_type === 'lock_fixed' ? 'Fixed amount (MAD)' : "Percentage of what’s left"}<div className="rules-value-row"><TextInput className="dashboard-input" type="number" min="0" max={editing.rule_type === 'lock_fixed' ? undefined : 100} step="0.01" value={value} onChange={(event) => setValue(event.target.value)} disabled={saving} required /><span>{editing.rule_type === 'lock_fixed' ? 'MAD' : '%'}</span>{editing.rule_type !== 'lock_fixed' && <input className="rules-range" type="range" min="0" max="100" step="1" value={Number(value) || 0} onChange={(event) => setValue(event.target.value)} disabled={saving} aria-label="Percentage" />}</div></label>
+          {editing.name === 'Savings (capped)' && <label>Savings cap (MAD)<TextInput className="dashboard-input" type="number" min="0" step="0.01" value={cap} onChange={(event) => setCap(event.target.value)} disabled={saving} required /></label>}
           <div className="rules-drawer-active"><span className={`rules-switch ${editing.is_active ? '' : 'rules-switch--off'}`} aria-hidden="true" />Rule is {editing.is_active ? 'active' : 'paused'}</div>
           <p className="rules-drawer-note">You can change this rule’s value here. Its name, envelope, and active state can’t be changed yet. Past payment splits stay as they were.</p>
           {error && <p role="alert" className="rules-form-error">{error}</p>}
           <RuleSaveNavigation saving={saving} />
-          <div className="rules-drawer-footer"><button type="button" className="dashboard-secondary-button" onClick={() => setEditing(null)} disabled={saving}>Cancel</button><button type="submit" className="dashboard-primary-button" disabled={saving}>{saving ? 'Saving…' : 'Save rule'}</button></div>
+          <div className="rules-drawer-footer"><Button variant="secondary" type="button" className="dashboard-secondary-button" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button><Button variant="primary" type="submit" className="dashboard-primary-button" disabled={saving}>{saving ? 'Saving…' : 'Save rule'}</Button></div>
         </form>
     </Dialog>}
   </section>

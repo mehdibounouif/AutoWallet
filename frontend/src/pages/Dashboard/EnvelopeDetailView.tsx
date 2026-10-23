@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import { ArrowLeft, ArrowLeftRight, ArrowRight, Check, ChevronRight, MessageSquareText, ReceiptText } from 'lucide-react'
 import type { DashboardData, DashboardTransaction, WalletType } from './dashboardApi'
 import { envelopeDescription, envelopeMeta, envelopeTarget, money, ruleDescription } from './envelopeDisplay'
@@ -68,8 +69,8 @@ export function EnvelopeDetailView({ type, data, onBack, onViewRules, onSelectPa
     </section>
 
     <div className="envelope-detail-actions">
-      {type === 'rent' ? <button type="button" className="dashboard-primary-button" disabled title="Coming soon"><Check className="h-4 w-4" />Mark rent as paid <span className="dashboard-soon-badge">Soon</span></button>
-        : <><button type="button" className="dashboard-primary-button" disabled title="Coming soon"><ReceiptText className="h-4 w-4" />Record spending <span className="dashboard-soon-badge">Soon</span></button><button type="button" className="dashboard-secondary-button envelope-detail-move" disabled title="Coming soon"><ArrowLeftRight className="h-4 w-4" />Move money <span className="dashboard-soon-badge">Soon</span></button></>}
+      {type === 'rent' ? <Button variant="primary" type="button" className="dashboard-primary-button" disabled title="Coming soon"><Check className="h-4 w-4" />Mark rent as paid <span className="dashboard-soon-badge">Soon</span></Button>
+        : <><Button variant="primary" type="button" className="dashboard-primary-button" disabled title="Coming soon"><ReceiptText className="h-4 w-4" />Record spending <span className="dashboard-soon-badge">Soon</span></Button><Button variant="secondary" type="button" className="dashboard-secondary-button envelope-detail-move" disabled title="Coming soon"><ArrowLeftRight className="h-4 w-4" />Move money <span className="dashboard-soon-badge">Soon</span></Button></>}
     </div>
 
     <div className="envelope-detail-panels">
