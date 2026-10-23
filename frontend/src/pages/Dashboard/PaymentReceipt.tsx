@@ -1,3 +1,4 @@
+import { Card } from '../../components/ui/Card'
 import { Check } from 'lucide-react'
 import type { PreviewStep, SplitAmounts } from './dashboardSplit'
 import { envelopeMeta, money, ruleDescription, walletOrder } from './envelopeDisplay'
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export function PaymentReceipt({ amount, allocations, reference, steps }: Props) {
-  return <section className="workspace-card payment-receipt" aria-label="Payment receipt">
+  return <Card as="section" className="workspace-card payment-receipt" aria-label="Payment receipt">
     <h2>Receipt</h2>
     <div className="receipt-heading"><strong>{reference}</strong><strong>{money.format(amount)} <small>MAD</small></strong></div>
     {steps ? steps.map(({ rule, allocated, remaining, reason }, index) => <div className="receipt-row" key={rule.id}>
@@ -24,5 +25,5 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Props)
     <div className="receipt-leftover"><span>Leftover → Main</span><strong>{money.format(allocations.main)}</strong></div>
     <div className="receipt-total"><span>Total <span className="receipt-result"><Check size={14} />Checks out</span></span><strong>{money.format(amount)} <small>MAD</small></strong></div>
     {!steps && <p className="workspace-note">These are the recorded envelope totals. The payment response does not include its individual rule steps.</p>}
-  </section>
+  </Card>
 }

@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* Shared controls follow the workspace theme, including dialogs in portals. */
+@theme inline {
+  --color-panel: var(--aw-surface, #fff);
+  --color-layer: var(--aw-layer, #ebeff4);
+  --color-layer-hover: var(--aw-layer, #e1e7ee);
+  --color-ink: var(--aw-ink, #263246);
+  --color-muted: var(--aw-muted, #526176);
+  --color-line: var(--aw-border, #dce3eb);
+  --color-field: var(--aw-control, #9dabc0);
+  --color-input: var(--aw-control, #bfc9d7);
+  --color-accent: var(--aw-accent, #5963b6);
+  --color-danger: var(--aw-danger, #bd3035);
+}
+
 .skip-link {
   position: fixed;
   top: 8px;

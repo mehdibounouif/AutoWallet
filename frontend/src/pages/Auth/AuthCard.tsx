@@ -1,3 +1,7 @@
+import { Button } from '../../components/ui/Button'
+import { TextInput } from '../../components/ui/TextInput'
+import { AuthPanel } from '../../components/ui/AuthPanel'
+import { EMAIL_REQUIRED, EMAIL_INVALID, PASSWORD_REQUIREMENT, SERVICE_UNAVAILABLE } from '../../content/messages'
 import { LegalFooter } from '../../components/common/LegalFooter'
 import { PasswordStrength } from '../../components/common/PasswordStrength'
 import { useState, useEffect, useRef } from 'react'
@@ -13,7 +17,6 @@ import {
 } from 'lucide-react'
 import { GoogleIcon } from '../../components/icons'
 import { SessionEndedCard } from './SessionEndedCard'
-import { translations } from '../../i18n'
 import { writeSignupDraft } from '../../auth/signupDraft'
 import { clearGoogleReturnPath, rememberGoogleReturnPath, safeReturnPath } from '../../auth/returnPath'
 import { apiFetch } from '../../api/request'
@@ -36,7 +39,6 @@ interface AuthCardProps {
 export function AuthCard({
   mode,
 }: AuthCardProps) {
-  const t = translations
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -126,13 +128,13 @@ export function AuthCard({
 
   const validateEmail = (val: string): string | null => {
     const trimmed = val.trim()
-    if (!trimmed) return t.emailRequired
-    if (!isValidEmail(trimmed)) return t.emailInvalid
+    if (!trimmed) return EMAIL_REQUIRED
+    if (!isValidEmail(trimmed)) return EMAIL_INVALID
     return null
   }
 
   const validatePassword = (val: string): string | null => {
-    if (mode === 'signup' && val.length < 8) return t.pwTooShort
+    if (mode === 'signup' && val.length < 8) return "Password must be at least 8 characters."
     return null
   }
 
@@ -155,9 +157,9 @@ export function AuthCard({
         if (errEmail) {
           setErrorMessage(errEmail)
         } else if (errPassword) {
-          setErrorMessage(t.pwRequirement)
+          setErrorMessage(PASSWORD_REQUIREMENT)
         } else if (errTerms) {
-          setErrorMessage(t.termsRequired)
+          setErrorMessage("Please read the Terms and Privacy pages.")
         }
         return
       }
@@ -171,7 +173,7 @@ export function AuthCard({
     }
 
     if (!email.trim() || !password) {
-      setErrorMessage(t.wrongCredentials)
+      setErrorMessage("Wrong email or password")
       return
     }
 
@@ -198,14 +200,14 @@ export function AuthCard({
           navigate(`/login/2fa?redirect=${encodeURIComponent(safeReturnPath(searchParams.get('redirect') || searchParams.get('return_to')))}`)
           return
         } else {
-          setErrorMessage(t.wrongCredentials)
+          setErrorMessage("Wrong email or password")
         }
       } else if (res.status === 429) {
         const retry = Number(res.headers.get('Retry-After'))
         startCountdown(Number.isFinite(retry) && retry > 0 ? Math.min(900, Math.ceil(retry)) : 60)
         setErrorMessage('Too many sign-in attempts. Wait before trying again.')
       } else if (res.status >= 500) {
-        setErrorMessage(t.serviceUnavailable)
+        setErrorMessage(SERVICE_UNAVAILABLE)
       } else if (res.status === 422) {
         const payload = await res.json().catch(() => null)
         setErrorMessage(apiErrorDetail(payload, 'Check your email and password and try again.').message)
@@ -213,7 +215,7 @@ export function AuthCard({
         setErrorMessage('Sign-in could not be completed. Please try again.')
       }
     } catch {
-      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
+      if (!signal.aborted) setErrorMessage(SERVICE_UNAVAILABLE)
     } finally {
       if (!signal.aborted) setLoading(false)
     }
@@ -276,38 +278,38 @@ export function AuthCard({
     return (
       <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10 animate-in fade-in duration-200">
         {/* 440px Centered White Card per Figma #114:696 */}
-        <div
+        <AuthPanel
           role="status"
           aria-live="polite"
-          className="w-full max-w-[440px] bg-white rounded-2xl border border-[#DDE3EA] p-8 sm:p-10 shadow-[0_8px_24px_-4px_rgba(27,36,50,0.08),0_2px_6px_-1px_rgba(27,36,50,0.04)] text-center flex flex-col items-center"
+          className="p-8 sm:p-10 text-center flex flex-col items-center"
         >
           {/* Animated Spinner (28-32px, #5A64B4) */}
-          <div className="w-12 h-12 rounded-full bg-[#ECEEFA] flex items-center justify-center mb-5">
-            <Loader2 className="w-6 h-6 text-[#5A64B4] animate-spin" />
+          <div className="w-12 h-12 rounded-full bg-action-primary-subtle flex items-center justify-center mb-5">
+            <Loader2 className="w-6 h-6 text-action-primary animate-spin" />
           </div>
 
           {/* Title: Opening Google… */}
-          <h1 className="text-2xl font-semibold text-[#1A2330] tracking-tight mb-2">
-            {t.googleOpeningTitle}
+          <h1 className="text-2xl font-semibold text-brand-ink tracking-tight mb-2">
+            Opening Google…
           </h1>
 
           {/* Subtitle */}
-          <p className="text-[15px] text-[#5E6B7E] leading-relaxed max-w-[340px]">
-            {t.googleOpeningSubtitle}
+          <p className="text-[15px] text-brand-muted leading-relaxed max-w-[340px]">
+            Pick your Google account in the window that opens. You will come straight back here.
           </p>
 
           {/* Ghost Cancel Button */}
           <button
             type="button"
             onClick={handleCancelGoogle}
-            className="mt-7 px-5 py-2.5 rounded-[10px] text-sm font-medium text-[#3B495D] hover:text-[#1A2330] hover:bg-[#F3F6FA] active:bg-[#EDF0F4] transition cursor-pointer"
+            className="mt-7 px-5 py-2.5 rounded-[10px] text-sm font-medium text-brand-navy hover:text-brand-ink hover:bg-brand-surface active:bg-[#EDF0F4] transition cursor-pointer"
           >
-            {t.googleCancel}
+            Cancel
           </button>
-        </div>
+        </AuthPanel>
 
         {/* Legal Footer */}
-        <LegalFooter t={t} />
+        <LegalFooter />
       </main>
     )
   }
@@ -315,14 +317,14 @@ export function AuthCard({
   return (
     <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10">
       {/* 440px Centered White Card per Figma layout_bd7b430b */}
-      <div className="w-full max-w-[440px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-9 shadow-[0_8px_24px_-4px_rgba(27,36,50,0.08),0_2px_6px_-1px_rgba(27,36,50,0.04)] transition-all">
+      <AuthPanel className="transition-all">
         {/* Card Heading */}
         <div className="mb-5 space-y-1">
-          <h1 className="text-2xl font-semibold text-[#1A2330] tracking-tight">
-            {mode === 'login' ? t.loginTitle : t.signupTitle}
+          <h1 className="text-2xl font-semibold text-brand-ink tracking-tight">
+            {mode === 'login' ? "Log in" : "Create your account"}
           </h1>
-          <p className="text-[15px] text-[#5E6B7E] leading-relaxed">
-            {mode === 'login' ? t.loginSubtitle : t.signupSubtitle}
+          <p className="text-[15px] text-brand-muted leading-relaxed">
+            {mode === 'login' ? "Welcome back to AutoWallet." : "It takes a minute. You set your rules right after."}
           </p>
         </div>
 
@@ -332,9 +334,9 @@ export function AuthCard({
             role="alert"
             className="mb-5 p-3.5 rounded-xl bg-[#FFF7ED] border border-[#FED7AA] text-[#9A3412] text-sm flex items-start gap-3 animate-in fade-in"
           >
-            <AlertTriangle className="w-5 h-5 shrink-0 text-[#EB6834] mt-0.5" />
+            <AlertTriangle className="w-5 h-5 shrink-0 text-tax-solid mt-0.5" />
             <div className="flex-1 leading-snug">
-              {t.googleCancelledAlert}
+              Google sign-in was cancelled. Try again, or use your email.
             </div>
             <button
               type="button"
@@ -356,11 +358,11 @@ export function AuthCard({
         {googleStatus === 'existing_password' && (
           <div
             role="alert"
-            className="mb-5 p-3.5 rounded-xl bg-[#ECEEFA] border border-[#D0D6F5] text-[#3B495D] text-sm flex items-start gap-3 animate-in fade-in"
+            className="mb-5 p-3.5 rounded-xl bg-action-primary-subtle border border-[#D0D6F5] text-brand-navy text-sm flex items-start gap-3 animate-in fade-in"
           >
-            <Info className="w-5 h-5 shrink-0 text-[#5A64B4] mt-0.5" />
+            <Info className="w-5 h-5 shrink-0 text-action-primary mt-0.5" />
             <div className="flex-1 leading-snug">
-              {t.googleExistingPasswordAlert}
+              This email already has a password. Log in using your email and password.
             </div>
             <button
               type="button"
@@ -370,7 +372,7 @@ export function AuthCard({
                 newParams.delete('google_status')
                 setSearchParams(newParams, { replace: true })
               }}
-              className="text-[#3B495D]/60 hover:text-[#3B495D] p-0.5 text-xs font-semibold cursor-pointer"
+              className="text-brand-navy/60 hover:text-brand-navy p-0.5 text-xs font-semibold cursor-pointer"
               aria-label="Dismiss alert"
             >
               ✕
@@ -382,9 +384,9 @@ export function AuthCard({
         {errorMessage && (
           <div
             role="alert"
-            className="mb-5 p-3.5 rounded-xl bg-[#FFF5F5] border border-[#FFD2D2] text-[#C62F31] text-sm flex items-start gap-3 animate-in fade-in"
+            className="mb-5 p-3.5 rounded-xl bg-action-danger-subtle border border-[#FFD2D2] text-action-danger text-sm flex items-start gap-3 animate-in fade-in"
           >
-            <AlertCircle className="w-5 h-5 shrink-0 text-[#C62F31] mt-0.5" />
+            <AlertCircle className="w-5 h-5 shrink-0 text-action-danger mt-0.5" />
             <div className="flex-1 leading-snug">{errorMessage}</div>
           </div>
         )}
@@ -393,13 +395,15 @@ export function AuthCard({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email Field */}
           <div className="space-y-1.5">
-            <label htmlFor="email-input" className="block text-sm font-medium text-[#1A2330]">
-              {t.emailLabel}
+            <label htmlFor="email-input" className="block text-sm font-medium text-brand-ink">
+              Email
             </label>
-            <input
+            <TextInput appearance="auth"
               id="email-input"
               ref={emailInputRef}
               type="email"
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? 'auth-email-error' : undefined}
               autoComplete="email"
               required
               autoFocus={!statusFromQuery}
@@ -418,15 +422,10 @@ export function AuthCard({
                   setGoogleStatus('idle')
                 }
               }}
-              placeholder={t.emailPlaceholder}
-              className={`w-full h-11 px-3.5 rounded-[10px] border bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none transition ${
-                emailError
-                  ? 'border-[#FFD2D2] focus:border-[#C62F31] focus:ring-2 focus:ring-[#C62F31]/20'
-                  : 'border-[#DDE3EA] focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20'
-              }`}
+              placeholder="name@example.com"
             />
             {emailError && (
-              <p className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
+              <p id="auth-email-error" className="text-xs text-action-danger flex items-center gap-1.5 mt-1 animate-in fade-in">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>{emailError}</span>
               </p>
@@ -436,26 +435,28 @@ export function AuthCard({
           {/* Password Field */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label htmlFor="password-input" className="block text-sm font-medium text-[#1A2330]">
-                {t.passwordLabel}
+              <label htmlFor="password-input" className="block text-sm font-medium text-brand-ink">
+                Password
               </label>
               {mode === 'login' && (
                 <button
                   type="button"
                   onClick={() => navigate('/forgot-password')}
-                  className="text-xs font-medium text-[#5A64B4] hover:text-[#4A53A0] hover:underline cursor-pointer"
+                  className="text-xs font-medium text-action-primary hover:text-action-primary-hover hover:underline cursor-pointer"
                 >
-                  {t.forgotPassword}
+                  Forgot password?
                 </button>
               )}
             </div>
 
             <div className="relative">
-              <input
+              <TextInput appearance="auth"
                 id="password-input"
                 ref={passwordInputRef}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 type={showPassword ? 'text' : 'password'}
+                aria-invalid={Boolean(passwordError)}
+                aria-describedby={passwordError ? 'auth-password-error' : undefined}
                 required
                 value={password}
                 onBlur={() => {
@@ -472,24 +473,20 @@ export function AuthCard({
                     setGoogleStatus('idle')
                   }
                 }}
-                placeholder={t.passwordPlaceholder}
-                className={`w-full h-11 pl-3.5 pr-10 rounded-[10px] border bg-white text-[#1A2330] placeholder:text-[#8C9BAE] text-sm focus:outline-none transition ${
-                  passwordError
-                    ? 'border-[#FFD2D2] focus:border-[#C62F31] focus:ring-2 focus:ring-[#C62F31]/20'
-                    : 'border-[#DDE3EA] focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20'
-                }`}
+                placeholder="••••••••••••"
+                className="pr-10"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5E6B7E] hover:text-[#1A2330] p-1 cursor-pointer transition"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-ink p-1 cursor-pointer transition"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
             {passwordError && (
-              <p className="text-xs text-[#C62F31] flex items-center gap-1.5 mt-1 animate-in fade-in">
+              <p id="auth-password-error" className="text-xs text-action-danger flex items-center gap-1.5 mt-1 animate-in fade-in">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>{passwordError}</span>
               </p>
@@ -497,7 +494,7 @@ export function AuthCard({
 
             {/* Password Strength Meter & Requirement (Figma A2 Signup) */}
             {mode === 'signup' && (
-              <PasswordStrength password={password} t={t} />
+              <PasswordStrength password={password} />
             )}
           </div>
 
@@ -513,11 +510,11 @@ export function AuthCard({
                     setAgreeTerms(e.target.checked)
                     if (termsError && e.target.checked) setTermsError(false)
                   }}
-                  className={`mt-1 w-4 h-4 rounded text-[#5A64B4] focus:ring-[#5A64B4] cursor-pointer ${
-                    termsError ? 'border-[#C62F31] ring-1 ring-[#C62F31]' : 'border-[#DDE3EA]'
+                  className={`mt-1 w-4 h-4 rounded text-action-primary focus:ring-action-primary cursor-pointer ${
+                    termsError ? 'border-action-danger ring-1 ring-action-danger' : 'border-border-subtle'
                   }`}
                 />
-                <span className="text-xs text-[#3B495D] leading-snug">
+                <span className="text-xs text-brand-navy leading-snug">
                   I have read the{' '}
                   <a
                     href="/terms"
@@ -525,7 +522,7 @@ export function AuthCard({
                     rel="noopener noreferrer"
                     aria-label="Terms (opens in a new tab)"
                     onClick={(event) => event.stopPropagation()}
-                    className="underline text-[#5A64B4] hover:text-[#4A53A0]"
+                    className="underline text-action-primary hover:text-action-primary-hover"
                   >
                     Terms
                   </a>{' '}
@@ -536,7 +533,7 @@ export function AuthCard({
                     rel="noopener noreferrer"
                     aria-label="Privacy (opens in a new tab)"
                     onClick={(event) => event.stopPropagation()}
-                    className="underline text-[#5A64B4] hover:text-[#4A53A0]"
+                    className="underline text-action-primary hover:text-action-primary-hover"
                   >
                     Privacy
                   </a>
@@ -548,65 +545,63 @@ export function AuthCard({
 
           {/* Submit Button (Figma Button: Primary 44px, radius 10px, #5A64B4) */}
           <div className="pt-2">
-            <button
+            <Button appearance="auth" variant="primary"
               type="submit"
               disabled={
                 loading || countdown > 0 ||
                 (mode === 'signup' && (password.length < 8 || !email.trim())) ||
                 (mode === 'login' && (!email.trim() || !password))
               }
-              className="w-full h-11 sm:h-12 px-4 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{mode === 'login' ? t.loggingIn : t.signingUp}</span>
+                  <span>{mode === 'login' ? "Logging in…" : "Creating your account…"}</span>
                 </>
               ) : countdown > 0 ? (
                 `Try again in ${countdown}s`
               ) : mode === 'login' ? (
-                t.loginButton
+                "Log in"
               ) : (
-                t.signupButton
+                "Create account"
               )}
-            </button>
+            </Button>
           </div>
 
           {/* Divider: or */}
           <div className="relative py-2 flex items-center justify-center">
-            <div className="w-full border-t border-[#DDE3EA]" />
-            <span className="absolute bg-white px-3 text-xs text-[#5E6B7E]">{t.or}</span>
+            <div className="w-full border-t border-border-subtle" />
+            <span className="absolute bg-white px-3 text-xs text-brand-muted">or</span>
           </div>
 
           {/* Social Google Login Button (Figma Button EL-6c8defc7) */}
-          <button
+          <Button appearance="auth" variant="outline"
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full h-11 sm:h-12 px-4 rounded-[10px] border border-[#DDE3EA] bg-white hover:bg-[#F3F6FA] active:bg-[#EDF0F4] text-[#1A2330] font-medium text-sm transition flex items-center justify-center gap-2.5 cursor-pointer shadow-2xs"
           >
             <GoogleIcon className="w-4.5 h-4.5 shrink-0" />
-            <span>{t.googleButton}</span>
-          </button>
+            <span>Continue with Google</span>
+          </Button>
         </form>
 
         {/* Switch Mode Prompt (Figma frame EL-6b7e32fb) */}
-        <div className="mt-6 text-center text-sm text-[#3B495D] flex items-center justify-center gap-1.5">
-          <span>{mode === 'login' ? t.newToAutoWallet : t.alreadyHaveAccount}</span>
+        <div className="mt-6 text-center text-sm text-brand-navy flex items-center justify-center gap-1.5">
+          <span>{mode === 'login' ? "New to AutoWallet?" : "Already have an account?"}</span>
           <button
             type="button"
             onClick={() => {
               setErrorMessage(null)
               navigate(mode === 'login' ? '/signup' : '/login')
             }}
-            className="font-semibold text-[#5A64B4] hover:text-[#4A53A0] hover:underline cursor-pointer"
+            className="font-semibold text-action-primary hover:text-action-primary-hover hover:underline cursor-pointer"
           >
-            {mode === 'login' ? t.signUpLink : t.logInLink}
+            {mode === 'login' ? "Sign up" : "Log in"}
           </button>
         </div>
-      </div>
+      </AuthPanel>
 
       {/* Legal Footer (Figma frame EL-0b7a78e5) */}
-      <LegalFooter t={t} />
+      <LegalFooter />
     </main>
   )
 }

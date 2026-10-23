@@ -1,3 +1,6 @@
+import { TextInput } from '../../components/ui/TextInput'
+import { Button } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Card'
 import { useEffect, useRef, useState } from 'react'
 import { Copy, Download, RefreshCw } from 'lucide-react'
 import { parseRecoveryCodes } from '../../auth/recoveryCodes'
@@ -68,35 +71,35 @@ export function RecoveryCodes({ codes, onCodes, onEnabled, online, googleAccount
     }
   }
 
-  return <section className="workspace-card settings-card" aria-labelledby="recovery-codes-title">
+  return <Card as="section" className="workspace-card settings-card" aria-labelledby="recovery-codes-title">
     <h2 id="recovery-codes-title">Recovery codes</h2>
     <p>Use a recovery code to sign in if you lose access to your authenticator. Each code works once.</p>
     {hasCodes ? <>
       <p className="workspace-note">Save these now. They stay only on this screen and cannot be displayed again after you leave.</p>
       <ul className="settings-recovery-codes" aria-label="Your recovery codes">{codes.map(code => <li key={code}><code>{code}</code></li>)}</ul>
       <div className="settings-actions">
-        <button className="settings-outline-button" onClick={() => {
+        <Button variant="outline" className="settings-outline-button" onClick={() => {
           if (!navigator.clipboard) { setError('Could not copy. Download the codes or select and copy them manually.'); return }
           void navigator.clipboard.writeText(text).then(() => { setNotice('Recovery codes copied. Save them somewhere private.'); setError(null) }).catch(() => setError('Could not copy. Download the codes or select and copy them manually.'))
-        }}><Copy size={16} />Copy codes</button>
-        <button className="settings-outline-button" onClick={download}><Download size={16} />Download codes</button>
-        <button className="dashboard-primary-button" onClick={() => {
+        }}><Copy size={16} />Copy codes</Button>
+        <Button variant="outline" className="settings-outline-button" onClick={download}><Download size={16} />Download codes</Button>
+        <Button variant="primary" className="dashboard-primary-button" onClick={() => {
           onCodes([]); setNotice('Recovery codes hidden. Use your saved copy when needed.'); setError(null)
           if (downloadUrl.current) { URL.revokeObjectURL(downloadUrl.current); downloadUrl.current = null }
-        }}>I’ve saved these codes</button>
+        }}>I’ve saved these codes</Button>
       </div>
     </> : !editing && <>
-      <button className="settings-outline-button" disabled={!online || googleAccount} onClick={() => { setEditing(true); setError(null); setNotice(null) }}><RefreshCw size={16} />Generate new recovery codes</button>
+      <Button variant="outline" className="settings-outline-button" disabled={!online || googleAccount} onClick={() => { setEditing(true); setError(null); setNotice(null) }}><RefreshCw size={16} />Generate new recovery codes</Button>
       <p className="workspace-note">Requires two-factor login, your current password and an authenticator code. This replaces all previous recovery codes.</p>
       {googleAccount && <p className="settings-availability">The account service requires a password to replace recovery codes. Replacement is unavailable for Google-only accounts.</p>}
     </>}
     {editing && <form className="settings-form" onSubmit={event => { event.preventDefault(); void regenerate() }}>
-      <label>Current password<input className="dashboard-input" type="password" autoComplete="current-password" value={password} disabled={busy} onChange={event => setPassword(event.target.value)} /></label>
-      <label>Authenticator code<input className="dashboard-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={totp} disabled={busy} onChange={event => setTotp(event.target.value.replace(/\D/g, '').slice(0, 6))} /></label>
-      <div className="settings-actions"><button className="dashboard-primary-button" disabled={busy || !online || !password || !/^\d{6}$/.test(totp)}>{busy ? 'Generating…' : 'Replace recovery codes'}</button><button type="button" className="settings-text-button" disabled={busy} onClick={() => { setEditing(false); setPassword(''); setTotp(''); setError(null) }}>Cancel</button></div>
+      <label>Current password<TextInput className="dashboard-input" type="password" autoComplete="current-password" value={password} disabled={busy} onChange={event => setPassword(event.target.value)} /></label>
+      <label>Authenticator code<TextInput className="dashboard-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={totp} disabled={busy} onChange={event => setTotp(event.target.value.replace(/\D/g, '').slice(0, 6))} /></label>
+      <div className="settings-actions"><Button variant="primary" type="submit" className="dashboard-primary-button" disabled={busy || !online || !password || !/^\d{6}$/.test(totp)}>{busy ? 'Generating…' : 'Replace recovery codes'}</Button><button type="button" className="settings-text-button" disabled={busy} onClick={() => { setEditing(false); setPassword(''); setTotp(''); setError(null) }}>Cancel</button></div>
     </form>}
     {notice && <p className="workspace-note" role="status">{notice}</p>}
     {error && <p className="workspace-field-error" role="alert">{error}</p>}
 
-  </section>
+  </Card>
 }

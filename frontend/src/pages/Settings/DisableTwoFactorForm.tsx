@@ -1,3 +1,5 @@
+import { Button } from '../../components/ui/Button'
+import { TextInput } from '../../components/ui/TextInput'
 import { useEffect, useRef, useState } from 'react'
 import { isRecoveryCode, normalizeRecoveryCode } from '../../auth/recoveryCodes'
 import { SettingsApiError, settingsRequest } from '../../api/settingsApi'
@@ -56,10 +58,10 @@ export function DisableTwoFactorForm({ online, onClose, onPendingChange, onDisab
   return <form className="settings-form mt-5" aria-labelledby="disable-two-factor-title" noValidate onSubmit={event => { event.preventDefault(); void submit() }}>
     <h3 id="disable-two-factor-title">Turn off two-factor login?</h3>
     <p>Your authenticator and all saved recovery codes will stop working. Your password will still be required to sign in.</p>
-    <label>Current password<input ref={passwordRef} className="dashboard-input" type="password" autoComplete="current-password" value={password} disabled={busy} onChange={event => { setPassword(event.target.value); setError(null) }} /></label>
-    <label>{method === 'totp_code' ? 'Authenticator code' : 'Recovery code'}<input ref={codeRef} className="dashboard-input" value={code} disabled={busy} inputMode={method === 'totp_code' ? 'numeric' : 'text'} autoComplete={method === 'totp_code' ? 'one-time-code' : 'off'} spellCheck={false} maxLength={method === 'totp_code' ? 6 : 32} onChange={event => { setCode(method === 'totp_code' ? event.target.value.replace(/\D/g, '') : event.target.value); setError(null) }} /></label>
+    <label>Current password<TextInput ref={passwordRef} className="dashboard-input" type="password" autoComplete="current-password" value={password} disabled={busy} onChange={event => { setPassword(event.target.value); setError(null) }} /></label>
+    <label>{method === 'totp_code' ? 'Authenticator code' : 'Recovery code'}<TextInput ref={codeRef} className="dashboard-input" value={code} disabled={busy} inputMode={method === 'totp_code' ? 'numeric' : 'text'} autoComplete={method === 'totp_code' ? 'one-time-code' : 'off'} spellCheck={false} maxLength={method === 'totp_code' ? 6 : 32} onChange={event => { setCode(method === 'totp_code' ? event.target.value.replace(/\D/g, '') : event.target.value); setError(null) }} /></label>
     <button type="button" className="settings-text-button justify-self-start" disabled={busy} onClick={() => { setMethod(current => current === 'totp_code' ? 'recovery_code' : 'totp_code'); setCode(''); setError(null); codeRef.current?.focus() }}>{method === 'totp_code' ? 'Use a recovery code' : 'Use authenticator app'}</button>
     {error && <p className="workspace-field-error" role="alert">{error}</p>}
-    <div className="settings-actions"><button type="button" className="settings-outline-button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="settings-danger-button" disabled={busy || !online}>{busy ? 'Turning off…' : 'Turn off two-factor login'}</button></div>
+    <div className="settings-actions"><Button variant="outline" type="button" className="settings-outline-button" disabled={busy} onClick={onClose}>Cancel</Button><Button variant="danger" type="submit" className="settings-danger-button" disabled={busy || !online}>{busy ? 'Turning off…' : 'Turn off two-factor login'}</Button></div>
   </form>
 }

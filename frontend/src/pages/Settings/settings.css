@@ -25,15 +25,7 @@
 .settings-form input:disabled { cursor: not-allowed; }
 .settings-form--unavailable { margin-top: 20px; }
 .settings-form--unavailable > button { margin-top: 2px; }
-.settings-outline-button, .settings-danger-outline, .settings-danger-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid var(--aw-control, #9dabc0); border-radius: 8px; font-size: 12px; font-weight: 600; }
-.settings-outline-button { background: transparent; }
 .settings-page > .settings-mobile-signout { display: none; }
-.settings-outline-button:hover { background: var(--aw-layer, #edf0f5); }
-.settings-danger-button { border-color: #c62f31; background: #c62f31; color: white; }
-.settings-danger-button:hover { background: #ae2528; }
-.settings-danger-outline { border-color: #c62f31; color: var(--aw-danger, #bd3035); }
-.settings-danger-outline:hover { background: #c62f3110; }
-.settings-outline-button:disabled, .settings-danger-outline:disabled, .settings-danger-button:disabled { opacity: .45; cursor: not-allowed; }
 .settings-text-button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding-inline: 8px; color: var(--aw-muted, #65748c); font-size: 12px; font-weight: 600; }
 .settings-text-button:hover { text-decoration: underline; }
 .settings-text-button:disabled { opacity: .5; cursor: not-allowed; }

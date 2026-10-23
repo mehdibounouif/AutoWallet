@@ -68,7 +68,7 @@ export function DashboardSplitRibbon({ amount, allocations, reference, preview =
           {branches.map((branch, index) => {
             const Icon = branch.icon
             return <div key={branch.type} style={{ left: `${(branchX[index] / 644) * 100}%` }}>
-              <span className="flex items-center gap-1 font-semibold text-[#283447]"><span style={{ color: branch.color }}><Icon className="h-3.5 w-3.5 shrink-0" /></span><span className="truncate">{branch.label}</span></span>
+              <span className="flex items-center gap-1 font-semibold text-ink"><span style={{ color: branch.color }}><Icon className="h-3.5 w-3.5 shrink-0" /></span><span className="truncate">{branch.label}</span></span>
               <strong>{allocations[branch.type] > 0 ? money.format(allocations[branch.type]) : 'Skipped'}</strong>
               {branchNotes?.[branch.type] && <small>{branchNotes[branch.type]}</small>}
             </div>

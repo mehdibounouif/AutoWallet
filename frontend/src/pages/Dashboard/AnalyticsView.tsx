@@ -1,3 +1,5 @@
+import { Notice } from '../../components/ui/Notice'
+import { Button } from '../../components/ui/Button'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { Download, RefreshCw } from 'lucide-react'
 import type { DashboardData, WalletType } from './dashboardApi'
@@ -83,7 +85,7 @@ export function AnalyticsView({ data, onRecord, recordDisabled, onAsk, onRules, 
   }
 
   return <div className="workspace-page analytics-page">
-    <header className="workspace-heading analytics-heading"><div><h1>Analytics</h1><p>{invalid ? 'Choose a date range to explore your income.' : `${dateLabel(filters.start)} – ${dateLabel(filters.end)}`}{report ? ` · ${report.summary.payments} processed ${report.summary.payments === 1 ? 'payment' : 'payments'}` : ''}</p></div><div className="analytics-actions"><button className="dashboard-secondary-button" disabled={loading} onClick={() => void refresh()} aria-label="Refresh analytics"><RefreshCw size={14} />Refresh</button><button className="dashboard-secondary-button" disabled={Boolean(invalid || exporting)} onClick={() => void exportReport('csv')}><Download size={14} />{exporting === 'csv' ? 'Preparing…' : 'Export CSV'}</button><button className="dashboard-secondary-button" disabled={Boolean(invalid || exporting)} onClick={() => void exportReport('pdf')}><Download size={14} />{exporting === 'pdf' ? 'Preparing…' : 'Export PDF'}</button></div></header>
+    <header className="workspace-heading analytics-heading"><div><h1>Analytics</h1><p>{invalid ? 'Choose a date range to explore your income.' : `${dateLabel(filters.start)} – ${dateLabel(filters.end)}`}{report ? ` · ${report.summary.payments} processed ${report.summary.payments === 1 ? 'payment' : 'payments'}` : ''}</p></div><div className="analytics-actions"><Button variant="secondary" className="dashboard-secondary-button" disabled={loading} onClick={() => void refresh()} aria-label="Refresh analytics"><RefreshCw size={14} />Refresh</Button><Button variant="secondary" className="dashboard-secondary-button" disabled={Boolean(invalid || exporting)} onClick={() => void exportReport('csv')}><Download size={14} />{exporting === 'csv' ? 'Preparing…' : 'Export CSV'}</Button><Button variant="secondary" className="dashboard-secondary-button" disabled={Boolean(invalid || exporting)} onClick={() => void exportReport('pdf')}><Download size={14} />{exporting === 'pdf' ? 'Preparing…' : 'Export PDF'}</Button></div></header>
     <fieldset className="analytics-filters" disabled={Boolean(exporting)}><legend className="sr-only">Analytics filters</legend>
       <label>Period<select aria-label="Analytics period" value={period} onChange={event => { if (event.target.value === 'custom') { setCustomStart(filters.start); setCustomEnd(filters.end) }; setPeriod(event.target.value) }}><option value="30">Last 30 days</option><option value="3">Last 3 calendar months</option><option value="6">Last 6 calendar months</option><option value="12">Last 12 calendar months</option><option value="custom">Custom dates</option></select></label>
       <label>From<input type="date" value={filters.start} max={filters.end || undefined} onChange={event => { setCustomStart(event.target.value); setCustomEnd(filters.end); setPeriod('custom') }} /></label>
@@ -94,7 +96,7 @@ export function AnalyticsView({ data, onRecord, recordDisabled, onAsk, onRules, 
     <p className="workspace-note">Report dates use UTC. Activity dates use your device’s local time.</p>
     {invalid && <p className="workspace-field-error" role="alert">{invalid}</p>}
     {exportNotice?.key === key && <p className={exportNotice.error ? 'workspace-field-error' : 'workspace-note'} role={exportNotice.error ? 'alert' : 'status'}>{exportNotice.message}</p>}
-    {!invalid && error && <div className="workspace-banner workspace-banner--error" role="alert"><span>{error}{report && ' The last loaded values are shown below.'}</span><button onClick={() => setRevision(value => value + 1)}>Retry analytics</button></div>}
+    {!invalid && error && <Notice as="div" tone="error" className="workspace-banner workspace-banner--error" role="alert"><span>{error}{report && ' The last loaded values are shown below.'}</span><button onClick={() => setRevision(value => value + 1)}>Retry analytics</button></Notice>}
     {loading && <p className="workspace-note" role="status">{report ? 'Updating analytics…' : 'Loading analytics…'}</p>}
     {report && <AnalyticsResults report={report} data={data} filters={filters} onRecord={onRecord} recordDisabled={recordDisabled} onAsk={onAsk} onRules={onRules} onRefresh={() => void refresh()} />}
   </div>

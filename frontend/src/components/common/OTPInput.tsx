@@ -84,10 +84,10 @@ export function OTPInput({
           aria-invalid={hasError || undefined}
           className={`min-w-0 w-0 flex-1 sm:w-12 sm:flex-none h-13 sm:h-14 text-center text-2xl font-mono font-semibold rounded-[10px] border transition focus:outline-none ${
             disabled
-              ? 'bg-[#F3F6FA] text-[#8C9BAE] border-[#DDE3EA] cursor-not-allowed opacity-60'
+              ? 'bg-brand-surface text-[#8C9BAE] border-border-subtle cursor-not-allowed opacity-60'
               : hasError
-              ? 'border-[#B42325] text-[#B42325] bg-[#FFF5F5] focus:border-[#B42325] focus:ring-2 focus:ring-[#B42325]/20'
-              : 'border-[#DDE3EA] bg-white text-[#1A2330] focus:border-[#5A64B4] focus:ring-2 focus:ring-[#5A64B4]/20'
+              ? 'border-[#B42325] text-[#B42325] bg-action-danger-subtle focus:border-[#B42325] focus:ring-2 focus:ring-[#B42325]/20'
+              : 'border-border-subtle bg-white text-brand-ink focus:border-action-primary focus:ring-2 focus:ring-action-primary/20'
           }`}
         />
       ))}
