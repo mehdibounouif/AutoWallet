@@ -1,9 +1,8 @@
-import { Button } from '../../components/ui/Button'
-import { FIRST_NAME_REQUIRED, LAST_NAME_REQUIRED, FULL_NAME_TOO_LONG, BANK_ACCOUNT_INVALID, SERVICE_UNAVAILABLE } from '../../content/messages'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
+import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
 import { Stepper } from '../../components/common/Stepper'
 import { Step1About } from './steps/Step1About'
@@ -13,26 +12,19 @@ import { Step4Rules } from './steps/Step4Rules'
 import { Step5TryPayment } from './steps/Step5TryPayment'
 import { onboardingPaths } from './routes'
 import { clearSignupCredentials, getSignupPassword } from '../../auth/pendingCredentials'
-import { isValidBankAccountId, isValidFullNameLength } from '../../auth/validation'
+import { isValidBankAccountId } from '../../auth/validation'
 import { isValidRuleValue } from '../../utils/format'
 import { clearSignupDraft, parseSignupDraft, readSignupDraft, writeSignupDraft } from '../../auth/signupDraft'
 import type { SignupDraft } from '../../auth/signupDraft'
 import { apiFetch } from '../../api/request'
-import { saveAccessToken } from '../../auth/session'
-import { apiErrorDetail, apiValidationErrors } from '../../api/errors'
+import { apiErrorDetail } from '../../api/errors'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
-import { usePendingNavigation } from '../../hooks/usePendingNavigation'
 
 const normalizeRuleValue = (value: string | undefined, fallback: string) =>
   value ? value.replaceAll(',', '').trim() || fallback : fallback
 
-const registrationUnconfirmed = 'Account creation could not be confirmed. Try signing in with this email before creating another account.'
-
-const emailExists = "An account with this email already exists. Log in instead, or reset your password."
-const bankAccountExists = "This bank account is already linked to another user."
-const rulesSaveFailed = "We could not save your rules. Please try again."
-
 export function OnboardingPage() {
+  const t = translations
   const navigate = useNavigate()
   const location = useLocation()
   const requestSignal = useRequestSignal()
@@ -86,9 +78,6 @@ export function OnboardingPage() {
 
   // Submission & Validation States
   const [loading, setLoading] = useState(false)
-  const inFlight = useRef(false)
-  const isRequestPending = useCallback(() => inFlight.current, [])
-  const navigationBlocked = usePendingNavigation(loading, { allowSignedOut: true, isActive: isRequestPending })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [firstNameError, setFirstNameError] = useState<string | null>(null)
   const [lastNameError, setLastNameError] = useState<string | null>(null)
@@ -108,14 +97,14 @@ export function OnboardingPage() {
     let hasErr = false
 
     if (!firstName.trim() || firstName.trim().length < 2) {
-      setFirstNameError(FIRST_NAME_REQUIRED)
+      setFirstNameError(t.firstNameRequired)
       hasErr = true
     } else {
       setFirstNameError(null)
     }
 
     if (!lastName.trim() || lastName.trim().length < 2) {
-      setLastNameError(LAST_NAME_REQUIRED)
+      setLastNameError(t.lastNameRequired)
       hasErr = true
     } else {
       setLastNameError(null)
@@ -124,50 +113,42 @@ export function OnboardingPage() {
     if (hasErr) {
       setErrorMessage(
         !firstName.trim() || firstName.trim().length < 2
-          ? FIRST_NAME_REQUIRED
-          : LAST_NAME_REQUIRED
+          ? t.firstNameRequired
+          : t.lastNameRequired
       )
       return
     }
 
-    if (!isValidFullNameLength(firstName, lastName)) {
-      setFirstNameError(FULL_NAME_TOO_LONG)
-      setLastNameError(FULL_NAME_TOO_LONG)
-      setErrorMessage(FULL_NAME_TOO_LONG)
-      return
-    }
     setErrorMessage(null)
     persistDraft({ firstName: firstName.trim(), lastName: lastName.trim() })
     navigate('/welcome/account')
   }
 
   const handleStep2Continue = async () => {
-    if (inFlight.current || registered) return
+    if (loading || registered) return
     setErrorMessage(null)
     setBankAccountError(null)
 
     const cleanAcc = bankAccount.trim()
     if (!cleanAcc) {
-      setBankAccountError("Please enter your bank account ID / RIB to continue.")
-      setErrorMessage("Please enter your bank account ID / RIB to continue.")
+      setBankAccountError(t.bankAccountRequired)
+      setErrorMessage(t.bankAccountRequired)
       return
     }
 
     if (!isValidBankAccountId(cleanAcc)) {
-      setBankAccountError(BANK_ACCOUNT_INVALID)
-      setErrorMessage(BANK_ACCOUNT_INVALID)
+      setBankAccountError(t.bankAccountInvalid)
+      setErrorMessage(t.bankAccountInvalid)
       return
     }
 
-    if (firstName.trim().length < 2 || lastName.trim().length < 2 || !isValidFullNameLength(firstName, lastName)) {
+    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
       persistDraft({ bankAccount: cleanAcc })
       navigate('/welcome/about')
       return
     }
 
     const signal = requestSignal()
-    persistDraft({ bankAccount: cleanAcc })
-    inFlight.current = true
     setLoading(true)
     try {
       const response = await apiFetch('/api/auth/register', {
@@ -184,43 +165,24 @@ export function OnboardingPage() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}))
-        if (response.status === 422) {
-          const fields = apiValidationErrors(error)
-          const nameError = fields.find(field => field.field === 'full_name')
-          const bankError = fields.find(field => field.field === 'bank_account_id')
-          setErrorMessage(apiErrorDetail(error, 'Please check your account details and try again.').message)
-          if (bankError) setBankAccountError(bankError.message)
-          if (nameError) {
-            setFirstNameError(nameError.message)
-            setLastNameError(nameError.message)
-            persistDraft({ bankAccount: cleanAcc })
-            inFlight.current = false
-            navigate('/welcome/about')
-          }
-          return
-        }
         const detail = apiErrorDetail(error, '').message.toLowerCase()
-        if (response.status === 400 && detail.includes('email')) {
-          setErrorMessage(emailExists)
-        } else if (response.status === 400 && detail.includes('bank account')) {
-          setBankAccountError(bankAccountExists)
-          setErrorMessage(bankAccountExists)
-        } else if (response.status >= 500) {
-          setErrorMessage(registrationUnconfirmed)
+        if (detail.includes('email')) {
+          setErrorMessage(t.emailExists)
+        } else if (detail.includes('bank account')) {
+          setBankAccountError(t.bankAccountExists)
+          setErrorMessage(t.bankAccountExists)
         } else {
-          setErrorMessage(SERVICE_UNAVAILABLE)
+          setErrorMessage(t.serviceUnavailable)
         }
         return
       }
 
       persistDraft({ bankAccount: cleanAcc, registered: true })
       setRegistered(true)
-      inFlight.current = false
       navigate('/welcome/envelopes')
     } catch {
-      if (!signal.aborted) setErrorMessage(registrationUnconfirmed)
+      if (!signal.aborted) setErrorMessage(t.serviceUnavailable)
     } finally {
-      inFlight.current = false
       if (!signal.aborted) setLoading(false)
     }
   }
@@ -232,7 +194,7 @@ export function OnboardingPage() {
   }
 
   const handleStep4Continue = async () => {
-    if (inFlight.current) return
+    if (loading) return
     setErrorMessage(null)
     const invalidInput = [
       { id: 'rule1-token-amount-1', value: rentAmount, max: Infinity },
@@ -242,7 +204,7 @@ export function OnboardingPage() {
     ].find(({ value, max }) => !isValidRuleValue(value, max))
 
     if (invalidInput) {
-      setErrorMessage("Enter valid amounts and percentages between 0 and 100.")
+      setErrorMessage(t.ruleValueInvalid)
       document.getElementById(invalidInput.id)?.focus()
       return
     }
@@ -254,7 +216,6 @@ export function OnboardingPage() {
     }
 
     const signal = requestSignal()
-    inFlight.current = true
     setLoading(true)
     try {
       const loginResponse = await apiFetch('/api/auth/login', {
@@ -264,13 +225,13 @@ export function OnboardingPage() {
         signal,
       })
       if (!loginResponse.ok) {
-        setErrorMessage(rulesSaveFailed)
+        setErrorMessage(t.rulesSaveFailed)
         return
       }
 
       const loginData = await loginResponse.json()
       if (typeof loginData.access_token !== 'string') {
-        setErrorMessage(rulesSaveFailed)
+        setErrorMessage(t.rulesSaveFailed)
         return
       }
 
@@ -289,16 +250,14 @@ export function OnboardingPage() {
         signal,
       })
       if (!rulesResponse.ok) {
-        setErrorMessage(rulesSaveFailed)
+        setErrorMessage(t.rulesSaveFailed)
         return
       }
 
-      inFlight.current = false
       navigate('/welcome/try')
     } catch {
-      if (!signal.aborted) setErrorMessage(rulesSaveFailed)
+      if (!signal.aborted) setErrorMessage(t.rulesSaveFailed)
     } finally {
-      inFlight.current = false
       if (!signal.aborted) setLoading(false)
     }
   }
@@ -318,7 +277,7 @@ export function OnboardingPage() {
   }
 
   const handleComplete = async () => {
-    if (inFlight.current) return
+    if (loading) return
     setErrorMessage(null)
 
     const email = draftEmail.trim()
@@ -331,7 +290,6 @@ export function OnboardingPage() {
     }
 
     const signal = requestSignal()
-    inFlight.current = true
     setLoading(true)
 
     try {
@@ -344,24 +302,20 @@ export function OnboardingPage() {
       if (loginRes.ok) {
         const tokenData = await loginRes.json()
         if (typeof tokenData.access_token === 'string') {
-          saveAccessToken(tokenData.access_token)
+          localStorage.setItem('autowallet_token', tokenData.access_token)
           clearSignupDraft()
-          inFlight.current = false
           navigate('/dashboard', { replace: true })
           return
         }
       }
       clearSignupDraft()
-      inFlight.current = false
       navigate('/login', { replace: true })
     } catch {
       if (signal.aborted) return
       // The account exists; sign-in can be retried without registering again.
       clearSignupDraft()
-      inFlight.current = false
       navigate('/login', { replace: true })
     } finally {
-      inFlight.current = false
       if (!signal.aborted) {
         clearSignupCredentials()
         setLoading(false)
@@ -372,49 +326,44 @@ export function OnboardingPage() {
   if (!draftEmail || !draftPassword) return null
 
   return (
-    <div className={`min-h-screen bg-brand-surface flex flex-col justify-between ${'w-full'}`}>
+    <div className={`min-h-screen bg-[#F3F6FA] flex flex-col justify-between ${'w-full'}`}>
       {/* Onboarding Top Bar with Logo and Stepper */}
       <TopBar variant="onboarding" finalStep={step === 5}>
         <Stepper
           currentStep={step}
           onStepClick={registered || loading ? undefined : handleStepClick}
           expanded={step === 5}
+          t={t}
         />
       </TopBar>
 
-      {registered && <aside aria-label="Email verification" className="mx-auto mt-5 w-full max-w-[640px] px-4 text-center text-sm text-brand-muted">
-        <p>Check your email for a verification link. You can finish setting up your account here.</p>
-        <Link to={`/verify-email?email=${encodeURIComponent(draftEmail)}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold text-action-primary underline underline-offset-2">Request another verification link (opens in a new tab)</Link>
-      </aside>}
-
       {/* Main Content Area */}
       <main className={`flex-1 flex flex-col items-center px-4 z-10 ${step === 5 ? 'justify-start pt-8 sm:pt-[54px] pb-32 sm:pb-40' : 'justify-center py-8 sm:py-12'}`}>
-        {navigationBlocked && <p role="status" className="w-full max-w-[560px] mb-5 rounded-xl border border-border-subtle bg-white p-3.5 text-sm text-brand-navy">Wait for your account request to finish before leaving this page.</p>}
         {/* Error Alert Display */}
         {errorMessage && (
           <div
             role="alert"
-            className="w-full max-w-[560px] mb-5 p-3.5 rounded-xl bg-action-danger-subtle border border-[#FFD2D2] text-action-danger text-sm flex items-start gap-3 animate-in fade-in"
+            className="w-full max-w-[560px] mb-5 p-3.5 rounded-xl bg-[#FFF5F5] border border-[#FFD2D2] text-[#C62F31] text-sm flex items-start gap-3 animate-in fade-in"
           >
-            <AlertCircle className="w-5 h-5 shrink-0 text-action-danger mt-0.5" />
+            <AlertCircle className="w-5 h-5 shrink-0 text-[#C62F31] mt-0.5" />
             <div className="flex-1 leading-snug">
               <span>{errorMessage}</span>
-              {(errorMessage === emailExists || errorMessage === registrationUnconfirmed) && (
-                <div className="mt-1.5 flex gap-4 text-xs text-brand-muted">
+              {errorMessage === t.emailExists && (
+                <div className="mt-1.5 flex gap-4 text-xs text-[#5E6B7E]">
                   <button
                     type="button"
-                    onClick={() => navigate(`/login?email=${encodeURIComponent(draftEmail)}`)}
-                    className="underline text-action-primary font-medium cursor-pointer"
+                    onClick={() => navigate('/login')}
+                    className="underline text-[#5A64B4] font-medium cursor-pointer"
                   >
-                    Log in
+                    {t.loginButton}
                   </button>
-                  {errorMessage === emailExists && <button
+                  <button
                     type="button"
                     onClick={() => navigate('/signup')}
-                    className="underline text-action-primary font-medium cursor-pointer"
+                    className="underline text-[#5A64B4] font-medium cursor-pointer"
                   >
-                    Use another email
-                  </button>}
+                    {t.changeEmail}
+                  </button>
                 </div>
               )}
             </div>
@@ -434,6 +383,7 @@ export function OnboardingPage() {
               setLastName(val)
               if (lastNameError && val.trim().length >= 2) setLastNameError(null)
             }}
+            t={t}
             onSubmit={handleStep1Continue}
             externalFirstNameError={firstNameError}
             externalLastNameError={lastNameError}
@@ -446,16 +396,17 @@ export function OnboardingPage() {
             bankAccount={bankAccount}
             setBankAccount={(val) => {
               setBankAccount(val)
-              if (errorMessage === bankAccountExists) setErrorMessage(null)
+              if (errorMessage === t.bankAccountExists) setErrorMessage(null)
               if (bankAccountError) setBankAccountError(null)
             }}
+            t={t}
             externalBankAccountError={bankAccountError}
             disabled={loading}
           />
         )}
 
         {/* Step 3: Envelopes */}
-        {step === 3 && <Step3Envelopes />}
+        {step === 3 && <Step3Envelopes t={t} />}
 
         {/* Step 4: Rules */}
         {step === 4 && (
@@ -469,6 +420,7 @@ export function OnboardingPage() {
               setSavingsPercent={setSavingsPercent}
               savingsCap={savingsCap}
               setSavingsCap={setSavingsCap}
+              t={t}
             />
           </fieldset>
         )}
@@ -485,24 +437,26 @@ export function OnboardingPage() {
             hasSimulated={hasSimulated}
             isSimulating={isSimulating}
             onSimulate={handleSimulate}
+            t={t}
           />
         )}
       </main>
 
       {/* Fixed / Bottom Actions Bar per Figma layout_daff2d4f */}
-      <footer className={`w-full bg-white border-t border-border-subtle z-20 ${step === 5 ? 'fixed inset-x-0 bottom-0 h-[88px] sm:h-[132px] pb-[env(safe-area-inset-bottom)] px-4 sm:px-10 flex items-center' : 'px-6 sm:px-10 py-4'}`}>
+      <footer className={`w-full bg-white border-t border-[#DDE3EA] z-20 ${step === 5 ? 'fixed inset-x-0 bottom-0 h-[88px] sm:h-[132px] pb-[env(safe-area-inset-bottom)] px-4 sm:px-10 flex items-center' : 'px-6 sm:px-10 py-4'}`}>
         <div className={`${step === 5 ? 'w-full' : 'max-w-5xl mx-auto'} flex items-center justify-between`}>
           {step === 1 ? (
             <>
               <div /> {/* Spacer */}
-              <Button appearance="onboarding"
+              <button
                 type="button"
                 id="onboarding-continue-step1"
                 onClick={() => handleStep1Continue()}
                 disabled={!firstName.trim()}
+                className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs flex items-center justify-center gap-2"
               >
-                <span>Continue</span>
-              </Button>
+                <span>{t.continueButton}</span>
+              </button>
             </>
           ) : step === 2 ? (
             <>
@@ -511,21 +465,22 @@ export function OnboardingPage() {
                 id="onboarding-back-step2"
                 onClick={handleBack}
                 disabled={loading}
-                className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-border-subtle bg-white text-brand-navy hover:bg-brand-surface text-sm font-medium transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>Back</span>
+                <span>{t.backButton}</span>
               </button>
 
-              <Button appearance="onboarding"
+              <button
                 type="button"
                 id="onboarding-continue-step2"
                 onClick={handleStep2Continue}
                 disabled={loading}
+                className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                <span>Create account</span>
-              </Button>
+                <span>{t.signupButton}</span>
+              </button>
             </>
           ) : step === 3 ? (
             <>
@@ -535,21 +490,22 @@ export function OnboardingPage() {
                   id="onboarding-back-step3"
                   onClick={handleBack}
                   disabled={loading}
-                  className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-border-subtle bg-white text-brand-navy hover:bg-brand-surface text-sm font-medium transition cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  <span>Back</span>
+                  <span>{t.backButton}</span>
                 </button>
               )}
 
-              <Button appearance="onboarding"
+              <button
                 type="button"
                 id="onboarding-continue-step3"
                 onClick={handleStep3Continue}
                 disabled={loading}
+                className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
               >
-                <span>Continue</span>
-              </Button>
+                <span>{t.continueButton}</span>
+              </button>
             </>
           ) : step === 4 ? (
             <>
@@ -558,21 +514,22 @@ export function OnboardingPage() {
                 id="onboarding-back-step4"
                 onClick={handleBack}
                 disabled={loading}
-                className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-border-subtle bg-white text-brand-navy hover:bg-brand-surface text-sm font-medium transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>Back</span>
+                <span>{t.backButton}</span>
               </button>
 
-              <Button appearance="onboarding"
+              <button
                 type="button"
                 id="onboarding-continue-step4"
                 onClick={handleStep4Continue}
                 disabled={loading}
+                className="h-11 px-6 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                <span>Continue</span>
-              </Button>
+                <span>{t.continueButton}</span>
+              </button>
             </>
           ) : (
             /* Step 5: Try a payment */
@@ -582,10 +539,10 @@ export function OnboardingPage() {
                 id="onboarding-back-step5"
                 onClick={handleBack}
                 disabled={loading || isSimulating}
-                className="inline-flex items-center gap-2 h-11 px-5 rounded-[10px] bg-white text-brand-navy hover:bg-brand-surface text-sm font-medium transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-2 h-11 px-5 rounded-[10px] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>Back</span>
+                <span>{t.backButton}</span>
               </button>
 
               {!hasSimulated ? (
@@ -594,22 +551,22 @@ export function OnboardingPage() {
                   id="onboarding-skip-to-home-step5"
                   onClick={handleComplete}
                   disabled={loading || isSimulating}
-                  className="h-11 px-6 rounded-[10px] border border-border-subtle bg-white text-brand-navy hover:bg-brand-surface text-sm font-medium transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
+                  className="h-11 px-6 rounded-[10px] border border-[#DDE3EA] bg-white text-[#3B495D] hover:bg-[#F3F6FA] text-sm font-medium transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Skip to Home</span>
+                  <span>{t.skipToHomeButton}</span>
                 </button>
               ) : (
-                <Button appearance="onboarding"
+                <button
                   type="button"
                   id="onboarding-go-to-home-step5"
                   onClick={handleComplete}
                   disabled={loading || isSimulating}
-                  className="min-h-[52px]"
+                  className="h-[52px] px-5 rounded-[10px] bg-[#5A64B4] hover:bg-[#4A53A0] active:bg-[#3F4789] text-white font-medium text-sm transition cursor-pointer disabled:opacity-50 shadow-xs flex items-center justify-center gap-2"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Go to Home</span>
-                </Button>
+                  <span>{t.goToHomeButton}</span>
+                </button>
               )}
             </>
           )}

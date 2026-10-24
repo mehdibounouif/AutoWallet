@@ -25,13 +25,21 @@
 .settings-form input:disabled { cursor: not-allowed; }
 .settings-form--unavailable { margin-top: 20px; }
 .settings-form--unavailable > button { margin-top: 2px; }
+.settings-outline-button, .settings-danger-outline, .settings-danger-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid var(--aw-control, #9dabc0); border-radius: 8px; font-size: 12px; font-weight: 600; }
+.settings-outline-button { background: transparent; }
 .settings-page > .settings-mobile-signout { display: none; }
+.settings-outline-button:hover { background: var(--aw-layer, #edf0f5); }
+.settings-danger-button { border-color: #c62f31; background: #c62f31; color: white; }
+.settings-danger-button:hover { background: #ae2528; }
+.settings-danger-outline { border-color: #c62f31; color: var(--aw-danger, #bd3035); }
+.settings-danger-outline:hover { background: #c62f3110; }
+.settings-outline-button:disabled, .settings-danger-outline:disabled, .settings-danger-button:disabled { opacity: .45; cursor: not-allowed; }
 .settings-text-button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding-inline: 8px; color: var(--aw-muted, #65748c); font-size: 12px; font-weight: 600; }
 .settings-text-button:hover { text-decoration: underline; }
 .settings-text-button:disabled { opacity: .5; cursor: not-allowed; }
 .settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .settings-status { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-block: 18px 6px; padding: 3px 8px; border-radius: 99px; background: var(--aw-layer, #edf0f5); color: var(--aw-muted, #74839b); font-size: 11px; }
-.settings-status--on { background: #e4f4e9; color: var(--aw-status-success-ink, #176b39); }
+.settings-status--on { background: #e4f4e9; color: #218445; }
 .settings-secret-input { position: relative; display: block; margin-top: 8px; }
 .settings-secret-input > input { padding-right: 48px; }
 .settings-secret-input button { position: absolute; top: 0; right: 3px; display: grid; width: 40px; height: 44px; place-items: center; color: var(--aw-muted, #74839b); }
@@ -76,15 +84,6 @@
 .settings-notification-switches input:disabled + .settings-switch-track { opacity: .4; }
 .settings-notification-switches label:has(input:disabled) { cursor: not-allowed; }
 .settings-notification-switches input:focus-visible + .settings-switch-track { outline: 2px solid #5d67ba; outline-offset: 3px; }
-.settings-language { display: flex; align-items: flex-start; gap: 10px; margin-top: 24px; color: var(--aw-accent, #5963b6); }
-.settings-language strong { font-size: 13px; font-weight: 600; }
-.settings-language p { margin-top: 10px; color: var(--aw-muted, #8795a8); font-size: 11px; }
-.settings-theme-options { display: flex; flex-wrap: wrap; width: fit-content; gap: 4px; margin-top: 20px; padding: 4px; border-radius: 99px; background: var(--aw-layer, #edf0f5); }
-.settings-theme-options label { position: relative; cursor: pointer; }
-.settings-theme-options input { position: absolute; width: 100%; height: 100%; opacity: 0; }
-.settings-theme-options label > span { display: flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 99px; color: var(--aw-muted, #74839b); font-size: 12px; }
-.settings-theme-options input:checked + span { background: var(--aw-surface, #fff); color: var(--aw-ink, #263246); box-shadow: 0 1px 3px #1a233015; }
-.settings-theme-options input:focus-visible + span { outline: 2px solid #5d67ba; outline-offset: 2px; }
 .settings-empty-keys { display: flex; align-items: center; gap: 14px; margin-top: 22px; padding: 20px 16px; border: 1px solid var(--aw-border, #dce3eb); border-radius: 12px; color: var(--aw-muted, #74839b); }
 .settings-empty-keys > svg { flex-shrink: 0; }
 .settings-empty-keys strong { color: var(--aw-ink, #263246); font-size: 13px; font-weight: 600; }
@@ -132,7 +131,6 @@
   .settings-profile .settings-identity { gap: 12px; }
   .settings-profile .settings-identity > div > span { font-size: 11px; }
   .settings-profile .settings-avatar { width: 56px; height: 56px; font-size: 18px; }
-  .settings-profile .settings-form > .dashboard-primary-button { justify-self: stretch; }
   .settings-form { gap: 18px; }
   .settings-setup-key { padding-left: 8px; }
   .settings-setup-key .dashboard-input { font-size: 11px; }

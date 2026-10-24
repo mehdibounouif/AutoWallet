@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { LanguageSelector } from './LanguageSelector'
 
 export interface TopBarProps {
   variant?: 'auth' | 'onboarding'
@@ -18,16 +19,16 @@ export function TopBar({
     <header
       className={`w-full px-6 sm:px-10 py-5 ${finalStep ? 'sm:py-[21px]' : 'sm:py-6'} flex flex-col justify-center z-20 transition-colors ${
         variant === 'onboarding'
-          ? `bg-white border-b border-border-subtle ${finalStep ? '' : 'shadow-xs'}`
+          ? `bg-white border-b border-[#DDE3EA] ${finalStep ? '' : 'shadow-xs'}`
           : 'border-b border-transparent'
       }`}
     >
-      <div className="w-full flex items-center gap-4">
+      <div className="w-full flex items-center justify-between gap-4">
         {/* AutoWallet Official Logo using AW.svg */}
         <button
           type="button"
           onClick={() => navigate('/login')}
-          className="flex items-center gap-2.5 cursor-pointer group text-left transition-opacity hover:opacity-90 select-none shrink-0"
+          className="flex items-center gap-2.5 cursor-pointer group text-start transition-opacity hover:opacity-90 select-none shrink-0"
           title="AutoWallet Home"
         >
           <img
@@ -35,7 +36,7 @@ export function TopBar({
             alt="AutoWallet Logo"
             className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
           />
-          <span className={`${finalStep ? 'text-base' : 'text-xl sm:text-2xl'} font-bold text-brand-navy tracking-tight leading-none`}>
+          <span className={`${finalStep ? 'text-base' : 'text-xl sm:text-2xl'} font-bold text-[#3B495D] tracking-tight leading-none`}>
             AutoWallet
           </span>
         </button>
@@ -46,6 +47,11 @@ export function TopBar({
             {children}
           </div>
         )}
+
+        {/* Language selector */}
+        <div className="flex items-center gap-2 shrink-0">
+          <LanguageSelector />
+        </div>
       </div>
 
       {/* Stepper (Compact screens: placed below the logo) */}
