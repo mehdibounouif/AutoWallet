@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import './dialog.css'
 
 interface DialogProps {
   children: ReactNode
@@ -55,8 +56,8 @@ export function Dialog({ children, labelledBy, onClose, dismissible = true, clas
   }, [initialFocusRef])
 
   return createPortal(
-    <div className={`app-dialog-backdrop fixed inset-0 z-80 flex items-center justify-center overflow-y-auto bg-[#17243a80] p-5 max-md:p-4 ${className}`} onMouseDown={(event) => { if (event.target === event.currentTarget && dismissible) onClose() }}>
-      <section ref={panelRef} role={role} aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1} className={`app-dialog-panel min-w-0 max-h-[calc(100dvh-40px)] overflow-y-auto overscroll-contain outline-none max-md:max-h-[calc(100dvh-32px)] ${panelClassName}`}>
+    <div className={`app-dialog-backdrop ${className}`} onMouseDown={(event) => { if (event.target === event.currentTarget && dismissible) onClose() }}>
+      <section ref={panelRef} role={role} aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1} className={`app-dialog-panel ${panelClassName}`}>
         {children}
       </section>
     </div>,

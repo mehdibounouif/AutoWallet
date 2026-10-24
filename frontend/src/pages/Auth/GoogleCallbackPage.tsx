@@ -1,11 +1,9 @@
-import { AuthPanel } from '../../components/ui/AuthPanel'
-import { SERVICE_UNAVAILABLE } from '../../content/messages'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { translations } from '../../i18n'
 import { TopBar } from '../../components/common/TopBar'
 import { apiFetch } from '../../api/request'
-import { saveAccessToken } from '../../auth/session'
 import { apiErrorDetail } from '../../api/errors'
 import { clearGoogleReturnPath, loginPath, readGoogleReturnPath } from '../../auth/returnPath'
 
@@ -15,6 +13,7 @@ interface ExchangeResult {
 }
 
 export function GoogleCallbackPage() {
+  const t = translations
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -75,7 +74,7 @@ export function GoogleCallbackPage() {
 
         if (result.ok) {
           if (typeof result.data.access_token !== 'string') throw new Error('Missing access token')
-          saveAccessToken(result.data.access_token)
+          localStorage.setItem('autowallet_token', result.data.access_token)
           clearGoogleReturnPath()
           navigate(returnPath, { replace: true })
         } else {
@@ -86,12 +85,12 @@ export function GoogleCallbackPage() {
             clearGoogleReturnPath()
             navigate(`${loginPath(returnPath)}&google_status=existing_password${emailQuery}`, { replace: true })
           } else {
-            setErrorMessage("Google sign-in could not be completed. Please try again.")
+            setErrorMessage(t.googleSignInFailed)
           }
         }
       } catch {
         if (!isMounted) return
-        setErrorMessage(SERVICE_UNAVAILABLE)
+        setErrorMessage(t.serviceUnavailable)
       }
     }
 
@@ -100,30 +99,30 @@ export function GoogleCallbackPage() {
     return () => {
       isMounted = false
     }
-  }, [navigate, returnPath, searchParams])
+  }, [navigate, returnPath, searchParams, t.googleSignInFailed, t.serviceUnavailable])
 
   return (
-    <div className="min-h-screen w-full bg-brand-surface flex flex-col">
+    <div className="min-h-screen w-full bg-[#F3F6FA] flex flex-col">
       <TopBar />
 
       <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10">
-        <AuthPanel className="p-8 sm:p-10 text-center flex flex-col items-center">
+        <div className="w-full max-w-[440px] bg-white rounded-2xl border border-[#DDE3EA] p-8 sm:p-10 shadow-[0_8px_24px_-4px_rgba(27,36,50,0.08),0_2px_6px_-1px_rgba(27,36,50,0.04)] text-center flex flex-col items-center">
           {errorMessage ? (
             <>
               <div
                 role="alert"
-                className="w-full mb-6 p-3.5 rounded-xl bg-action-danger-subtle border border-[#FFD2D2] text-action-danger text-sm flex items-start gap-3 text-left"
+                className="w-full mb-6 p-3.5 rounded-xl bg-[#FFF5F5] border border-[#FFD2D2] text-[#C62F31] text-sm flex items-start gap-3 text-left"
               >
-                <AlertCircle className="w-5 h-5 shrink-0 text-action-danger mt-0.5" />
+                <AlertCircle className="w-5 h-5 shrink-0 text-[#C62F31] mt-0.5" />
                 <div className="flex-1 leading-snug">{errorMessage}</div>
               </div>
               <div className="flex flex-col gap-2.5 w-full">
                 <button
                   type="button"
                   onClick={() => { clearGoogleReturnPath(); navigate(loginPath(returnPath)) }}
-                  className="w-full h-11 px-4 rounded-[10px] border border-border-subtle bg-white hover:bg-brand-surface text-brand-navy font-medium text-sm transition cursor-pointer"
+                  className="w-full h-11 px-4 rounded-[10px] border border-[#DDE3EA] bg-white hover:bg-[#F3F6FA] text-[#3B495D] font-medium text-sm transition cursor-pointer"
                 >
-                  Log in
+                  {t.loginButton}
                 </button>
               </div>
             </>
@@ -131,20 +130,20 @@ export function GoogleCallbackPage() {
             <>
               <div
                 role="status"
-                aria-label="Signing in with Google…"
-                className="w-12 h-12 rounded-full bg-action-primary-subtle flex items-center justify-center mb-4"
+                aria-label={t.googleSigningIn}
+                className="w-12 h-12 rounded-full bg-[#ECEEFA] flex items-center justify-center mb-4"
               >
-                <Loader2 className="w-6 h-6 text-action-primary animate-spin" />
+                <Loader2 className="w-6 h-6 text-[#5A64B4] animate-spin" />
               </div>
-              <h1 className="text-2xl font-semibold text-brand-ink tracking-tight mb-2">
-                Signing in with Google…
+              <h1 className="text-2xl font-semibold text-[#1A2330] tracking-tight mb-2">
+                {t.googleSigningIn}
               </h1>
-              <p className="text-[15px] text-brand-muted leading-relaxed max-w-[320px]">
-                Welcome back to AutoWallet.
+              <p className="text-[15px] text-[#5E6B7E] leading-relaxed max-w-[320px]">
+                {t.loginSubtitle}
               </p>
             </>
           )}
-        </AuthPanel>
+        </div>
       </main>
     </div>
   )

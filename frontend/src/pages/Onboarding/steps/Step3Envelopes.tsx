@@ -1,14 +1,19 @@
 import { Home, Landmark, PiggyBank, ShoppingBag, Wallet, Sparkles } from 'lucide-react'
+import type { Translations } from '../../../i18n'
 
-export function Step3Envelopes() {
+interface Step3EnvelopesProps {
+  t: Translations
+}
+
+export function Step3Envelopes({ t }: Step3EnvelopesProps) {
   const envelopeCards = [
     {
       id: 'rent',
-      name: "Rent",
-      desc: "Reserves the rent amount first from each payment",
+      name: t.rentName,
+      desc: t.rentDesc,
       amount: '0.00',
       currency: 'MAD',
-      status: "Fills first from your next payment",
+      status: t.rentStatus,
       icon: Home,
       iconColor: '#2270D8',
       bgColor: '#EAF2FC',
@@ -16,11 +21,11 @@ export function Step3Envelopes() {
     },
     {
       id: 'tax',
-      name: "Tax",
-      desc: "15% of what's left after Rent",
+      name: t.taxName,
+      desc: t.taxDesc,
       amount: '0.00',
       currency: 'MAD',
-      status: "Fills from your next payment",
+      status: t.taxStatus,
       icon: Landmark,
       iconColor: '#EB6834',
       bgColor: '#FDEEE8',
@@ -28,11 +33,11 @@ export function Step3Envelopes() {
     },
     {
       id: 'savings',
-      name: "Savings",
-      desc: "15% of what's left, until 10,000.00",
+      name: t.savingsName,
+      desc: t.savingsDesc,
       amount: '0.00',
       currency: 'MAD',
-      status: "Fills from your next payment",
+      status: t.savingsStatus,
       icon: PiggyBank,
       iconColor: '#1BAF7A',
       bgColor: '#E3F5EE',
@@ -40,24 +45,24 @@ export function Step3Envelopes() {
     },
     {
       id: 'free',
-      name: "Free to spend",
-      desc: "Everything left after the other rules",
+      name: t.freeToSpendName,
+      desc: t.freeToSpendDesc,
       amount: '0.00',
       currency: 'MAD',
-      status: "Fills from your next payment",
+      status: t.freeToSpendStatus,
       icon: ShoppingBag,
       iconColor: '#EDA100',
       bgColor: '#FDF3DC',
       isFocal: true,
-      badge: "Yours to spend",
+      badge: t.freeToSpendBadge,
     },
     {
       id: 'main',
-      name: "Main",
-      desc: "Anything the rules don't take",
+      name: t.mainName,
+      desc: t.mainDesc,
       amount: '0.00',
       currency: 'MAD',
-      status: "Nothing so far: your rules use every payment",
+      status: t.mainStatus,
       icon: Wallet,
       iconColor: '#5E6B7E',
       bgColor: '#EDF0F4',
@@ -69,11 +74,11 @@ export function Step3Envelopes() {
     <div className="w-full max-w-5xl mx-auto px-2 sm:px-4">
       {/* Step 3 Heading */}
       <div className="mb-8 space-y-2 text-center sm:text-left">
-        <h1 className="text-2xl sm:text-[32px] font-semibold text-brand-ink tracking-tight">
-          Five envelopes, one job each
+        <h1 className="text-2xl sm:text-[32px] font-semibold text-[#1A2330] tracking-tight">
+          {t.envelopesTitle}
         </h1>
-        <p className="text-[15px] sm:text-base text-brand-muted leading-relaxed max-w-3xl">
-          Every payment is split between them, in the order of your rules. Main catches anything your rules don't take.
+        <p className="text-[15px] sm:text-base text-[#5E6B7E] leading-relaxed max-w-3xl">
+          {t.envelopesSubtitle}
         </p>
       </div>
 
@@ -87,8 +92,8 @@ export function Step3Envelopes() {
               key={card.id}
               className={`bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all hover:shadow-xs min-h-[185px] ${
                 card.isFocal
-                  ? 'border-free-solid/60 ring-2 ring-free-solid/25 shadow-xs relative'
-                  : 'border-border-subtle shadow-2xs'
+                  ? 'border-[#EDA100]/60 ring-2 ring-[#EDA100]/25 shadow-xs relative'
+                  : 'border-[#DDE3EA] shadow-2xs'
               }`}
             >
               <div>
@@ -102,18 +107,18 @@ export function Step3Envelopes() {
                       <IconComponent className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-base sm:text-lg font-bold text-brand-ink tracking-tight">
+                      <h2 className="text-base sm:text-lg font-bold text-[#1A2330] tracking-tight">
                         {card.name}
                       </h2>
-                      <p className="text-xs sm:text-sm text-brand-muted leading-snug mt-0.5">
+                      <p className="text-xs sm:text-sm text-[#5E6B7E] leading-snug mt-0.5">
                         {card.desc}
                       </p>
                     </div>
                   </div>
 
                   {card.isFocal && card.badge && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-free-ink bg-free-tint px-2.5 py-0.5 rounded-full border border-free-solid/30 shrink-0 select-none">
-                      <Sparkles className="w-3 h-3 text-free-solid" />
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#B26A00] bg-[#FDF3DC] px-2.5 py-0.5 rounded-full border border-[#EDA100]/30 shrink-0 select-none">
+                      <Sparkles className="w-3 h-3 text-[#EDA100]" />
                       <span>{card.badge}</span>
                     </span>
                   )}
@@ -121,17 +126,17 @@ export function Step3Envelopes() {
 
                 {/* Middle Balance Amount */}
                 <div className="my-4 sm:my-5 flex items-baseline">
-                  <span className="text-2xl sm:text-[28px] font-bold text-brand-ink tracking-tight">
+                  <span className="text-2xl sm:text-[28px] font-bold text-[#1A2330] tracking-tight">
                     {card.amount}
                   </span>
-                  <span className="text-xs sm:text-sm font-medium text-brand-muted ml-1.5">
+                  <span className="text-xs sm:text-sm font-medium text-[#5E6B7E] ml-1.5">
                     {card.currency}
                   </span>
                 </div>
               </div>
 
               {/* Bottom Status / Rule Note */}
-              <div className="pt-3 border-t border-brand-surface text-xs text-brand-muted flex items-center gap-1.5 leading-tight">
+              <div className="pt-3 border-t border-[#F3F6FA] text-xs text-[#8C9BAE] flex items-center gap-1.5 leading-tight">
                 <span>{card.status}</span>
               </div>
             </div>

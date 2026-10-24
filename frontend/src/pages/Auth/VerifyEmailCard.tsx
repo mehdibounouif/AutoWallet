@@ -1,6 +1,3 @@
-import { Button } from '../../components/ui/Button'
-import { TextInput } from '../../components/ui/TextInput'
-import { AuthPanel } from '../../components/ui/AuthPanel'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, Loader2, Mail } from 'lucide-react'
@@ -11,6 +8,7 @@ import { readSignupDraft } from '../../auth/signupDraft'
 import { isValidEmail } from '../../auth/validation'
 import { useCountdown } from '../../hooks/useCountdown'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
+import { translations } from '../../i18n'
 
 export function VerifyEmailCard() {
   const [params] = useSearchParams()
@@ -80,18 +78,18 @@ function EmailVerification({ token, initialEmail }: { token: string | null; init
   }
 
   return <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10">
-    <AuthPanel className="space-y-5">
-      <div className="w-12 h-12 rounded-full bg-action-primary-subtle flex items-center justify-center text-action-primary">{verification === 'success' ? <CheckCircle2 /> : <Mail />}</div>
-      <h1 className="text-2xl font-semibold text-brand-ink">{verification === 'success' ? 'Email verified' : 'Verify your email'}</h1>
-      {verification === 'checking' ? <p role="status" className="flex items-center gap-2 text-sm"><Loader2 className="animate-spin" size={16} />Verifying your email…</p> : verification === 'success' ? <p role="status" className="text-sm text-status-success">Your email address is verified. You can continue to your account.</p> : <p className="text-sm text-brand-muted">{token ? 'This verification could not be completed. You can request another link.' : `Check ${email || 'your inbox'} for your verification link. You can request a new link below.`}</p>}
+    <div className="w-full max-w-[440px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-9 shadow-sm space-y-5">
+      <div className="w-12 h-12 rounded-full bg-[#ECEEFA] flex items-center justify-center text-[#5A64B4]">{verification === 'success' ? <CheckCircle2 /> : <Mail />}</div>
+      <h1 className="text-2xl font-semibold text-[#1A2330]">{verification === 'success' ? 'Email verified' : 'Verify your email'}</h1>
+      {verification === 'checking' ? <p role="status" className="flex items-center gap-2 text-sm"><Loader2 className="animate-spin" size={16} />Verifying your email…</p> : verification === 'success' ? <p role="status" className="text-sm text-[#1F7A3A]">Your email address is verified. You can continue to your account.</p> : <p className="text-sm text-[#5E6B7E]">{token ? 'This verification could not be completed. You can request another link.' : translations.verifyEmailSubtitle.replace('{email}', email || 'your inbox')}</p>}
       {error && <p role="alert" className="text-sm text-[#B42325]">{error}</p>}
-      {notice && <p role="status" className="text-sm text-status-success">{notice}</p>}
+      {notice && <p role="status" className="text-sm text-[#1F7A3A]">{notice}</p>}
       {verification !== 'success' && <form onSubmit={event => { event.preventDefault(); void resend() }} className="space-y-3">
-        <label className="block text-sm text-brand-navy">Email address<TextInput appearance="auth" type="email" autoComplete="email" required value={email} disabled={sending || verification === 'checking'} onChange={event => setEmail(event.target.value)} className="" /></label>
-        <button disabled={sending || verification === 'checking' || countdown > 0 || !isValidEmail(email)} className="w-full min-h-11 px-3 rounded-[10px] border border-border-subtle text-sm disabled:opacity-50">{sending ? 'Requesting…' : countdown > 0 ? `Request another link in ${countdown}s` : 'Send verification link'}</button>
+        <label className="block text-sm text-[#3B495D]">Email address<input type="email" autoComplete="email" required value={email} disabled={sending || verification === 'checking'} onChange={event => setEmail(event.target.value)} className="mt-1 w-full h-11 px-3 rounded-[10px] border border-[#DDE3EA]" /></label>
+        <button disabled={sending || verification === 'checking' || countdown > 0 || !isValidEmail(email)} className="w-full min-h-11 px-3 rounded-[10px] border border-[#DDE3EA] text-sm disabled:opacity-50">{sending ? 'Requesting…' : countdown > 0 ? `Request another link in ${countdown}s` : 'Send verification link'}</button>
       </form>}
-      <Button appearance="auth" variant="primary" type="submit" onClick={() => navigate('/dashboard', { replace: true })} disabled={verification === 'checking'} >Continue to account</Button>
-    </AuthPanel>
-    <LegalFooter />
+      <button onClick={() => navigate('/dashboard', { replace: true })} disabled={verification === 'checking'} className="w-full min-h-11 px-3 rounded-[10px] bg-[#5A64B4] text-white text-sm disabled:opacity-50">Continue to account</button>
+    </div>
+    <LegalFooter t={translations} />
   </main>
 }
