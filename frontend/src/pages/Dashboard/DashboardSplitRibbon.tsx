@@ -22,7 +22,6 @@ export function DashboardSplitRibbon({ amount, allocations, reference, preview =
   previewLabel?: string
   branchNotes?: Partial<Record<'rent' | 'tax' | 'savings' | 'free', string>>
 }) {
-  const largeAmount = money.format(amount).length > 12
   const remaining = branches.map((_, index) => amount - branches.slice(0, index + 1)
     .reduce((sum, item) => sum + allocations[item.type], 0))
   const remainingHeights = remaining.map((value) => amount > 0 ? Math.max(0, value / amount * height) : 0)
@@ -35,7 +34,7 @@ export function DashboardSplitRibbon({ amount, allocations, reference, preview =
   ].join(' ')
 
   return (
-    <div className={`dashboard-ribbon${largeAmount ? ' dashboard-ribbon--large' : ''}`}>
+    <div className="dashboard-ribbon">
       <div className="dashboard-ribbon-amount">
         <strong>{money.format(amount)} <small>MAD</small></strong>
         <span>{preview ? previewLabel : reference}</span>
@@ -44,7 +43,7 @@ export function DashboardSplitRibbon({ amount, allocations, reference, preview =
         <div className="dashboard-ribbon-remaining">
           {remaining.slice(0, 3).map((value, index) => <span key={index} style={{ left: `${(branchX[index] / 644) * 100}%` }}>{money.format(Math.max(0, value))} left</span>)}
         </div>
-        <svg viewBox={`0 0 ${largeAmount ? 668 : 644} 108`} role="img" aria-label={`${preview ? 'Preview' : 'Payment'} split: ${branches.map((item) => `${item.label} ${money.format(allocations[item.type])} MAD`).join(', ')}, Main ${money.format(allocations.main)} MAD`}>
+        <svg viewBox="0 0 644 108" role="img" aria-label={`${preview ? 'Preview' : 'Payment'} split: ${branches.map((item) => `${item.label} ${money.format(allocations[item.type])} MAD`).join(', ')}, Main ${money.format(allocations.main)} MAD`}>
           {branches.map((branch, index) => {
             const value = allocations[branch.type]
             if (value <= 0 || amount <= 0) return null
@@ -68,7 +67,7 @@ export function DashboardSplitRibbon({ amount, allocations, reference, preview =
           {branches.map((branch, index) => {
             const Icon = branch.icon
             return <div key={branch.type} style={{ left: `${(branchX[index] / 644) * 100}%` }}>
-              <span className="flex items-center gap-1 font-semibold text-ink"><span style={{ color: branch.color }}><Icon className="h-3.5 w-3.5 shrink-0" /></span><span className="truncate">{branch.label}</span></span>
+              <span className="flex items-center gap-1 font-semibold text-[#283447]"><span style={{ color: branch.color }}><Icon className="h-3.5 w-3.5 shrink-0" /></span><span className="truncate">{branch.label}</span></span>
               <strong>{allocations[branch.type] > 0 ? money.format(allocations[branch.type]) : 'Skipped'}</strong>
               {branchNotes?.[branch.type] && <small>{branchNotes[branch.type]}</small>}
             </div>
