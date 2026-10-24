@@ -94,10 +94,23 @@ async function streamDirectFromProvider(
     : 'https://api.openai.com/v1'
   const defaultModel = isGeminiKey ? 'gemini-1.5-flash' : 'gpt-4o-mini'
 
-  const baseUrl = (config.baseUrl || defaultBaseUrl).replace(/\/+$/, '')
+  const rawBase = (config.baseUrl || defaultBaseUrl).replace(/\/+$/, '')
   const model = config.model || defaultModel
-  const queryParam = isGeminiKey && baseUrl.includes('googleapis.com') ? `?key=${encodeURIComponent(config.apiKey)}` : ''
-  const url = `${baseUrl}/chat/completions${queryParam}`
+
+  let url: string
+  try {
+    const parsed = new URL(`${rawBase}/chat/completions`)
+    if (
+      isGeminiKey &&
+      (parsed.hostname === 'generativelanguage.googleapis.com' ||
+        parsed.hostname.endsWith('.googleapis.com'))
+    ) {
+      parsed.searchParams.set('key', config.apiKey)
+    }
+    url = parsed.toString()
+  } catch {
+    url = `${rawBase}/chat/completions`
+  }
 
   const systemContent = SYSTEM_PROMPT + (userDataText ? `\n\n${userDataText}` : '')
   const messages = [
