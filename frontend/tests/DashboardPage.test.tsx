@@ -33,6 +33,9 @@ function renderDashboard(path = '/dashboard') {
         <Route path="/app/rules" element={<DashboardPage />} />
         <Route path="/app/activity" element={<DashboardPage />} />
         <Route path="/app/activity/:paymentId" element={<DashboardPage />} />
+        <Route path="/app/settings" element={<DashboardPage />} />
+        <Route path="/app/notifications" element={<DashboardPage />} />
+        <Route path="/app/analytics" element={<DashboardPage />} />
         <Route path="/session-ended" element={<p>Session ended</p>} />
         <Route path="/login" element={<p>Login page</p>} />
       </Routes>
@@ -82,7 +85,7 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('heading', { name: 'At a glance' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Back to Envelopes' }))
     expect(await screen.findByRole('heading', { name: 'Envelopes' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Move money Soon' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Move money' })).not.toBeInTheDocument()
   })
 
   it('shows a reconciled D3 Tax history and opens a payment', async () => {
@@ -238,37 +241,6 @@ describe('DashboardPage', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/wallets/', expect.anything())
   })
 
-  it('records a payment through the backend and refreshes the dashboard', async () => {
-    const user = userEvent.setup()
-    let transactions: unknown[] = []
-    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
-      if (url === '/api/auth/me') return response(200, account)
-      if (url === '/api/wallets/') return response(200, wallets)
-      if (url === '/api/rules/') return response(200, [])
-      if (url === '/api/transactions/' && options?.method === 'POST') {
-        expect(options.headers).toEqual({ Authorization: 'Bearer test-token', 'Content-Type': 'application/json' })
-        expect(JSON.parse(String(options.body))).toEqual({ reference: 'INV-NEW', amount: 2400 })
-        transactions = [{ id: 'payment-new', reference: 'INV-NEW', amount: 2400, status: 'processed' }]
-        return response(201, transactions[0])
-      }
-      if (url === '/api/transactions/') return response(200, transactions)
-      throw new Error(`Unexpected URL: ${url}`)
-    })
-    vi.stubGlobal('fetch', fetchMock)
-    renderDashboard()
-
-    expect(await screen.findByRole('heading', { name: 'No payments yet' })).toBeInTheDocument()
-    await user.click(screen.getAllByRole('button', { name: 'Record payment' })[0])
-    const dialog = screen.getByRole('dialog', { name: 'Record a payment' })
-    await user.type(within(dialog).getByRole('textbox', { name: 'Reference' }), 'INV-NEW')
-    await user.type(within(dialog).getByRole('textbox', { name: 'Amount (MAD)' }), '2400')
-    await user.click(within(dialog).getByRole('button', { name: 'Record payment' }))
-
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Recent payments' })).toBeInTheDocument())
-    expect(screen.getAllByText('INV-NEW').length).toBeGreaterThan(0)
-    expect(screen.getByText('Your envelope balances have been refreshed.')).toBeInTheDocument()
-  })
-
   it('shows the full payment list in Activity after View all', async () => {
     const payments = Array.from({ length: 6 }, (_, index) => ({
       id: `payment-${index + 1}`,
@@ -291,5 +263,28 @@ describe('DashboardPage', () => {
     expect(screen.queryByText('INV-6')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /View all/ }))
     expect(screen.getAllByText('INV-6').length).toBeGreaterThan(0)
+  })
+
+  it('opens options in the More menu on mobile mode', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/auth/me') return response(200, account)
+      if (url === '/api/wallets/') return response(200, wallets)
+      if (url === '/api/transactions/') return response(200, [])
+      if (url === '/api/rules/') return response(200, [])
+      throw new Error(`Unexpected URL: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderDashboard()
+
+    const moreButton = await screen.findByRole('button', { name: 'More' })
+    await userEvent.click(moreButton)
+
+    const moreMenu = screen.getByRole('menu', { name: 'More options' })
+    expect(moreMenu).toBeInTheDocument()
+
+    const settingsOption = within(moreMenu).getByRole('menuitem', { name: 'Settings' })
+    await userEvent.click(settingsOption)
+
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
   })
 })

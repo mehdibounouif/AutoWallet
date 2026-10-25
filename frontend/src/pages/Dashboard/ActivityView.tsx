@@ -1,18 +1,17 @@
-import { Button } from '../../components/ui/Button'
 import { useDeferredValue, useMemo, useState } from 'react'
 import type { Ref } from 'react'
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Mail, Plus, Search, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Mail, Search, X } from 'lucide-react'
 import type { DashboardTransaction, WalletType } from './dashboardApi'
 import { envelopeMeta, money } from './envelopeDisplay'
 import { PaymentSplitBar, PaymentStatus } from './PaymentDisplay'
-import { hasCompleteSplit, paymentDate } from './paymentUtils'
+import { paymentDate } from './paymentUtils'
 import { useDismissibleLayer } from '../../hooks/useDismissibleLayer'
+import { useTranslation } from '../../i18n'
 import './activity.css'
 
 type FilterName = 'date' | 'amount' | 'envelope' | 'status'
 type SortField = 'reference' | 'received' | 'amount' | 'status'
 type SortDirection = 'asc' | 'desc'
-const pageSize = 25
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
 const rangeFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 
@@ -21,8 +20,6 @@ interface ActivityViewProps {
   search: string
   onSearchChange: (value: string) => void
   onSelect: (payment: DashboardTransaction) => void
-  onRecord: () => void
-  recordDisabled: boolean
   searchInputRef?: Ref<HTMLInputElement>
 }
 
@@ -37,7 +34,6 @@ function localDateKey(value: string) {
 }
 
 function monthTitle(key: string) {
-  if (key === 'all') return 'All payments'
   if (key === 'unknown') return 'Date unavailable'
   const [year, month] = key.split('-').map(Number)
   return monthFormatter.format(new Date(year, month - 1, 1))
@@ -66,7 +62,8 @@ export function ActivitySkeleton() {
   </section>
 }
 
-export function ActivityView({ payments, search, onSearchChange, onSelect, onRecord, recordDisabled, searchInputRef }: ActivityViewProps) {
+export function ActivityView({ payments, search, onSearchChange, onSelect, searchInputRef }: ActivityViewProps) {
+  const { t } = useTranslation()
   const [openFilter, setOpenFilter] = useState<FilterName | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -76,21 +73,9 @@ export function ActivityView({ payments, search, onSearchChange, onSelect, onRec
   const [status, setStatus] = useState<DashboardTransaction['status'] | ''>('')
   const [sortField, setSortField] = useState<SortField>('received')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  const [pagination, setPagination] = useState({ key: '', page: 1 })
   const filtersRef = useDismissibleLayer(openFilter !== null, () => setOpenFilter(null))
   const deferredSearch = useDeferredValue(search)
   const availableDateRange = useMemo(() => dateRangeLabel(payments), [payments])
-  const missingMetadata = useMemo(() => ({
-    dates: payments.filter(payment => !payment.created_at).length,
-    splits: payments.filter(payment => !hasCompleteSplit(payment)).length,
-  }), [payments])
-  const canFilterDates = payments.length > 0 && missingMetadata.dates === 0
-  const canFilterEnvelopes = payments.length > 0 && missingMetadata.splits === 0
-  // A refresh can replace complete history with incomplete data. Clear only
-  // filters that can no longer be evaluated, preserving the other choices.
-  if (!canFilterDates && (startDate || endDate)) { setStartDate(''); setEndDate('') }
-  if (!canFilterEnvelopes && envelope) setEnvelope('')
-  if ((openFilter === 'date' && !canFilterDates) || (openFilter === 'envelope' && !canFilterEnvelopes)) setOpenFilter(null)
 
   const hasFilters = Boolean(search.trim() || startDate || endDate || minAmount || maxAmount || envelope || status)
   const clearFilters = () => {
@@ -123,33 +108,22 @@ export function ActivityView({ payments, search, onSearchChange, onSelect, onRec
     })
   }, [payments, deferredSearch, startDate, endDate, minAmount, maxAmount, envelope, status])
 
-  const sorted = useMemo(() => [...filtered].sort((a, b) => {
-      if (sortField === 'received') {
-        // Unknown dates retain the server order and stay after known dates.
-        if (!a.created_at || !b.created_at) return a.created_at ? -1 : b.created_at ? 1 : 0
-        const result = Date.parse(a.created_at) - Date.parse(b.created_at)
-        return sortDirection === 'asc' ? result : -result
-      }
-      const result = sortField === 'amount' ? a.amount - b.amount : a[sortField].localeCompare(b[sortField])
-      return sortDirection === 'asc' ? result : -result
-    }), [filtered, sortField, sortDirection])
-  const paginationKey = JSON.stringify([deferredSearch, startDate, endDate, minAmount, maxAmount, envelope, status, sortField, sortDirection])
-  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize))
-  const page = pagination.key === paginationKey ? Math.min(pagination.page, pageCount) : 1
-  if (pagination.key !== paginationKey || pagination.page !== page) {
-    setPagination({ key: paginationKey, page })
-  }
-  const pageStart = (page - 1) * pageSize
   const groups = useMemo(() => {
+    const sorted = [...filtered].sort((a, b) => {
+      const result = sortField === 'received'
+        ? (a.created_at ? new Date(a.created_at).getTime() : 0) - (b.created_at ? new Date(b.created_at).getTime() : 0)
+        : sortField === 'amount' ? a.amount - b.amount : a[sortField].localeCompare(b[sortField])
+      return (sortDirection === 'asc' ? result : -result) || a.reference.localeCompare(b.reference)
+    })
     const byMonth = new Map<string, DashboardTransaction[]>()
-    for (const payment of sorted.slice(pageStart, pageStart + pageSize)) {
-      const key = sortField === 'received' ? monthKey(payment) : 'all'
+    for (const payment of sorted) {
+      const key = monthKey(payment)
       const items = byMonth.get(key)
       if (items) items.push(payment)
       else byMonth.set(key, [payment])
     }
-    return [...byMonth.entries()]
-  }, [sorted, pageStart, sortField])
+    return [...byMonth.entries()].sort(([a], [b]) => a === 'unknown' ? 1 : b === 'unknown' ? -1 : b.localeCompare(a))
+  }, [filtered, sortField, sortDirection])
 
   const sortHeader = (field: SortField, label: string) => <button type="button" onClick={() => sortBy(field)}>{label}{field === sortField ? sortDirection === 'desc' ? <ArrowDown size={14} aria-hidden="true" /> : <ArrowUp size={14} aria-hidden="true" /> : <span className="activity-sort-neutral" aria-hidden="true">↕</span>}</button>
   const toggle = (name: FilterName) => setOpenFilter((current) => current === name ? null : name)
@@ -159,44 +133,26 @@ export function ActivityView({ payments, search, onSearchChange, onSelect, onRec
   const amountLabel = minAmount || maxAmount ? `${minAmount ? `From ${money.format(Number(minAmount))}` : ''}${minAmount && maxAmount ? ' · ' : ''}${maxAmount ? `To ${money.format(Number(maxAmount))}` : ''}` : 'Amount'
 
   return <section className="activity-view" aria-labelledby="activity-heading">
-    <div className="activity-heading"><div><h1 id="activity-heading">Activity</h1><p>Every payment and how it was split.</p></div><Button variant="primary" type="button" className="dashboard-primary-button" onClick={onRecord} disabled={recordDisabled}><Plus className="h-4 w-4" />Record payment</Button></div>
+    <div className="activity-heading"><div><h1 id="activity-heading">{t.activityHeading}</h1><p>{t.activitySubheading}</p></div></div>
 
-    <label className="activity-mobile-search"><Search className="h-5 w-5" aria-hidden="true" /><input ref={searchInputRef} value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="e.g. INV-2026-047" aria-label="Search payments by reference" type="search" /></label>
-    <label className="activity-mobile-sort">Sort payments<select aria-label="Sort payments" value={`${sortField}:${sortDirection}`} onChange={event => {
-      const [field, direction] = event.target.value.split(':') as [SortField, SortDirection]
-      setSortField(field); setSortDirection(direction)
-    }}>
-      <option value="received:desc">Received: newest first</option><option value="received:asc">Received: oldest first</option>
-      <option value="amount:desc">Amount: highest first</option><option value="amount:asc">Amount: lowest first</option>
-      <option value="reference:asc">Reference: A to Z</option><option value="reference:desc">Reference: Z to A</option>
-      <option value="status:asc">Status: A to Z</option><option value="status:desc">Status: Z to A</option>
-    </select></label>
+    <label className="activity-mobile-search"><Search className="h-5 w-5" aria-hidden="true" /><input ref={searchInputRef} value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder={t.searchActivityPlaceholder} aria-label="Search payments by reference" type="search" /></label>
 
     <div className="activity-filter-bar" ref={filtersRef}>
       <div className="activity-filter-scroll" role="group" aria-label="Filter payments">
-        <div className="activity-filter-wrap"><button type="button" className="activity-filter-chip activity-filter-chip--selected" onClick={() => toggle('date')} disabled={!canFilterDates} aria-describedby={missingMetadata.dates ? 'activity-dates-unavailable' : undefined} aria-expanded={openFilter === 'date' && canFilterDates}>{selectedDate}<ChevronDown className="h-3 w-3" /></button>{openFilter === 'date' && canFilterDates && <div className="activity-filter-menu activity-filter-menu--date"><strong>Received date</strong><label>From<input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} /></label><label>To<input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} /></label><button type="button" className="activity-filter-reset" onClick={() => { setStartDate(''); setEndDate(''); setOpenFilter(null) }}>All dates</button></div>}</div>
+        <div className="activity-filter-wrap"><button type="button" className="activity-filter-chip activity-filter-chip--selected" onClick={() => toggle('date')} aria-expanded={openFilter === 'date'}>{selectedDate}<ChevronDown className="h-3 w-3" /></button>{openFilter === 'date' && <div className="activity-filter-menu activity-filter-menu--date"><strong>Received date</strong><label>From<input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} /></label><label>To<input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} /></label><button type="button" className="activity-filter-reset" onClick={() => { setStartDate(''); setEndDate(''); setOpenFilter(null) }}>All dates</button>{!payments.some((payment) => payment.created_at) && <p>Payment dates are unavailable.</p>}</div>}</div>
         <div className="activity-filter-wrap"><button type="button" className={`activity-filter-chip ${minAmount || maxAmount ? 'activity-filter-chip--selected' : ''}`} onClick={() => toggle('amount')} aria-expanded={openFilter === 'amount'}>{minAmount || maxAmount ? '' : '+ '}{amountLabel}<ChevronDown className="h-3 w-3" /></button>{openFilter === 'amount' && <div className="activity-filter-menu"><strong>Amount (MAD)</strong><label>Minimum<input type="number" min="0" step="0.01" value={minAmount} onChange={(event) => setMinAmount(event.target.value)} placeholder="0.00" /></label><label>Maximum<input type="number" min={minAmount || '0'} step="0.01" value={maxAmount} onChange={(event) => setMaxAmount(event.target.value)} placeholder="Any" /></label><button type="button" className="activity-filter-reset" onClick={() => { setMinAmount(''); setMaxAmount(''); setOpenFilter(null) }}>Clear amount</button></div>}</div>
-        <div className="activity-filter-wrap"><button type="button" className={`activity-filter-chip ${envelope ? 'activity-filter-chip--selected' : ''}`} onClick={() => toggle('envelope')} disabled={!canFilterEnvelopes} aria-describedby={missingMetadata.splits ? 'activity-splits-unavailable' : undefined} aria-expanded={openFilter === 'envelope' && canFilterEnvelopes}>{envelope ? envelopeMeta[envelope].name : '+ Envelope'}<ChevronDown className="h-3 w-3" /></button>{openFilter === 'envelope' && canFilterEnvelopes && <div className="activity-filter-menu activity-filter-menu--options"><strong>Envelope received</strong>{(['rent', 'tax', 'savings', 'free', 'main'] as const).map((type) => <button type="button" key={type} onClick={() => { setEnvelope(type); setOpenFilter(null) }} aria-pressed={envelope === type}>{envelopeMeta[type].name}</button>)}<button type="button" className="activity-filter-reset" onClick={() => { setEnvelope(''); setOpenFilter(null) }}>All envelopes</button></div>}</div>
+        <div className="activity-filter-wrap"><button type="button" className={`activity-filter-chip ${envelope ? 'activity-filter-chip--selected' : ''}`} onClick={() => toggle('envelope')} aria-expanded={openFilter === 'envelope'}>{envelope ? envelopeMeta[envelope].name : '+ Envelope'}<ChevronDown className="h-3 w-3" /></button>{openFilter === 'envelope' && <div className="activity-filter-menu activity-filter-menu--options"><strong>Envelope received</strong>{(['rent', 'tax', 'savings', 'free', 'main'] as const).map((type) => <button type="button" key={type} onClick={() => { setEnvelope(type); setOpenFilter(null) }} aria-pressed={envelope === type}>{envelopeMeta[type].name}</button>)}<button type="button" className="activity-filter-reset" onClick={() => { setEnvelope(''); setOpenFilter(null) }}>All envelopes</button><p>Envelope filtering needs payment split data.</p></div>}</div>
         <div className="activity-filter-wrap"><button type="button" className={`activity-filter-chip ${status ? 'activity-filter-chip--selected' : ''}`} onClick={() => toggle('status')} aria-expanded={openFilter === 'status'}>{status ? status[0].toUpperCase() + status.slice(1) : '+ Status'}<ChevronDown className="h-3 w-3" /></button>{openFilter === 'status' && <div className="activity-filter-menu activity-filter-menu--options"><strong>Payment status</strong>{(['processed', 'pending', 'failed'] as const).map((value) => <button type="button" key={value} onClick={() => { setStatus(value); setOpenFilter(null) }} aria-pressed={status === value}>{value[0].toUpperCase() + value.slice(1)}</button>)}<button type="button" className="activity-filter-reset" onClick={() => { setStatus(''); setOpenFilter(null) }}>All statuses</button></div>}</div>
-        {hasFilters && <button type="button" className="activity-clear" onClick={clearFilters}>Clear all <X className="h-3 w-3" /></button>}
+        {hasFilters && <button type="button" className="activity-clear" onClick={clearFilters}>{t.clearAllFilters} <X className="h-3 w-3" /></button>}
         <span className="activity-count" aria-live="polite">{filtered.length} {filtered.length === 1 ? 'payment' : 'payments'}</span>
       </div>
     </div>
 
-    {(missingMetadata.dates > 0 || missingMetadata.splits > 0) && <div className="activity-metadata-notes" role="status">
-      {missingMetadata.dates > 0 && <p id="activity-dates-unavailable" className="workspace-note">Date filtering is unavailable: {missingMetadata.dates} {missingMetadata.dates === 1 ? 'payment is' : 'payments are'} missing a received date. All dates are included.</p>}
-      {missingMetadata.splits > 0 && <p id="activity-splits-unavailable" className="workspace-note">Envelope filtering is unavailable: {missingMetadata.splits} {missingMetadata.splits === 1 ? 'payment has' : 'payments have'} incomplete split details. All envelopes are included.</p>}
-    </div>}
-
     <div className="activity-panel">
-      {filtered.length === 0 ? <div className="activity-empty"><div className="activity-empty-icon" aria-hidden="true"><span /><Mail /><Mail /><Mail /></div><h2>{payments.length ? 'No payments match these filters.' : 'No payments yet'}</h2><p>{payments.length ? 'Try a wider date range or fewer filters.' : 'When a payment arrives, you can find it here and see how it was split.'}</p>{hasFilters && <Button variant="secondary" type="button" className="dashboard-secondary-button" onClick={clearFilters}>Clear filters</Button>}</div> : <>
-        <table className="activity-table"><colgroup><col className="activity-col-reference" /><col className="activity-col-received" /><col className="activity-col-amount" /><col className="activity-col-split" /><col className="activity-col-status" /><col className="activity-col-open" /></colgroup><thead><tr><th scope="col" aria-sort={sortField === 'reference' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('reference', 'Reference')}</th><th scope="col" aria-sort={sortField === 'received' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('received', 'Received')}</th><th scope="col" className="activity-amount-cell" aria-sort={sortField === 'amount' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('amount', 'Amount (MAD)')}</th><th scope="col">Split</th><th scope="col" aria-sort={sortField === 'status' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('status', 'Status')}</th><th scope="col"><span className="sr-only">Open payment</span></th></tr></thead><tbody>{groups.map(([key, items]) => <FragmentRows key={key} label={`${monthTitle(key)}${pageCount > 1 ? ' (this page)' : ''}`} items={items} onSelect={onSelect} />)}</tbody></table>
-        <div className="activity-mobile-list">{groups.map(([key, items]) => <section key={key} className="activity-mobile-group" aria-label={monthTitle(key)}><div className="activity-mobile-month"><strong>{monthTitle(key)}{pageCount > 1 ? ' (this page)' : ''}</strong><span>{items.length} {items.length === 1 ? 'payment' : 'payments'} · {money.format(items.reduce((sum, payment) => sum + payment.amount, 0))}</span></div>{items.map((payment) => <button type="button" key={payment.id} className="activity-mobile-row" onClick={() => onSelect(payment)}><span className="activity-mobile-row-top"><strong>{payment.reference}</strong><b>{money.format(payment.amount)}<span className="sr-only"> MAD</span></b></span><span className="activity-mobile-row-bottom"><span>{paymentDate(payment.created_at) || 'Date unavailable'}</span><span className="activity-mobile-split"><PaymentSplitBar payment={payment} /></span><PaymentStatus status={payment.status} /></span></button>)}</section>)}</div>
+      {filtered.length === 0 ? <div className="activity-empty"><div className="activity-empty-icon" aria-hidden="true"><span /><Mail /><Mail /><Mail /></div><h2>{payments.length ? 'No payments match these filters.' : t.noPaymentsYetHeading}</h2><p>{payments.length ? 'Try a wider date range or fewer filters.' : t.noPaymentsYetDescription}</p>{hasFilters && <button type="button" className="dashboard-secondary-button" onClick={clearFilters}>{t.clearAllFilters}</button>}</div> : <>
+        <table className="activity-table"><colgroup><col className="activity-col-reference" /><col className="activity-col-received" /><col className="activity-col-amount" /><col className="activity-col-split" /><col className="activity-col-status" /><col className="activity-col-open" /></colgroup><thead><tr><th scope="col" aria-sort={sortField === 'reference' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('reference', t.thReference)}</th><th scope="col" aria-sort={sortField === 'received' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('received', t.thReceived)}</th><th scope="col" className="activity-amount-cell" aria-sort={sortField === 'amount' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('amount', t.thAmountMad)}</th><th scope="col">{t.thSplit}</th><th scope="col" aria-sort={sortField === 'status' ? sortDirection === 'asc' ? 'ascending' : 'descending' : undefined}>{sortHeader('status', t.thStatus)}</th><th scope="col"><span className="sr-only">{t.thOpenSr}</span></th></tr></thead><tbody>{groups.map(([key, items]) => <FragmentRows key={key} label={monthTitle(key)} items={items} onSelect={onSelect} />)}</tbody></table>
+        <div className="activity-mobile-list">{groups.map(([key, items]) => <section key={key} className="activity-mobile-group" aria-label={monthTitle(key)}><div className="activity-mobile-month"><strong>{monthTitle(key)}</strong><span>{items.length} {items.length === 1 ? 'payment' : 'payments'} · {money.format(items.reduce((sum, payment) => sum + payment.amount, 0))}</span></div>{items.map((payment) => <button type="button" key={payment.id} className="activity-mobile-row" onClick={() => onSelect(payment)} aria-label={accessiblePaymentLabel(payment)}><span className="activity-mobile-row-top"><strong>{payment.reference}</strong><b>{money.format(payment.amount)}</b></span><span className="activity-mobile-row-bottom"><span>{paymentDate(payment.created_at) || 'Date unavailable'}</span><span className="activity-mobile-split"><PaymentSplitBar payment={payment} /></span><PaymentStatus status={payment.status} /></span></button>)}</section>)}</div>
       </>}
-      {pageCount > 1 && <nav className="activity-pagination" aria-label="Payment pages">
-        <p aria-live="polite">Showing {pageStart + 1}–{Math.min(pageStart + pageSize, sorted.length)} of {sorted.length} payments</p>
-        <div><Button variant="secondary" type="button" className="dashboard-secondary-button" disabled={page === 1} onClick={() => setPagination({ key: paginationKey, page: page - 1 })}>Previous</Button><span>Page {page} of {pageCount}</span><Button variant="secondary" type="button" className="dashboard-secondary-button" disabled={page === pageCount} onClick={() => setPagination({ key: paginationKey, page: page + 1 })}>Next</Button></div>
-      </nav>}
     </div>
   </section>
 }

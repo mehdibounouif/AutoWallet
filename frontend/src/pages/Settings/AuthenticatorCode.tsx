@@ -6,6 +6,10 @@ export function AuthenticatorCode({ uri }: { uri: string }) {
   const [failed, setFailed] = useState(false)
   useEffect(() => {
     let active = true
+    if (!uri) {
+      setFailed(true)
+      return
+    }
     void import('qrcode-generator').then(({ default: qrcode }) => {
       const qr = qrcode(0, 'M')
       qr.addData(uri)

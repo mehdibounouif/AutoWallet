@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, BarChart3, Check, ChevronDown, Copy, RefreshCw, Sparkles, Square, X } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { DashboardData, WalletType } from './dashboardApi'
-import { AssistantApiError, streamAssistant } from '../../api/assistantApi'
+import { AssistantApiError, describeUserData, streamAssistant } from '../../api/assistantApi'
 import { envelopeMeta, money, walletOrder } from './envelopeDisplay'
-import type { SplitAmounts } from './dashboardSplit'
 import { previewSplit } from './dashboardSplit'
 import { FormattedAnswer } from './FormattedAnswer'
 import { DashboardSplitRibbon } from './DashboardSplitRibbon'
 import { hasCompleteSplit } from './paymentUtils'
 import { useDismissibleLayer } from '../../hooks/useDismissibleLayer'
+import { useTranslation } from '../../i18n'
 
 interface Message {
   id: string
@@ -17,11 +17,13 @@ interface Message {
   text: string
   source?: 'Local engine' | 'External model'
   chart?: Partial<Record<WalletType, number>>
-  preview?: { amount: number; allocations: SplitAmounts }
+  preview?: number
   stopped?: boolean
 }
 
 export function AssistantView({ data, online, onSessionEnded }: { data: DashboardData; online: boolean; onSessionEnded: () => void }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
   const location = useLocation()
   const initialQuestion = typeof location.state?.question === 'string' ? location.state.question.slice(0, 2000) : ''
   const [draft, setDraft] = useState(initialQuestion)
@@ -30,7 +32,6 @@ export function AssistantView({ data, online, onSessionEnded }: { data: Dashboar
   const [error, setError] = useState<string | null>(null)
   const [chartOpen, setChartOpen] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const [copyError, setCopyError] = useState<string | null>(null)
   const chartRef = useDismissibleLayer(chartOpen, () => setChartOpen(false))
   const active = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -63,9 +64,15 @@ export function AssistantView({ data, online, onSessionEnded }: { data: Dashboar
     const recent = history.filter(item => !item.chart && !item.preview && item.text).slice(-4).map(item => `${item.role}: ${item.text}`).join('\n')
     const request = recent && budget > 100 ? `${prefix}${recent.slice(-budget)}${suffix}` : trimmed
     try {
-      await streamAssistant(request, token, controller.signal, text => {
-        if (mounted.current) setMessages(items => items.map(item => item.id === id ? { ...item, text: item.text + text } : item))
-      })
+      await streamAssistant(
+        request,
+        token,
+        controller.signal,
+        (text) => {
+          if (mounted.current) setMessages((items) => items.map((item) => (item.id === id ? { ...item, text: item.text + text } : item)))
+        },
+        describeUserData(data),
+      )
     } catch (reason) {
       if (!mounted.current) return
       if (controller.signal.aborted) setMessages(items => items.map(item => item.id === id ? { ...item, stopped: true } : item))
@@ -85,38 +92,46 @@ export function AssistantView({ data, online, onSessionEnded }: { data: Dashboar
     setChartOpen(false)
   }
   const localPreview = () => {
-    setMessages(items => [...items, { id: crypto.randomUUID(), role: 'user', text: 'What would 12,000.00 MAD do?' }, { id: crypto.randomUUID(), role: 'assistant', text: 'Here’s a preview using your current rules and balances. Your account has not changed.', source: 'Local engine', preview: { amount: 12000, allocations: previewSplit(12000, data.rules, data.wallets) } }])
+    setMessages(items => [...items, { id: crypto.randomUUID(), role: 'user', text: 'What would 12,000.00 MAD do?' }, { id: crypto.randomUUID(), role: 'assistant', text: 'Here’s a preview using your current rules and balances. Your account has not changed.', source: 'Local engine', preview: 12000 }])
   }
   const lastAnswer = messages.findLast(item => item.role === 'assistant' && item.source === 'External model')
-  const copyResponse = async (message: Message) => {
-    setCopied(null)
-    setCopyError(null)
-    try {
-      if (!navigator.clipboard) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(message.text)
-      if (mounted.current) setCopied(message.id)
-    } catch {
-      if (mounted.current) setCopyError('Could not copy the response. Select the text and copy it manually.')
-    }
-  }
   return <section className={`assistant-page ${messages.length ? 'assistant-page--conversation' : ''}`} aria-label="Assistant">
     <div className="assistant-thread" ref={scrollRef} role="log" aria-label="Conversation" aria-relevant="additions">
-      {!messages.length ? <div className="assistant-welcome"><span className="assistant-welcome-icon"><Sparkles size={25} /></span><h1>Ask about your money</h1><p>Answers use your envelopes and payments.<br />Nothing changes in your account from chatting here.</p></div> : <div className="assistant-messages">{messages.map(message => <article key={message.id} className={`assistant-message assistant-message--${message.role}`} aria-label={message.role === 'user' ? 'Your question' : 'Assistant response'}>
-        {message.source && <span className="assistant-source"><Sparkles size={12} />{message.source}</span>}
-        {message.text ? <div className="assistant-message-text">{message.role === 'assistant' ? <FormattedAnswer text={message.text} /> : message.text}</div> : busy && message.id === lastAnswer?.id ? <span className="assistant-thinking" role="status">Thinking…</span> : message.stopped ? null : <p className="workspace-note">No answer received.</p>}
-        {message.preview && <DashboardSplitRibbon amount={message.preview.amount} allocations={message.preview.allocations} preview />}
+      {!messages.length ? <div className="assistant-welcome"><span className="assistant-welcome-icon"><Sparkles size={25} /></span><h1>{t.assistantHeading}</h1><p>{t.assistantWelcomeDesc}</p></div> : <div className="assistant-messages">{messages.map(message => <article key={message.id} className={`assistant-message assistant-message--${message.role}`} aria-label={message.role === 'user' ? 'Your question' : 'Assistant response'}>
+        {message.source && <span className="assistant-source"><Sparkles size={12} />{message.source === 'Local engine' ? t.localEngineSource : t.externalModelSource}</span>}
+        {message.text ? <div className="assistant-message-text">{message.role === 'assistant' ? <FormattedAnswer text={message.text} /> : message.text}</div> : busy && message.id === lastAnswer?.id ? <span className="assistant-thinking" role="status">{t.thinkingStatus}</span> : message.stopped ? null : <p className="workspace-note">{t.noAnswerReceived}</p>}
+        {message.preview && <DashboardSplitRibbon amount={message.preview} allocations={previewSplit(message.preview, data.rules, data.wallets)} preview />}
         {message.chart && <div className="assistant-chart">{walletOrder.map(type => { const value = message.chart?.[type] ?? 0; const maximum = Math.max(1, ...Object.values(message.chart!).filter((v): v is number => typeof v === 'number')); return <div key={type}><span>{envelopeMeta[type].name}</span><span className="assistant-chart-track"><i style={{ width: `${Math.max(0, value) / maximum * 100}%`, backgroundColor: envelopeMeta[type].color }} /></span><strong>{money.format(value)}</strong></div> })}</div>}
         {message.stopped && <p className="workspace-note">Response stopped.</p>}
-        {message.role === 'assistant' && message.text && !busy && <div className="assistant-message-tools"><button onClick={() => void copyResponse(message)} aria-label={copied === message.id ? 'Copied' : 'Copy response'}>{copied === message.id ? <Check size={14} /> : <Copy size={14} />}</button>{message.id === lastAnswer?.id && <button onClick={() => void ask(latestQuestion.current, true)} disabled={!online} aria-label="Regenerate response"><RefreshCw size={14} /></button>}</div>}
+        {message.role === 'assistant' && message.text && !busy && <div className="assistant-message-tools"><button onClick={() => { void navigator.clipboard?.writeText(message.text).then(() => setCopied(message.id)).catch(() => setCopied(null)) }} aria-label={copied === message.id ? 'Copied' : 'Copy response'}>{copied === message.id ? <Check size={14} /> : <Copy size={14} />}</button>{message.id === lastAnswer?.id && <button onClick={() => void ask(latestQuestion.current, true)} disabled={!online} aria-label="Regenerate response"><RefreshCw size={14} /></button>}</div>}
       </article>)}</div>}
-      {copyError && <p role="alert" className="workspace-field-error">{copyError}</p>}
-      {error && <div className="assistant-error" role="alert"><strong>I couldn’t finish that answer.</strong><p>{error}</p><span>Nothing in your account changed.</span><button onClick={() => void ask(latestQuestion.current, true)} disabled={busy || !online}>Try again</button></div>}
+      {error && (
+        <div className="assistant-error" role="alert">
+          <strong>I couldn’t finish that answer.</strong>
+          <p>{error}</p>
+          <span>Nothing in your account changed.</span>
+          <div className="mt-2 flex items-center gap-3">
+            <button onClick={() => void ask(latestQuestion.current, true)} disabled={busy || !online}>
+              Try again
+            </button>
+            {error.includes('Settings') && (
+              <button
+                type="button"
+                className="font-semibold text-[#5963B6] underline hover:text-[#424B97]"
+                onClick={() => navigate('/app/settings', { state: { section: 'developer' } })}
+              >
+                Configure API key in Settings
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
     <div className="assistant-compose-wrap">
       {!messages.length && <div className="assistant-starters"><button disabled={busy || !online} onClick={() => void ask('Explain my current Tax envelope balance and rule.')}>Why is Tax at this balance?</button><button disabled={busy || !online} onClick={() => void ask('When could Savings reach its cap? Explain the assumptions using my available payments and rules.')}>When will Savings reach its cap?</button><button disabled={busy} onClick={localPreview}>What would 12,000.00 do?</button></div>}
       <form className="assistant-composer" onSubmit={event => { event.preventDefault(); void ask(draft) }}>
         <div className="assistant-composer-tools"><span className="assistant-context"><Check size={13} />Use my envelopes &amp; payments</span><div className="relative" ref={chartRef}><button type="button" className="assistant-add-chart" onClick={() => setChartOpen(value => !value)} disabled={busy} aria-expanded={chartOpen}><BarChart3 size={14} />Add a chart<ChevronDown size={12} /></button>{chartOpen && <div className="assistant-chart-menu"><button type="button" onClick={() => addChart('balances')}>Envelope balances</button><button type="button" disabled={!data.transactions.some(item => item.status === 'processed' && hasCompleteSplit(item))} onClick={() => addChart('payment')}>Last recorded split</button><button type="button" onClick={() => setChartOpen(false)}><X size={12} />Close</button></div>}</div></div>
-        <div className="assistant-input-row"><textarea ref={inputRef} value={draft} onChange={event => setDraft(event.target.value)} maxLength={2000} disabled={!online} placeholder={online ? 'Ask about your money' : 'You’re offline. Your conversation is still here.'} aria-label="Ask about your money" rows={2} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void ask(draft) } }} />{busy ? <button type="button" className="assistant-send" onClick={() => active.current?.abort()} aria-label="Stop response"><Square size={16} /></button> : <button type="submit" className="assistant-send" disabled={!draft.trim() || !online} aria-label="Send message"><ArrowUp size={18} /></button>}</div>
+        <div className="assistant-input-row"><textarea ref={inputRef} value={draft} onChange={event => setDraft(event.target.value)} maxLength={2000} disabled={!online} placeholder={online ? t.askPlaceholder : 'You’re offline. Your conversation is still here.'} aria-label={t.askPlaceholder} rows={2} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void ask(draft) } }} />{busy ? <button type="button" className="assistant-send" onClick={() => active.current?.abort()} aria-label="Stop response"><Square size={16} /></button> : <button type="submit" className="assistant-send" disabled={!draft.trim() || !online} aria-label="Send message"><ArrowUp size={18} /></button>}</div>
       </form>
       <p className="assistant-disclaimer">Check answers before making money decisions. Chat cannot change your rules or move money.</p>
     </div>

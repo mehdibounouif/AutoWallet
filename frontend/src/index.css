@@ -1,33 +1,5 @@
 @import "tailwindcss";
 
-/* Shared controls follow the workspace theme, including dialogs in portals. */
-@theme inline {
-  --color-panel: var(--aw-surface, #fff);
-  --color-layer: var(--aw-layer, #ebeff4);
-  --color-layer-hover: var(--aw-layer, #e1e7ee);
-  --color-ink: var(--aw-ink, #263246);
-  --color-muted: var(--aw-muted, #526176);
-  --color-line: var(--aw-border, #dce3eb);
-  --color-field: var(--aw-control, #9dabc0);
-  --color-input: var(--aw-control, #bfc9d7);
-  --color-accent: var(--aw-accent, #5963b6);
-  --color-danger: var(--aw-danger, #bd3035);
-}
-
-.skip-link {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 200;
-  transform: translateY(-150%);
-  padding: 10px 16px;
-  border-radius: 8px;
-  background: #fff;
-  color: #354153;
-  box-shadow: 0 0 0 2px #5a64b4;
-}
-.skip-link:focus { transform: translateY(0); }
-
 @theme {
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
@@ -107,3 +79,106 @@ button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ==========================================================================
+   RTL & Internationalization Layout Mirroring
+   ========================================================================== */
+
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+[dir="rtl"] .dashboard-sidebar {
+  border-right: none;
+  border-left: 1px solid var(--aw-border, #dce3eb);
+}
+
+[dir="rtl"] .dashboard-logo {
+  margin-left: 0;
+  margin-right: 8px;
+}
+
+[dir="rtl"] .dashboard-nav-item {
+  text-align: right;
+}
+
+[dir="rtl"] .dashboard-soon-badge {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+[dir="rtl"] .dashboard-sidebar-demo p {
+  margin: 0 12px 10px 0;
+}
+
+[dir="rtl"] .dashboard-sidebar-collapse {
+  margin: auto 10px 0 0;
+}
+
+[dir="rtl"] .dashboard-section-heading button {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+[dir="rtl"] .dashboard-popover.right-0,
+[dir="rtl"] .dashboard-popover.end-0 {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .notifications-popover {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .dashboard-ribbon-amount {
+  text-align: left;
+  transform: translateX(-15px);
+}
+
+[dir="rtl"] .lucide-chevron-right,
+[dir="rtl"] .lucide-arrow-right,
+[dir="rtl"] .lucide-chevron-left,
+[dir="rtl"] .lucide-arrow-left,
+[dir="rtl"] .lucide-panel-left {
+  transform: scaleX(-1);
+}
+
+/* Form controls mirroring in RTL */
+[dir="rtl"] input:not([type="checkbox"]):not([type="radio"]):not([dir="ltr"]),
+[dir="rtl"] textarea:not([dir="ltr"]),
+[dir="rtl"] select:not([dir="ltr"]) {
+  text-align: right;
+}
+
+[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left;
+}
+
+/* Modals & Dialogs close button */
+[dir="rtl"] .dialog-close,
+[dir="rtl"] [aria-label="Close dialog"],
+[dir="rtl"] [aria-label="Close"] {
+  left: 1rem;
+  right: auto;
+}
+
+/* Table cells in RTL */
+[dir="rtl"] th,
+[dir="rtl"] td {
+  text-align: right;
+}
+
+[dir="rtl"] th.text-right,
+[dir="rtl"] td.text-right,
+[dir="rtl"] th.activity-amount-cell,
+[dir="rtl"] td.activity-amount-cell {
+  text-align: left;
+}
+
