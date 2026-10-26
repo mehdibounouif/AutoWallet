@@ -56,12 +56,9 @@ export function describeUserData(data: DashboardData): string {
 
   lines.push("Rules, in the order they run:")
   for (const r of data.rules) {
-    let what = ''
-    if (r.rule_type === 'lock_fixed') {
-      what = `lock ${(r.fixed_amount ?? 0).toFixed(2)} MAD`
-    } else {
-      what = `take ${r.percentage ?? 0}% of what is left`
-    }
+    const what = r.rule_type === 'lock_fixed'
+      ? `lock ${(r.fixed_amount ?? 0).toFixed(2)} MAD`
+      : `take ${r.percentage ?? 0}% of what is left`
     let condition = ''
     if (r.condition_field) {
       condition = ` (only if ${r.condition_field} ${r.condition_operator} ${r.condition_value})`

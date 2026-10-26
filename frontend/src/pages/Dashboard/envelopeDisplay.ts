@@ -2,8 +2,7 @@ import type { ComponentType } from 'react'
 import { House, Landmark, PiggyBank, ShoppingBag, Wallet } from 'lucide-react'
 import type { DashboardRule, WalletType } from './dashboardApi'
 import { money } from '../../utils/format'
-import { ruleComparisonLabel } from './dashboardSplit'
-import { getLanguage, translations } from '../../i18n'
+import { translations } from '../../i18n'
 export { money } from '../../utils/format'
 
 export const envelopeOrder: WalletType[] = ['rent', 'tax', 'savings', 'main']
@@ -30,96 +29,70 @@ export function envelopeTarget(type: WalletType, rules: DashboardRule[]) {
     rule.condition_value !== null && rule.condition_value > 0)?.condition_value ?? null
 }
 
+function comparisonLabel(operator: string | null) {
+  switch (operator) {
+    case '<': return translations.compareBelow
+    case '<=': return translations.compareAtOrBelow
+    case '>': return translations.compareAbove
+    case '>=': return translations.compareAtOrAbove
+    case '==': return translations.compareEqualTo
+    default: return null
+  }
+}
+
 export function ruleDescription(rule: DashboardRule) {
-  const lang = getLanguage()
   const target = envelopeMeta[rule.target_wallet].name
-
-  if (lang === 'fr') {
-    const allocation = rule.rule_type === 'lock_fixed'
-      ? `Bloquer ${money.format(rule.fixed_amount ?? 0)} MAD dans ${target}`
-      : `Placer ${rule.percentage ?? 0} % du reste dans ${target}`
-    if (rule.condition_field === null) return allocation
-    const conditionWallet = walletOrder.find(type => rule.condition_field === `${type}_balance`)
-    const comparison = ruleComparisonLabel(rule.condition_operator)
-    return conditionWallet && rule.condition_value !== null && comparison
-      ? `${allocation}, seulement tant que ${envelopeMeta[conditionWallet].name} est ${comparison} ${money.format(rule.condition_value)}`
-      : `${allocation}, seulement si sa condition est remplie`
-  }
-
-  if (lang === 'ar') {
-    const allocation = rule.rule_type === 'lock_fixed'
-      ? `حجز ${money.format(rule.fixed_amount ?? 0)} درهم في ${target}`
-      : `وضع ${rule.percentage ?? 0}% مما تبقى في ${target}`
-    if (rule.condition_field === null) return allocation
-    const conditionWallet = walletOrder.find(type => rule.condition_field === `${type}_balance`)
-    const comparison = ruleComparisonLabel(rule.condition_operator)
-    return conditionWallet && rule.condition_value !== null && comparison
-      ? `${allocation}، فقط طالما أن ${envelopeMeta[conditionWallet].name} ${comparison} ${money.format(rule.condition_value)}`
-      : `${allocation}، فقط عند تحقق الشرط المحفوظ`
-  }
-
   const allocation = rule.rule_type === 'lock_fixed'
-    ? `Lock ${money.format(rule.fixed_amount ?? 0)} MAD into ${target}`
-    : `Put ${rule.percentage ?? 0}% of what's left into ${target}`
+    ? translations.ruleLockInto
+      .replace('{amount}', money.format(rule.fixed_amount ?? 0))
+      .replace('{target}', target)
+    : translations.rulePercentInto
+      .replace('{percent}', String(rule.percentage ?? 0))
+      .replace('{target}', target)
+
   if (rule.condition_field === null) return allocation
-  const conditionWallet = walletOrder.find(type => rule.condition_field === `${type}_balance`)
-  const comparison = ruleComparisonLabel(rule.condition_operator)
+  const conditionWallet = walletOrder.find((type) => rule.condition_field === `${type}_balance`)
+  const comparison = comparisonLabel(rule.condition_operator)
   return conditionWallet && rule.condition_value !== null && comparison
-    ? `${allocation}, only while ${envelopeMeta[conditionWallet].name} is ${comparison} ${money.format(rule.condition_value)}`
-    : `${allocation}, only when its saved condition is met`
+    ? translations.ruleConditionWhile
+      .replace('{allocation}', allocation)
+      .replace('{wallet}', envelopeMeta[conditionWallet].name)
+      .replace('{comparison}', comparison)
+      .replace('{amount}', money.format(rule.condition_value))
+    : translations.ruleConditionSaved.replace('{allocation}', allocation)
 }
 
 export function envelopeDescription(type: WalletType, rules: DashboardRule[]): string {
-  const lang = getLanguage()
   const rule = rules.find((item) => item.is_active && item.target_wallet === type)
-  if (!rule) {
-    if (lang === 'fr') return type === 'main' ? 'Tout ce que les règles ne prennent pas' : 'Aucune règle active'
-    if (lang === 'ar') return type === 'main' ? 'أي شيء لا تأخذه القواعد' : 'لا توجد قاعدة نشطة'
-    return type === 'main' ? "Anything the rules don't take" : 'No active rule'
-  }
+  if (!rule) return type === 'main' ? translations.envelopeMainNoRule : translations.envelopeNoRule
 
   if (rule.condition_field !== null &&
       (rule.condition_field !== `${type}_balance` || rule.condition_operator !== '<' || rule.condition_value === null)) {
     return ruleDescription(rule)
   }
+
   const previous = rules.filter((item) => item.is_active && item.priority < rule.priority).at(-1)
-  const prevName = previous ? envelopeMeta[previous.target_wallet].name : ''
-  const after = previous ? (lang === 'fr' ? ` après ${prevName}` : lang === 'ar' ? ` بعد ${prevName}` : ` after ${prevName}`) : ''
+  const after = previous ? translations.afterRule.replace('{name}', envelopeMeta[previous.target_wallet].name) : ''
 
   if (rule.rule_type === 'lock_fixed' && rule.fixed_amount !== null) {
-    if (lang === 'fr') {
-      return rule.condition_field === `${type}_balance` && rule.condition_value !== null
-        ? `Reçoit ${money.format(rule.fixed_amount)} en premier dès qu’il est inférieur à ${money.format(rule.condition_value)}`
-        : `Reçoit ${money.format(rule.fixed_amount)} en premier`
-    }
-    if (lang === 'ar') {
-      return rule.condition_field === `${type}_balance` && rule.condition_value !== null
-        ? `يحصل على ${money.format(rule.fixed_amount)} أولاً كلما كان أقل من ${money.format(rule.condition_value)}`
-        : `يحصل على ${money.format(rule.fixed_amount)} أولاً`
-    }
     return rule.condition_field === `${type}_balance` && rule.condition_value !== null
-      ? `Gets ${money.format(rule.fixed_amount)} first whenever it's below ${money.format(rule.condition_value)}`
-      : `Gets ${money.format(rule.fixed_amount)} first`
+      ? translations.ruleFixedBelow
+        .replace('{amount}', money.format(rule.fixed_amount))
+        .replace('{cap}', money.format(rule.condition_value))
+      : translations.ruleFixedFirst.replace('{amount}', money.format(rule.fixed_amount))
   }
 
   if (rule.rule_type === 'percentage_remainder' && rule.percentage !== null) {
-    if (lang === 'fr') {
-      if (rule.condition_field === `${type}_balance` && rule.condition_value !== null) {
-        return `${rule.percentage} % du reste, jusqu’à ${money.format(rule.condition_value)}`
-      }
-      return rule.percentage === 100 ? `Tout ce qui reste${after}` : `${rule.percentage} % du reste${after}`
-    }
-    if (lang === 'ar') {
-      if (rule.condition_field === `${type}_balance` && rule.condition_value !== null) {
-        return `${rule.percentage}% مما تبقى، حتى ${money.format(rule.condition_value)}`
-      }
-      return rule.percentage === 100 ? `كل ما تبقى${after}` : `${rule.percentage}% مما تبقى${after}`
-    }
     if (rule.condition_field === `${type}_balance` && rule.condition_value !== null) {
-      return `${rule.percentage}% of what's left, until ${money.format(rule.condition_value)}`
+      return translations.rulePercentUntil
+        .replace('{percent}', String(rule.percentage))
+        .replace('{cap}', money.format(rule.condition_value))
     }
-    return rule.percentage === 100 ? `Everything left${after}` : `${rule.percentage}% of what's left${after}`
+    const template = rule.percentage === 100 ? translations.ruleEverythingLeft : translations.rulePercentLeft
+    return template
+      .replace('{percent}', String(rule.percentage))
+      .replace('{after}', after)
   }
 
-  return lang === 'fr' ? 'Détails de la règle indisponibles' : lang === 'ar' ? 'تفاصيل القاعدة غير متوفرة' : 'Rule details unavailable'
+  return translations.ruleDetailsUnavailable
 }

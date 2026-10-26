@@ -11,7 +11,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { OTPInput } from '../src/components/common/OTPInput'
+import { OTPInput } from '../src/components/ui/OTPInput'
 // (auto-cleanup lives in tests/setup.ts)
 
 function renderOtp(value = '', onChange = vi.fn(), onComplete?: (v: string) => void) {

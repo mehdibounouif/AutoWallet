@@ -1,4 +1,5 @@
 import { apiErrorDetail } from './errors'
+import { getToken } from '../auth/session'
 import { apiFetch } from './request'
 
 export type ExportFormat = 'json' | 'zip' | 'tar.gz'
@@ -63,7 +64,7 @@ export function securityFromExport(payload: unknown): SecurityInfo | null {
 }
 
 export async function settingsRequest(path: string, options: RequestInit = {}): Promise<Response> {
-  const token = localStorage.getItem('autowallet_token')
+  const token = getToken()
   if (!token) throw new SettingsApiError('Your session has ended.', 401)
 
   const headers: Record<string, string> = {
@@ -92,7 +93,7 @@ async function settingsJson<T>(
   options: RequestInit,
   fallbackMessage: string,
 ): Promise<T> {
-  const token = localStorage.getItem('autowallet_token')
+  const token = getToken()
   if (!token) throw new SettingsApiError('Your session has ended.', 401)
 
   const headers: Record<string, string> = {

@@ -1,16 +1,10 @@
-import { Check } from 'lucide-react'
 import type { DashboardRule, DashboardWallet, WalletType } from './dashboardApi'
-import {
-  envelopeChartColor,
-  envelopeDescription,
-  envelopeMeta,
-  envelopeOrder,
-  envelopeTarget,
-  money,
-  walletOrder,
-} from './envelopeDisplay'
+import { envelopeChartColor, envelopeMeta, envelopeOrder, money, walletOrder } from './envelopeDisplay'
 import { useTranslation } from '../../i18n'
-import './envelopes.css'
+import { Card } from '../../components/ui/Card'
+import { Page } from '../../components/ui/Page'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { EnvelopeCard } from './envelopes/EnvelopeCard'
 
 interface EnvelopesViewProps {
   wallets: DashboardWallet[]
@@ -22,42 +16,6 @@ interface EnvelopesViewProps {
 const setAsideTypes: WalletType[] = ['rent', 'tax', 'savings']
 const otherTypes: WalletType[] = ['free', 'main']
 
-export function EnvelopesSkeleton() {
-  return (
-    <section className="envelopes-view envelopes-skeleton" aria-label="Loading envelopes" role="status">
-      <div className="envelopes-page-heading">
-        <div>
-          <span className="envelopes-skeleton-line envelopes-skeleton-title" />
-          <span className="envelopes-skeleton-line envelopes-skeleton-subtitle" />
-        </div>
-      </div>
-      <div className="envelopes-overview">
-        <div>
-          <span className="envelopes-skeleton-line envelopes-skeleton-label" />
-          <span className="envelopes-skeleton-line envelopes-skeleton-value" />
-          <span className="envelopes-skeleton-line envelopes-skeleton-subtitle" />
-        </div>
-        <div>
-          <span className="envelopes-skeleton-line envelopes-skeleton-bar" />
-          <span className="envelopes-skeleton-line envelopes-skeleton-row" />
-          <span className="envelopes-skeleton-line envelopes-skeleton-row" />
-        </div>
-      </div>
-      <span className="envelopes-skeleton-line envelopes-skeleton-label" />
-      <div className="envelopes-grid envelopes-grid--set-aside">
-        {Array.from({ length: 3 }, (_, index) => (
-          <div key={index} className="envelopes-skeleton-card">
-            <span className="envelopes-skeleton-line envelopes-skeleton-label" />
-            <span className="envelopes-skeleton-line envelopes-skeleton-value" />
-            <span className="envelopes-skeleton-line envelopes-skeleton-row" />
-          </div>
-        ))}
-      </div>
-      <span className="sr-only">Loading envelopes</span>
-    </section>
-  )
-}
-
 export function EnvelopesView({ wallets, rules, onSelect }: EnvelopesViewProps) {
   const { t } = useTranslation()
   const balances = new Map<WalletType, number>(wallets.map((wallet) => [wallet.wallet_type, wallet.balance]))
@@ -66,27 +24,26 @@ export function EnvelopesView({ wallets, rules, onSelect }: EnvelopesViewProps) 
   const freeBalance = balances.get('free') ?? 0
 
   return (
-    <section className="envelopes-view" aria-labelledby="envelopes-heading">
-      <div className="envelopes-page-heading">
-        <div>
-          <h1 id="envelopes-heading">{t.envelopesMainHeading}</h1>
-          <p>{t.envelopesMainSubtitle}</p>
-        </div>
-      </div>
+    <Page as="section" aria-labelledby="envelopes-heading">
+      <PageHeader id="envelopes-heading" title={t.envelopesMainHeading} description={t.envelopesMainSubtitle} />
 
-      <section className="envelopes-overview" aria-label={t.totalAcrossEnvelopes}>
-        <div className="envelopes-overview-total">
-          <p>{t.totalAcrossEnvelopes}</p>
-          <strong>
-            {money.format(total)} <small>MAD</small>
+      <Card className="grid min-h-[198px] grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] items-center gap-7 p-[22px] max-[980px]:grid-cols-1 max-[980px]:gap-6" aria-label={t.totalAcrossEnvelopes}>
+        <div>
+          <p className="text-xs font-semibold text-muted">{t.totalAcrossEnvelopes}</p>
+          <strong className="mt-3 block text-[28px] font-extrabold tracking-[-0.04em] whitespace-nowrap text-ink max-md:mt-1.5 max-md:text-[23px]">
+            {money.format(total)} <small className="text-2xs font-bold tracking-normal text-muted">MAD</small>
           </strong>
-          <span>
+          <span className="mt-3.5 block text-xs leading-normal text-muted max-md:mt-2 max-md:text-2xs">
             {t.setAsideHeading} {money.format(setAsideTotal)} · {envelopeMeta.free.name} {money.format(freeBalance)}
           </span>
         </div>
 
         <div>
-          <div className="envelopes-allocation-bar" role="img" aria-label={t.balanceAllocationByEnvelope}>
+          <div
+            className="flex h-[27px] w-full overflow-hidden rounded bg-layer-strong max-md:h-[17px]"
+            role="img"
+            aria-label={t.balanceAllocationByEnvelope}
+          >
             {walletOrder.map((type) => {
               const balance = balances.get(type) ?? 0
               const width = total > 0 ? Math.max(0, (balance / total) * 100) : 0
@@ -96,11 +53,12 @@ export function EnvelopesView({ wallets, rules, onSelect }: EnvelopesViewProps) 
                   key={type}
                   style={{ width: `${width}%`, backgroundColor: envelopeChartColor(type) }}
                   title={`${envelopeMeta[type].name}: ${money.format(balance)} MAD`}
+                  className="border-s-2 border-white first:border-s-0"
                 />
               )
             })}
           </div>
-          <div className="envelopes-allocation-list">
+          <div className="mt-2">
             {walletOrder.map((type) => {
               const balance = balances.get(type) ?? 0
               const share = total > 0 ? Math.round((balance / total) * 100) : 0
@@ -109,150 +67,45 @@ export function EnvelopesView({ wallets, rules, onSelect }: EnvelopesViewProps) 
                   key={type}
                   type="button"
                   onClick={() => onSelect(type)}
-                  className="envelopes-allocation-row"
+                  aria-label={`${envelopeMeta[type].name}, ${money.format(balance)} MAD, ${share}%`}
+                  className="grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)_94px_50px] items-center gap-3 rounded px-1 py-0.5 text-start text-xs hover:bg-canvas max-md:min-h-6 max-md:grid-cols-[minmax(0,1fr)_83px_43px] max-md:gap-2 max-md:text-2xs"
                 >
-                  <span className="envelopes-allocation-name">
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: envelopeChartColor(type) }}
-                      aria-hidden="true"
-                    />
-                    <span>{envelopeMeta[type].name}</span>
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: envelopeChartColor(type) }} aria-hidden="true" />
+                    <span className="truncate text-muted">{envelopeMeta[type].name}</span>
                   </span>
-                  <strong>{money.format(balance)}</strong>
-                  <span>{share}%</span>
+                  <strong className="text-end text-xs font-bold text-ink tabular-nums max-md:text-2xs">{money.format(balance)}</strong>
+                  <span className="text-end text-muted tabular-nums">{share}%</span>
                 </button>
               )
             })}
           </div>
         </div>
-      </section>
+      </Card>
 
-      <div className="envelopes-section">
-        <div className="envelopes-section-heading">
-          <h2>{t.setAsideHeading}</h2>
-          <span>{t.setAsideSubhead}</span>
+      <div className="mt-[22px] max-md:mt-6">
+        <div className="mb-3 flex items-baseline gap-3 max-md:block">
+          <h2 className="text-sm font-extrabold text-body">{t.setAsideHeading}</h2>
+          <span className="text-xs text-subtle max-md:mt-0.5 max-md:block max-md:text-2xs">{t.setAsideSubhead}</span>
         </div>
-        <div className="envelopes-grid envelopes-grid--set-aside">
+        <div className="grid grid-cols-3 gap-5 max-[980px]:gap-3 max-md:grid-cols-1">
           {setAsideTypes.map((type) => (
-            <EnvelopeCard
-              key={type}
-              type={type}
-              balance={balances.get(type) ?? 0}
-              total={total}
-              rules={rules}
-              onSelect={onSelect}
-            />
+            <EnvelopeCard key={type} type={type} balance={balances.get(type) ?? 0} total={total} rules={rules} onSelect={onSelect} />
           ))}
         </div>
       </div>
 
-      <div className="envelopes-section">
-        <div className="envelopes-section-heading">
-          <h2>{t.otherSectionTitle}</h2>
-          <span>{t.otherSubhead}</span>
+      <div className="mt-[22px] max-md:mt-6">
+        <div className="mb-3 flex items-baseline gap-3 max-md:block">
+          <h2 className="text-sm font-extrabold text-body">{t.otherSectionTitle}</h2>
+          <span className="text-xs text-subtle max-md:mt-0.5 max-md:block max-md:text-2xs">{t.otherSubhead}</span>
         </div>
-        <div className="envelopes-grid envelopes-grid--other">
+        <div className="grid grid-cols-2 gap-5 max-[980px]:gap-3 max-md:grid-cols-1">
           {otherTypes.map((type) => (
-            <EnvelopeCard
-              key={type}
-              type={type}
-              balance={balances.get(type) ?? 0}
-              total={total}
-              rules={rules}
-              onSelect={onSelect}
-            />
+            <EnvelopeCard key={type} type={type} balance={balances.get(type) ?? 0} total={total} rules={rules} onSelect={onSelect} />
           ))}
         </div>
       </div>
-    </section>
-  )
-}
-
-function EnvelopeCard({
-  type,
-  balance,
-  total,
-  rules,
-  onSelect,
-}: {
-  type: WalletType
-  balance: number
-  total: number
-  rules: DashboardRule[]
-  onSelect: (type: WalletType) => void
-}) {
-  const { t, lang } = useTranslation()
-  const meta = envelopeMeta[type]
-  const Icon = meta.icon
-  const target = envelopeTarget(type, rules)
-  const percent = target ? Math.min(100, Math.round((balance / target) * 100)) : null
-  const remaining = target ? Math.max(0, target - balance) : null
-  const share = total > 0 ? ((balance / total) * 100).toFixed(1) : '0.0'
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(type)}
-      className={`envelopes-card envelopes-card--${type}`}
-      aria-label={t.openEnvelopeAria.replace('{name}', meta.name).replace('{amount}', money.format(balance))}
-    >
-      <span className="envelopes-card-heading">
-        <span className="envelopes-card-icon" style={{ backgroundColor: meta.tint, color: meta.color }} aria-hidden="true">
-          <Icon className="h-4 w-4" />
-        </span>
-        <span>
-          <strong>{meta.name}</strong>
-          <small>{envelopeDescription(type, rules)}</small>
-        </span>
-      </span>
-
-      <strong className="envelopes-card-value">
-        {money.format(balance)} <small>MAD</small>
-      </strong>
-
-      {target !== null && percent !== null && (
-        <span className="envelopes-card-progress">
-          <span
-            className="envelopes-card-track"
-            role="progressbar"
-            aria-label={`${meta.name} target progress`}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={percent}
-          >
-            <span style={{ width: `${percent}%`, backgroundColor: meta.color }} />
-          </span>
-          <span className="envelopes-card-progress-caption">
-            {percent >= 100 ? (
-              <>
-                <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                {t.targetMetBadge} · {money.format(target)}
-              </>
-            ) : (
-              <>
-                {type === 'savings' ? t.capWord : t.targetWord} {money.format(target)} · {money.format(remaining ?? 0)} {lang === 'ar' ? 'متبقٍ' : lang === 'fr' ? 'restants' : 'to go'} ({percent}%)
-              </>
-            )}
-          </span>
-        </span>
-      )}
-
-      {type === 'tax' && target === null && (
-        <span className="envelopes-card-footnote">
-          {lang === 'fr' ? 'Sans plafond · croît à chaque paiement' : lang === 'ar' ? 'بدون حد أقصى · ينمو مع كل دفعة' : 'No cap · grows with every payment'}
-        </span>
-      )}
-      {type === 'free' && (
-        <span className="envelopes-card-footnote">
-          {share}% {lang === 'fr' ? 'de votre solde total' : lang === 'ar' ? 'من إجمالي رصيدك' : 'of your total balance'}
-        </span>
-      )}
-      {type === 'main' && (
-        <span className="envelopes-card-footnote">
-          0% {lang === 'fr' ? 'quand Libre à dépenser prend 100 %' : lang === 'ar' ? 'عندما يأخذ حر للتصرف 100%' : 'when Free to spend takes 100%'}
-        </span>
-      )}
-    </button>
+    </Page>
   )
 }
