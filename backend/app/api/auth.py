@@ -1,50 +1,55 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import delete
+from sqlalchemy.exc import SQLAlchemyError
+from redis.exceptions import RedisError
+
 from app.core.deps import get_current_user
 from app.services.provisioning import create_default_rules, create_default_wallets
-
-from app.api.schemas import Token, UserLogin, UserOut, UserRegister, LinkBankAccount
 from app.core.database import get_db
-from app.core.security import create_access_token, hash_password, verify_password
-from app.models.models import User
-
 from app.core.redis_client import redis_client
 from app.gdpr.email import EmailError
+from app.models.models import TwoFactorRecoveryCode, User
+from app.services.email_verification import send_verification_email, token_key
 
-from app.api.schemas import TwoFactorSetupOut, TwoFactorVerify
-from app.core.security import generate_totp_secret, get_totp_uri, verify_totp_code
+from app.core.security import(
+    generate_totp_secret,
+    get_totp_uri,
+    verify_totp_code,
+    create_access_token,
+    hash_password,
+    verify_password,
+    generate_recovery_codes,
+    hash_recovery_code,
+)
 from app.api.schemas import (
     ResendVerificationRequest,
     VerifyEmailRequest,
     MessageResponse,
-    DisableTwoFactorRequest
+    DisableTwoFactorRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    Token, 
+    UserLogin, 
+    UserOut, 
+    UserRegister, 
+    LinkBankAccount,
+    TwoFactorSetupOut,
+    TwoFactorVerify,
+    RecoveryCodesOut,
+    RegenerateRecoveryCodesRequest,
 )
+
+from app.services.password_reset import (
+    reset_token_key,
+    send_password_reset_email,
+)
+
 from app.core.two_factor_rate_limit import (
     check_2fa_rate_limit,
     record_failed_2fa_attempt,
     clear_2fa_rate_limit,
 )
-
-from sqlalchemy import delete
-
-from app.models.models import TwoFactorRecoveryCode
-from app.api.schemas import (
-    RecoveryCodesOut,
-    RegenerateRecoveryCodesRequest,
-)
-
-
-from app.core.security import (
-    generate_recovery_codes,
-    hash_recovery_code,
-)
-
-from app.services.email_verification import token_key
-
-import logging
-from app.services.email_verification import send_verification_email
-from sqlalchemy.exc import SQLAlchemyError
-from redis.exceptions import RedisError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -199,7 +204,6 @@ def login(
     )
 
 
-# get has no request body
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
@@ -546,4 +550,106 @@ def disable_2fa(
 
     return MessageResponse(
         message="Two-factor authentication disabled successfully"
+    )
+
+
+@router.post(
+    "/password/forgot",
+    response_model=MessageResponse,
+)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    generic_response = MessageResponse(
+        message=(
+            "If an eligible account exists, "
+            "a password reset email will be sent."
+        )
+    )
+
+    email = str(payload.email).strip().lower()
+
+    user = (
+        db.query(User)
+        .filter(User.email == email)
+        .first()
+    )
+
+    if user is None or not user.hashed_password:
+        return generic_response
+
+    try:
+        send_password_reset_email(user)
+
+    except (EmailError, RedisError):
+        return generic_response
+
+    return generic_response
+
+
+@router.post(
+    "/password/reset",
+    response_model=MessageResponse,
+)
+def reset_password(
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    if len(payload.new_password.encode("utf-8")) > 72:
+        raise HTTPException(
+            status_code=422,
+            detail="Password must not exceed 72 UTF-8 bytes",
+        )
+
+    key = reset_token_key(payload.token)
+
+    try:
+        # Atomic: read and consume the token.
+        user_id = redis_client.getdel(key)
+
+    except RedisError:
+        raise HTTPException(
+            status_code=503,
+            detail="Password reset temporarily unavailable",
+        )
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired password reset token",
+        )
+
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
+
+    if user is None or not user.hashed_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired password reset token",
+        )
+
+    try:
+        user.hashed_password = hash_password(
+            payload.new_password
+        )
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Password reset temporarily unavailable. "
+                "Please request a new reset link."
+            ),
+        )
+
+    return MessageResponse(
+        message="Password reset successfully"
     )
