@@ -14,11 +14,9 @@ export const LOCALE_CHANGE_EVENT = 'autowallet_lang_change'
 export function getLanguage(): Locale {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved === 'fr' || saved === 'ar' || saved === 'en') {
-      return saved
-    }
+    if (saved === 'fr' || saved === 'ar' || saved === 'en') return saved
   } catch {
-    // ignore localStorage errors (e.g. security sandboxes)
+    // Browser storage may be unavailable in privacy sandboxes.
   }
   return 'en'
 }
@@ -34,7 +32,7 @@ export function setLanguage(lang: Locale) {
   try {
     localStorage.setItem(STORAGE_KEY, lang)
   } catch {
-    // ignore
+    // The in-memory language still applies when storage is blocked.
   }
   applyLanguage(lang)
   if (typeof window !== 'undefined') {
@@ -42,7 +40,6 @@ export function setLanguage(lang: Locale) {
   }
 }
 
-// Initial setup on module load
 if (typeof window !== 'undefined') {
   applyLanguage(getLanguage())
 }
@@ -64,20 +61,15 @@ export function useTranslation() {
     }
   }, [])
 
-  const t = locales[lang] || locales.en
-
-  return {
-    t,
-    lang,
-    setLanguage,
-    isRtl: lang === 'ar',
-  }
+  return { t: locales[lang] ?? locales.en, lang, setLanguage, isRtl: lang === 'ar' }
 }
 
+/** Translation lookup for non-reactive module code (labels inside metadata objects). */
 export const translations: Translations = new Proxy({} as Translations, {
-  get(_target, prop: string) {
-    const currentLang = getLanguage()
-    const dict = locales[currentLang] || locales.en
-    return (dict as any)[prop] ?? (locales.en as any)[prop] ?? ''
+  get(_target, property: string | symbol) {
+    if (typeof property !== 'string') return undefined
+    const key = property as keyof Translations
+    const dict = locales[getLanguage()] ?? locales.en
+    return dict[key] ?? locales.en[key] ?? ''
   },
 })

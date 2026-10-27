@@ -1,6 +1,6 @@
 # AutoWallet frontend
 
-English-only React application built with TypeScript, Vite, Tailwind CSS, and React Router. It includes authentication, onboarding, Home, Envelopes and envelope details, Rules, Activity and payment details, Analytics, Assistant, Notifications, Sandbox, and seven Settings sections.
+React application built with TypeScript, Vite, Tailwind CSS, lucide-react, and React Router. The interface is available in English, French, and Arabic (including right-to-left layout). It includes authentication, onboarding, Home, Envelopes and envelope details, Rules, Activity and payment details, Analytics, Assistant, Notifications, Sandbox, and five Settings sections.
 
 ## Run locally
 
@@ -31,11 +31,17 @@ npm audit --prefix frontend
 
 See [AUDIT.md](AUDIT.md) for the current verification results, endpoint coverage and remaining dependencies.
 
+## Structure and styling
+
+The frontend uses one stylesheet (`src/index.css`) for design tokens and base rules. All component styling is Tailwind utility classes in JSX. Shared primitives live in `src/components/ui`; application chrome lives in `src/components/layout`; feature pages are grouped under `src/pages`.
+
+See [architecture.md](architecture.md) for the file map, token conventions, data flow, and state rules. New UI should reuse the shared primitives and semantic tokens rather than adding stylesheets or literal hex colors.
+
 ## Backend connection
 
 Authentication, registration, bank account ID linking, wallet and payment reads, payment recording, saved starter-rule edits, analytics reads/downloads, streaming Assistant, authenticator setup/verification, recovery-code login/regeneration, email verification/resend, data exports, and account deletion use the backend APIs. Live payment refresh uses authenticated **Server-Sent Events** at `/api/analytics/live`, with reconnect and resynchronization. Settings loads account data independently of payment services.
 
-Sandbox and onboarding payment simulation calculate local previews. Themes, payment-alert preferences, and notification read IDs are browser preferences. Entering a bank account ID records that ID; it does not verify ownership or connect a real bank. Historical payment details display only data actually supplied by the API.
+Sandbox and onboarding payment simulation calculate local previews. Payment-alert preferences and notification read IDs are browser preferences. Entering a bank account ID records that ID; it does not verify ownership or connect a real bank. Historical payment details display only data actually supplied by the API.
 
 Password recovery and reset have frontend request handlers, but their backend routes are missing. Custom rule management, profile/password changes, session revocation, personal API keys, and disabling two-factor login also need backend support. The UI identifies unsupported actions. See the [endpoint matrix and remaining work](AUDIT.md#backend-endpoint-coverage).
 
@@ -43,4 +49,4 @@ Recovery codes returned after 2FA activation or regeneration are displayed once 
 
 Signup and two-factor passwords remain in memory; refreshing those flows requires signing in again. Non-secret signup drafts use session storage. Sign-in tokens currently use local storage. Moving tokens to HttpOnly cookies would require a coordinated backend authentication change.
 
-See [architecture.md](architecture.md) for file organization and data flow. Production hosting must serve the SPA fallback and proxy `/api`, including streaming responses; the frontend Dockerfile and nginx configuration now provide the production bundle and SPA/API routing.
+Production hosting must serve the SPA fallback and proxy `/api`, including streaming responses; the frontend Dockerfile and nginx configuration now provide the production bundle and SPA/API routing.

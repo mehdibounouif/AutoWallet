@@ -50,3 +50,18 @@ Settings reads account data independently of money services. Local previews do n
 The previous PR #60 revision passed build, lint and all 68 existing frontend tests, plus browser checks for desktop/mobile charts, dark mode, redirects, streamed formatting and Privacy navigation. The old October 16 counts of 51 passing / 12 failing tests are superseded.
 
 This update passes the production build, lint and all 68 existing tests across 12 files. Temporary browser checks outside the repository also pass for recovery-code login, download and regeneration, invalid credentials, memory-only secrets, both verification URLs, a single verification request under React StrictMode, expired links, resend failures and cooldown, 320px layouts, and signup preview parity. Browser checks use mocked API responses; they do not verify live backend processing or email delivery. No QA-owned tests or test configuration are edited.
+
+## Refactor pass — October 25, 2026
+
+The frontend was reorganised around a shared design system and a single Tailwind stylesheet:
+
+- Removed all eight feature stylesheets (`dashboard`, `workspace`, `activity`, `envelopes`, `envelopeDetail`, `rules`, `settings`, `dialog`) and moved their rules to semantic Tailwind tokens/utilities.
+- Added `components/ui` primitives (button, field/input/reveal input, card, badge, alert, empty state, page/section headers, dialog, popover, switch, skeleton, progress, OTP input, password meter, stepper, language selector).
+- Extracted the application shell (`components/layout`) from `DashboardPage`; the page now owns view selection and session orchestration, while `useDashboardData`, `DashboardHeaderTools` and `LinkBankAccountPrompt` own their respective concerns.
+- Split Settings into account, password, two-factor, privacy, notifications, and developer modules; Analytics, Activity, Rules, Envelopes, envelope details, Notifications, Sandbox and Assistant views were simplified and deduplicated.
+- Applied the same composition pass to oversized feature views: introduced the `Page` template and extracted analytics model/sections/chart card, activity filters/table/mobile list, envelope rule/glance/history/spend dialog, rule preview/row/editor, Home model/rows/payments/skeleton, Assistant message/composer, developer and privacy cards, and the onboarding footer plus payment pipe/allocation breakdown. The largest view controllers are now under ~17 KB; the remaining large files are content data (Legal, i18n) and cohesive multi-step state machines (AuthCard, OnboardingPage, TwoFactorSettings).
+- Added `auth/session.ts`, `hooks/useCopyToClipboard.ts`, `hooks/useMediaQuery.ts`, `hooks/useOnlineStatus.ts`, `utils/cn.ts`, and `utils/download.ts` to remove repeated ad-hoc logic.
+- Standardised icons on `lucide-react`, replaced literal colours with tokens, and fixed all pre-existing ESLint errors (the stale theme attribute, a useless assignment, unsafe `any` lookups, and a synchronous effect setState).
+- Moved all French/Arabic content into `i18n`: the full legal documents now live in `i18n/legal/{en,fr,ar}.ts`, inline translated conditionals in Home/envelope components became typed keys, and generated rule/envelope descriptions use placeholder templates in the locale files. No feature component selects copy with `lang === 'fr' | 'ar'` anymore.
+
+Verification: `tsc -b` passes, ESLint passes with zero errors, all 13 test files (71 tests) pass, and the production build succeeds. Test assertions were not changed; only three imports were updated for the moved password-meter, OTP and language-selector components. The compiled CSS bundle is about 71 kB versus about 129 kB before the refactor. No files outside `frontend/` were modified and no runtime dependency was added.

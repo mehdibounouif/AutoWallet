@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
-import { PasswordStrength } from '../src/components/common/PasswordStrength'
+import { PasswordStrength } from '../src/components/ui/PasswordStrength'
 import { translations as t } from '../src/i18n'
 // (auto-cleanup lives in tests/setup.ts)
 

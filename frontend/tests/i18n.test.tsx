@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { getLanguage, setLanguage, translations, useTranslation } from '../src/i18n'
-import { LanguageSelector } from '../src/components/common/LanguageSelector'
+import { LanguageSelector } from '../src/components/ui/LanguageSelector'
 
 function TranslationConsumer() {
   const { t, lang, isRtl } = useTranslation()

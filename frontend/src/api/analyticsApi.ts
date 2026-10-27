@@ -1,4 +1,5 @@
 import { apiFetch } from './request'
+import { getToken } from '../auth/session'
 import { apiErrorDetail } from './errors'
 import { isWalletType } from './walletTypes'
 import type { WalletType } from './walletTypes'
@@ -84,7 +85,7 @@ function parseSeries(value: unknown, filters: AnalyticsFilters): AnalyticsSeries
 }
 
 async function analyticsRequest(path: string, signal: AbortSignal, accept = 'application/json') {
-  const token = localStorage.getItem('autowallet_token')
+  const token = getToken()
   if (!token) throw new AnalyticsApiError(401, 'Please sign in again.')
   const response = await apiFetch(path, { headers: { Authorization: `Bearer ${token}`, Accept: accept }, signal })
   if (!response.ok) {
