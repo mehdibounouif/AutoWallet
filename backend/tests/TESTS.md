@@ -313,7 +313,7 @@ Closed-cycle log:
 | one test fails with an assertion naming a finding | that's an acceptance test telling you a finding is still open (or just got fixed and the xfail needs removing) | §4 table |
 | `fake_redis` KeyError / lock errors | a new module imports `redis_client` and isn't patched | `conftest.py` `fake_redis` |
 | poller tests time out | `no_background_scheduler` removed, or `poller_uses_test_db` not requested in the signature | `conftest.py` |
-| everything fails at import | `.env` missing (settings hard-requires GOOGLE_* dummies — finding #9) | `backend/.env` |
+| everything fails at import | `backend/.env` missing | run `make test-backend` (creates it from `backend/.env.example` when absent); CI does the same `cp` |
 
 ---
 
