@@ -43,7 +43,6 @@ from app.services.email_verification import token_key
 
 import logging
 from app.services.email_verification import send_verification_email
-logger = logging.getLogger(__name__)
 from sqlalchemy.exc import SQLAlchemyError
 from redis.exceptions import RedisError
 
@@ -103,11 +102,7 @@ def register(
         send_verification_email(user)
 
     except (EmailError, RedisError):
-        logger.exception(
-            "Could not initiate verification email for user %s",
-            user.id,
-        )
-
+        raise
     return user
 
 
@@ -350,7 +345,10 @@ def regenerate_recovery_codes(
     )
 
 
-@router.post("/link-bank-account", response_model=UserOut)
+@router.post(
+    "/link-bank-account",
+    response_model=UserOut
+)
 def link_bank_account(
     payload: LinkBankAccount,
     db: Session = Depends(get_db),
@@ -366,7 +364,6 @@ def link_bank_account(
     db.commit()
     db.refresh(current_user)
     return current_user
-
 
 @router.post(
     "/email/resend",
@@ -411,11 +408,6 @@ def resend_verification(
 
     except EmailError:
         redis_client.delete(cooldown_key)
-
-        logger.warning(
-            "Verification resend failed for user %s",
-            user.id,
-        )
 
         raise HTTPException(
             status_code=503,
@@ -465,11 +457,6 @@ def verify_email(
 
     except SQLAlchemyError:
         db.rollback()
-
-        logger.exception(
-            "Failed to verify email for user %s",
-            user.id,
-        )
 
         raise HTTPException(
             status_code=503,
