@@ -34,8 +34,8 @@ export function EnvelopeRuleCard({ type, rule, onOpenRules }: {
               <Icon className="size-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <strong className="block text-[13px] font-extrabold text-body">{rule.name}</strong>
-              <p className="mt-1 text-xs leading-snug text-muted max-md:text-2xs">{ruleDescription(rule)}</p>
+              <strong className="block text-[13px] font-extrabold text-body break-words">{rule.name}</strong>
+              <p className="mt-1 text-xs leading-snug text-muted break-words max-md:text-2xs">{ruleDescription(rule)}</p>
             </div>
             <span className={cn('inline-flex shrink-0 items-center gap-2 text-xs whitespace-nowrap text-muted max-md:flex-col max-md:gap-1 max-md:text-3xs', rule.is_active && 'text-body')}>
               <span

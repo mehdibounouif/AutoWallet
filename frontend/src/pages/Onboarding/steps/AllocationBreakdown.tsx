@@ -52,7 +52,7 @@ export function AllocationBreakdown({ amount, allocations, total, t }: {
           {allocations.map((item, index) => (
             <div
               key={item.name}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 py-3 min-[850px]:grid min-[850px]:grid-cols-[24px_224px_96px_minmax(0,1fr)_100px_86px]"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 py-3 min-[850px]:grid min-[850px]:grid-cols-[24px_minmax(180px,1fr)_90px_auto_minmax(100px,auto)_minmax(90px,auto)] gap-2"
             >
               <span className="w-4 text-xs font-medium text-muted">{index + 1}</span>
               <span className="font-semibold text-ink">{index === 0 ? t.rule1Title.replace(/^\d+\.\s*/, '') : item.name}</span>
@@ -61,8 +61,8 @@ export function AllocationBreakdown({ amount, allocations, total, t }: {
                 {item.amount > 0 && <Check className="size-3.5 stroke-[2.5]" aria-hidden="true" />}
                 {item.amount > 0 ? t.ranStatusBadge : t.skippedStatusBadge}
               </span>
-              <span className="ms-auto font-semibold text-ink">{money.format(item.amount)}</span>
-              <span className="ms-auto whitespace-nowrap text-muted">{money.format(item.remaining)} {t.leftText}</span>
+              <span className="ms-auto font-semibold text-ink tabular-nums break-words">{money.format(item.amount)}</span>
+              <span className="ms-auto text-muted tabular-nums break-words">{money.format(item.remaining)} {t.leftText}</span>
             </div>
           ))}
           <div className="flex items-center justify-between px-1 py-3.5 text-xs text-muted sm:text-sm">

@@ -11,8 +11,9 @@ interface RuleValueInputProps {
 
 /** Inline amount/percentage token used inside the onboarding rule sentences. */
 export function RuleValueInput({ id, label, value, onChange, unit }: RuleValueInputProps) {
+  const charLength = value ? String(value).length : 0
   return (
-    <span className={cn(inputClass, 'inline-flex h-9 w-fit items-center gap-1 px-3 shadow-xs focus-within:border-action-primary focus-within:ring-2 focus-within:ring-action-primary/20')}>
+    <span className={cn(inputClass, 'inline-flex h-9 w-fit max-w-full items-center gap-1.5 px-3 shadow-xs focus-within:border-action-primary focus-within:ring-2 focus-within:ring-action-primary/20')}>
       <input
         id={id}
         type="number"
@@ -23,13 +24,14 @@ export function RuleValueInput({ id, label, value, onChange, unit }: RuleValueIn
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-label={label}
+        style={{ width: unit === '%' ? '3rem' : `${Math.max(5, Math.min(14, charLength + 1))}ch` }}
         className={cn(
           'bg-transparent text-end text-sm font-semibold text-ink outline-none',
-          unit === '%' ? 'w-12' : 'w-24',
+          unit === '%' ? 'min-w-10' : 'min-w-20 max-w-56',
           '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
         )}
       />
-      <span className="text-xs font-semibold text-muted">{unit}</span>
+      <span className="shrink-0 text-xs font-semibold text-muted">{unit}</span>
     </span>
   )
 }

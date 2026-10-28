@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import type { Translations } from '../../../i18n'
-import { money } from '../../../utils/format'
+import { formatCompactMoney, money } from '../../../utils/format'
 import type { Allocation } from './step5Model'
 
 const PIPE_HEIGHT = 120
@@ -21,18 +21,27 @@ export function PaymentPipe({ amount, allocations, t }: { amount: number; alloca
   ].join(' ')
 
   return (
-    <div className="mx-auto hidden h-[250px] w-[1040px] grid-cols-[128px_664px_116px_132px] min-[1200px]:grid">
-      <div className="pt-14 pe-4 text-end">
-        <div className="text-lg font-bold whitespace-nowrap text-ink">
-          {money.format(amount)} <span className="text-xs text-muted">MAD</span>
+    <div className="mx-auto hidden h-[250px] w-[1040px] grid-cols-[minmax(128px,auto)_664px_40px_minmax(132px,auto)] min-[1200px]:grid gap-2">
+      <div className="pt-14 pe-4 text-end min-w-0">
+        <div
+          className="font-bold text-ink tabular-nums break-words"
+          title={`${money.format(amount)} MAD`}
+        >
+          <span className={amount >= 1_000_000 ? 'text-sm' : 'text-lg'}>{money.format(amount)}</span>{' '}
+          <span className="text-xs text-muted">MAD</span>
         </div>
         <div className="text-sm text-muted">{t.firstPaymentLabel}</div>
       </div>
 
       <div className="relative h-[250px] w-[664px]">
         {allocations.slice(0, 3).map((item, index) => (
-          <span key={item.name} className="absolute -top-1 text-xs whitespace-nowrap text-muted" style={{ left: SPLIT_X[index] + 8 }}>
-            {money.format(item.remaining)} {t.leftText}
+          <span
+            key={item.name}
+            className="absolute -top-1 -translate-x-1/2 whitespace-nowrap text-xs text-muted tabular-nums"
+            style={{ left: SPLIT_X[index] + 20 }}
+            title={`${money.format(item.remaining)} ${t.leftText}`}
+          >
+            {formatCompactMoney(item.remaining)} {t.leftText}
           </span>
         ))}
 
@@ -61,22 +70,32 @@ export function PaymentPipe({ amount, allocations, t }: { amount: number; alloca
         </svg>
 
         {allocations.map((item, index) => (
-          <div key={item.name} className="absolute top-[197px] whitespace-nowrap text-ink" style={{ left: SPLIT_X[index] + PIPE_BEND }}>
-            <div className="flex items-center gap-1 text-sm font-semibold">
-              <span style={{ color: item.color }}><item.Icon className="size-4" /></span>
-              <span>{item.name}</span>
+          <div
+            key={item.name}
+            className="absolute top-[197px] text-ink max-w-[130px] -translate-x-4"
+            style={{ left: SPLIT_X[index] + PIPE_BEND }}
+          >
+            <div className="flex items-center gap-1 text-sm font-semibold truncate">
+              <span style={{ color: item.color }}><item.Icon className="size-4 shrink-0" /></span>
+              <span className="truncate">{item.name}</span>
             </div>
-            <div className="mt-0.5 text-base leading-5 font-bold">{money.format(item.amount)}</div>
+            <div
+              className="mt-0.5 font-bold tabular-nums truncate leading-5"
+              title={`${money.format(item.amount)} MAD`}
+            >
+              <span className={item.amount >= 1_000_000 ? 'text-xs' : 'text-base'}>{money.format(item.amount)}</span>
+            </div>
           </div>
         ))}
       </div>
 
       <div aria-hidden="true" />
-      <div className="pt-[46px] text-ink">
+      <div className="pt-[46px] text-ink min-w-0">
         <div className="text-sm text-muted">{t.leftoverToMainLabel}</div>
         <div className="text-base font-bold">0.00</div>
-        <div className="mt-2 flex items-center gap-1 text-sm font-semibold">
-          = {money.format(amount)} <Check className="size-4 text-success" aria-hidden="true" />
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-sm font-semibold break-words" title={`= ${money.format(amount)} MAD`}>
+          <span>= {money.format(amount)}</span>
+          <Check className="size-4 shrink-0 text-success" aria-hidden="true" />
         </div>
       </div>
     </div>

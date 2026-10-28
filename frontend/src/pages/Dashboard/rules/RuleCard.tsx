@@ -29,8 +29,8 @@ export function RuleCard({ rule, index, disabled, onToggle, onEdit }: {
         <Icon className="size-4" />
       </span>
       <div className={cn('min-w-0 flex-1', !rule.is_active && 'opacity-75')}>
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-extrabold text-body">{rule.name}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-extrabold text-body break-words">{rule.name}</h3>
           {!rule.is_active && (
             <span className="inline-flex items-center gap-1 rounded bg-layer px-1.5 py-0.5 text-3xs font-bold text-muted">
               <Pause className="size-2.5" aria-hidden="true" />
@@ -38,7 +38,7 @@ export function RuleCard({ rule, index, disabled, onToggle, onEdit }: {
             </span>
           )}
         </div>
-        <p className="mt-1 text-xs leading-snug text-muted">{ruleDescription(rule)}</p>
+        <p className="mt-1 text-xs leading-snug text-muted break-words">{ruleDescription(rule)}</p>
       </div>
       <div className="ms-auto flex items-center gap-3">
         <Switch

@@ -17,9 +17,9 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Paymen
   return (
     <Card as="section" aria-label="Payment receipt" className="p-5 sm:p-6">
       <h2 className="text-base font-extrabold text-ink">{t.totalLabel}</h2>
-      <div className="mt-7 flex justify-between gap-3.5 border-b border-line pb-3.5 text-sm">
+      <div className="mt-7 flex flex-wrap items-baseline justify-between gap-3.5 border-b border-line pb-3.5 text-sm">
         <strong className="min-w-0 font-bold text-ink break-words">{reference}</strong>
-        <strong className="shrink-0 font-bold text-ink">
+        <strong className="font-bold text-ink tabular-nums break-words">
           {money.format(amount)} <small className="text-2xs font-semibold text-muted">MAD</small>
         </strong>
       </div>
@@ -28,12 +28,12 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Paymen
         ? steps.map(({ rule, allocated, remaining, reason }, index) => (
             <div
               key={rule.id}
-              className="grid grid-cols-[18px_minmax(0,1fr)_auto_auto] items-start gap-3 border-b border-line py-4 text-xs max-md:grid-cols-[18px_minmax(0,1fr)_auto] max-md:gap-2"
+              className="grid grid-cols-[18px_minmax(120px,1fr)_minmax(80px,auto)_minmax(70px,auto)] items-start gap-3 border-b border-line py-4 text-xs max-md:grid-cols-[18px_minmax(0,1fr)_auto] max-md:gap-2"
             >
               <span className="font-semibold text-muted">{index + 1}</span>
               <div className="min-w-0">
                 <strong className="font-bold text-ink">{rule.name}</strong>
-                <p className="mt-1 text-2xs leading-relaxed text-muted">{reason ?? ruleDescription(rule)}</p>
+                <p className="mt-1 text-2xs leading-relaxed text-muted break-words">{reason ?? ruleDescription(rule)}</p>
                 <span className="mt-1.5 inline-block rounded-full bg-layer px-1.5 py-0.5 text-3xs text-muted">
                   {rule.rule_type === 'lock_fixed' ? t.fixedAmountType : `${rule.percentage ?? 0}% ${t.percentOfLeftType}`}
                 </span>{' '}
@@ -41,8 +41,8 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Paymen
                   {reason ? t.skippedStatusBadge : <><Check className="size-3.5" aria-hidden="true" />{t.ranStatusBadge}</>}
                 </span>
               </div>
-              <strong className="text-end font-semibold text-ink tabular-nums">{money.format(allocated)}</strong>
-              <span className="text-end text-2xs whitespace-nowrap text-muted tabular-nums">{money.format(remaining)} {t.leftText}</span>
+              <strong className="text-end font-semibold text-ink tabular-nums break-words">{money.format(allocated)}</strong>
+              <span className="text-end text-2xs text-muted tabular-nums break-words">{money.format(remaining)} {t.leftText}</span>
             </div>
           ))
         : walletOrder
@@ -72,7 +72,7 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Paymen
             <Check className="size-3.5" aria-hidden="true" />{t.checksOutBadge}
           </span>
         </span>
-        <strong className="font-bold text-ink tabular-nums">
+        <strong className="font-bold text-ink tabular-nums break-words">
           {money.format(amount)} <small className="text-2xs font-semibold text-muted">MAD</small>
         </strong>
       </div>

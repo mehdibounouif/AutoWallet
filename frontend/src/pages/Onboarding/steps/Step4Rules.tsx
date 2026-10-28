@@ -40,7 +40,7 @@ export function Step4Rules({
       <div className="space-y-3.5">
         <Card className="space-y-3 p-4 sm:p-5">
           <h2 className="text-sm font-semibold text-ink sm:text-base">{t.rule1Title}</h2>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm leading-relaxed text-ink sm:text-base">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-3 text-sm leading-relaxed text-ink sm:text-base">
             <span>{t.rule1Lock}</span>
             <RuleValueInput id="rule1-token-amount-1" label={t.rule1Title} value={rentAmount} onChange={setRentAmount} unit="MAD" />
             <span>{t.rule1Into}</span>
@@ -50,7 +50,7 @@ export function Step4Rules({
 
         <Card className="space-y-3 p-4 sm:p-5">
           <h2 className="text-sm font-semibold text-ink sm:text-base">{t.rule2Title}</h2>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm leading-relaxed text-ink sm:text-base">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-3 text-sm leading-relaxed text-ink sm:text-base">
             <span>{t.rule2Put}</span>
             <RuleValueInput id="rule2-token-tax" label={t.rule2Title} value={taxPercent} onChange={setTaxPercent} unit="%" />
             <span>{t.rule2OfWhatLeftInto}</span>
@@ -60,7 +60,7 @@ export function Step4Rules({
 
         <Card className="space-y-3 p-4 sm:p-5">
           <h2 className="text-sm font-semibold text-ink sm:text-base">{t.rule3Title}</h2>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm leading-relaxed text-ink sm:text-base">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-3 text-sm leading-relaxed text-ink sm:text-base">
             <span>{t.rule3Put}</span>
             <RuleValueInput id="rule3-token-percent" label={t.rule3Title} value={savingsPercent} onChange={setSavingsPercent} unit="%" />
             <span>{t.rule3OfWhatLeftInto}</span>

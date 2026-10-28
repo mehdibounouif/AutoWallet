@@ -1,7 +1,7 @@
 import { Check, House, Landmark, PiggyBank, ShoppingBag } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { SplitAmounts } from './dashboardSplit'
-import { money } from '../../utils/format'
+import { formatCompactMoney, money } from '../../utils/format'
 import { cn } from '../../utils/cn'
 
 type BranchType = 'rent' | 'tax' | 'savings' | 'free'
@@ -54,24 +54,26 @@ export function DashboardSplitRibbon({
   return (
     <div
       className={cn(
-        'grid w-full items-start gap-5 max-md:block',
+        'grid w-full items-start gap-4 max-md:block',
         compact
-          ? 'grid-cols-[90px_minmax(0,1fr)_90px] gap-2 max-[1050px]:grid-cols-[90px_minmax(0,1fr)_90px]'
+          ? 'grid-cols-[minmax(80px,auto)_minmax(0,1fr)_minmax(80px,auto)] gap-2'
           : large
-            ? 'grid-cols-[120px_minmax(0,1fr)_145px] gap-3.5 max-[1050px]:grid-cols-[120px_minmax(0,1fr)_145px]'
-            : 'grid-cols-[116px_minmax(0,1fr)_173px] max-[1050px]:grid-cols-[100px_minmax(0,1fr)_110px] max-[1050px]:gap-2.5',
+            ? 'grid-cols-[minmax(120px,auto)_minmax(0,1fr)_minmax(140px,auto)] gap-3.5'
+            : 'grid-cols-[minmax(110px,auto)_minmax(0,1fr)_minmax(140px,auto)] gap-3',
       )}
     >
-      <div
-        className={cn(
-          'pt-[42px] text-end max-md:hidden',
-          !large && !compact && 'translate-x-[15px]',
-        )}
-      >
-        <strong className={cn('block whitespace-nowrap text-[15px] text-ink', large && 'text-2xl', compact && 'text-2xs', !large && !compact && 'max-[1050px]:text-xs')}>
+      <div className="pt-[42px] text-end max-md:hidden min-w-0">
+        <strong
+          className={cn(
+            'block font-bold text-ink tabular-nums break-words',
+            large ? (amount >= 1_000_000 ? 'text-lg' : 'text-2xl') : (amount >= 1_000_000 ? 'text-xs' : 'text-[15px]'),
+            compact && 'text-2xs',
+          )}
+          title={`${money.format(amount)} MAD`}
+        >
           {money.format(amount)} <small className="text-2xs font-bold tracking-normal text-muted">MAD</small>
         </strong>
-        <span className={cn('mt-0.5 block text-2xs text-subtle', compact && 'text-3xs')}>
+        <span className={cn('mt-0.5 block truncate text-2xs text-subtle', compact && 'text-3xs')}>
           {preview ? previewLabel : reference}
         </span>
       </div>
@@ -79,8 +81,13 @@ export function DashboardSplitRibbon({
       <div className="relative min-w-0">
         <div className={cn('absolute inset-x-0 -top-[3px] h-[18px] text-3xs text-subtle', compact && 'hidden')} aria-hidden="true">
           {remaining.slice(0, 3).map((value, index) => (
-            <span key={index} className="absolute whitespace-nowrap" style={{ left: `${(branchX[index] / 644) * 100}%` }}>
-              {money.format(Math.max(0, value))} left
+            <span
+              key={index}
+              className="absolute -translate-x-1/2 whitespace-nowrap tabular-nums"
+              style={{ left: `${(branchX[index] / 644) * 100}%` }}
+              title={`${money.format(Math.max(0, value))} left`}
+            >
+              {formatCompactMoney(Math.max(0, value))} left
             </span>
           ))}
         </div>
@@ -126,13 +133,14 @@ export function DashboardSplitRibbon({
         >
           {branches.map((branch, index) => {
             const Icon = branch.icon
+            const allocated = allocations[branch.type]
             return (
               <div
                 key={branch.type}
                 className={cn(
-                  'absolute top-0 w-[110px] -translate-x-[40%]',
-                  'max-[1050px]:static max-[1050px]:w-auto max-[1050px]:min-w-0 max-[1050px]:translate-x-0',
-                  compact && 'static w-auto translate-x-0',
+                  'absolute top-0 w-[120px] max-w-[24%] -translate-x-1/2 text-start',
+                  'max-[1050px]:static max-[1050px]:w-auto max-[1050px]:max-w-none max-[1050px]:min-w-0 max-[1050px]:translate-x-0',
+                  compact && 'static w-auto max-w-none translate-x-0',
                 )}
                 style={compact ? undefined : { left: `${(branchX[index] / 644) * 100}%` }}
               >
@@ -140,11 +148,21 @@ export function DashboardSplitRibbon({
                   <span style={{ color: branch.color }}><Icon className="size-3.5 shrink-0" aria-hidden="true" /></span>
                   <span className="truncate">{branch.label}</span>
                 </span>
-                <strong className={cn('block text-[13px] font-bold text-ink', compact && 'text-2xs', large && 'text-[13px]')}>
-                  {allocations[branch.type] > 0 ? money.format(allocations[branch.type]) : 'Skipped'}
+                <strong
+                  className={cn(
+                    'block font-bold text-ink truncate tabular-nums',
+                    allocated >= 1_000_000 ? 'text-xs' : 'text-[13px]',
+                    compact && 'text-2xs',
+                    large && (allocated >= 1_000_000 ? 'text-xs' : 'text-[13px]'),
+                  )}
+                  title={allocated > 0 ? `${money.format(allocated)} MAD` : undefined}
+                >
+                  {allocated > 0 ? money.format(allocated) : 'Skipped'}
                 </strong>
                 {branchNotes?.[branch.type] && (
-                  <small className="mt-0.5 block text-3xs leading-snug text-muted">{branchNotes[branch.type]}</small>
+                  <small className="mt-0.5 block line-clamp-2 text-3xs leading-snug text-muted break-words" title={branchNotes[branch.type]}>
+                    {branchNotes[branch.type]}
+                  </small>
                 )}
               </div>
             )
@@ -152,13 +170,20 @@ export function DashboardSplitRibbon({
         </div>
       </div>
 
-      <div className={cn('pt-10 text-xs text-muted max-md:hidden', compact && 'pt-10 text-2xs')}>
+      <div className={cn('pt-10 text-xs text-muted max-md:hidden min-w-0', compact && 'pt-10 text-2xs')}>
         <span>Leftover → Main</span>
-        <strong className={cn('mt-0.5 block text-[15px] font-bold text-ink', compact && 'text-2xs', !compact && 'max-[1050px]:text-xs')}>
+        <strong
+          className={cn('mt-0.5 block truncate font-bold text-ink tabular-nums', compact && 'text-2xs', allocations.main >= 1_000_000 ? 'text-xs' : 'text-[15px]')}
+          title={`${money.format(allocations.main)} MAD`}
+        >
           {money.format(allocations.main)}
         </strong>
-        <b className={cn('mt-2.5 flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-ink', compact && 'text-2xs')}>
-          = {money.format(amount)} <Check className="size-4 text-success" aria-hidden="true" />
+        <b
+          className={cn('mt-2.5 flex flex-wrap items-center gap-1 text-xs font-semibold text-ink break-words', compact && 'text-2xs')}
+          title={`= ${money.format(amount)} MAD`}
+        >
+          <span>= {money.format(amount)}</span>
+          <Check className="size-4 shrink-0 text-success" aria-hidden="true" />
         </b>
       </div>
     </div>

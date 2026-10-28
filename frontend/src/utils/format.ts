@@ -3,6 +3,20 @@ export const money = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 })
 
+export function formatCompactMoney(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0.00'
+  if (value >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 })}B`
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 })}M`
+  }
+  if (value >= 100_000) {
+    return `${(value / 1_000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`
+  }
+  return money.format(value)
+}
+
 const shortDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 const fullDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
