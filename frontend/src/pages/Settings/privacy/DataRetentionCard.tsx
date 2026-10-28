@@ -19,7 +19,7 @@ export function DataRetentionCard() {
           </div>
         ))}
       </dl>
-      <Link to="/privacy" className="mt-4 inline-flex text-xs font-bold text-accent hover:underline">Read our privacy notice</Link>
+      <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex text-xs font-bold text-accent hover:underline">Read our privacy notice</Link>
     </SettingsCard>
   )
 }

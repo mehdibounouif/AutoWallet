@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
+import { getToken } from '../../auth/session'
 import { TopBar } from '../../components/layout/TopBar'
 import { AuthCard } from './AuthCard'
 import { SessionEndedCard } from './SessionEndedCard'
@@ -33,6 +34,11 @@ function AuthContent({ mode }: AuthPageProps) {
 export function AuthPage({ mode }: AuthPageProps) {
   const location = useLocation()
   const accountDeleted = mode === 'login' && location.state?.accountDeleted === true
+
+  const token = getToken()
+  if (token && (mode === 'login' || mode === 'signup') && !accountDeleted) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-canvas">

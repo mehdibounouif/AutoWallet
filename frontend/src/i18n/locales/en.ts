@@ -431,6 +431,7 @@ export const en = {
   legalLastUpdated: 'Last updated: {date}',
   legalContactUs: 'Contact:',
   legalBackToLogin: 'Back to login',
+  legalBackToDashboard: 'Back to dashboard',
   legalSwitchToTerms: 'Terms of Service',
   legalSwitchToPrivacy: 'Privacy Policy',
   // Localized inline phrases

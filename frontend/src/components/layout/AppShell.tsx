@@ -83,8 +83,8 @@ export function AppShell({ view, onNavigate, headerStart, headerTools, online, t
               notifications && 'max-md:hidden',
             )}
           >
-            <Link to="/privacy" className="hover:text-accent hover:underline">{t.legalPrivacyTitle}</Link>
-            <Link to="/terms" className="hover:text-accent hover:underline">{t.legalTermsTitle}</Link>
+            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-accent hover:underline">{t.legalPrivacyTitle}</Link>
+            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-accent hover:underline">{t.legalTermsTitle}</Link>
             <span className="ms-auto max-md:hidden">AutoWallet · All amounts in MAD</span>
           </footer>
         </main>

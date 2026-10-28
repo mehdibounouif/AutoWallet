@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getToken } from '../../auth/session'
 import { LanguageSelector } from '../ui/LanguageSelector'
 import { Logo } from '../ui/Logo'
 import { cn } from '../../utils/cn'
@@ -25,7 +26,7 @@ export function TopBar({ variant = 'auth', finalStep = false, children }: TopBar
       <div className="flex w-full items-center justify-between gap-4">
         <button
           type="button"
-          onClick={() => navigate('/login')}
+          onClick={() => navigate(getToken() ? '/dashboard' : '/login')}
           title="AutoWallet home"
           className="group shrink-0 rounded-lg text-start transition-opacity hover:opacity-90"
         >

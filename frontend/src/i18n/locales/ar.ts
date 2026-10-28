@@ -433,6 +433,7 @@ export const ar: Translations = {
   legalLastUpdated: 'آخر تحديث: {date}',
   legalContactUs: 'الاتصال:',
   legalBackToLogin: 'العودة لتسجيل الدخول',
+  legalBackToDashboard: 'العودة إلى لوحة التحكم',
   legalSwitchToTerms: 'شروط الخدمة',
   legalSwitchToPrivacy: 'سياسة الخصوصية',
   // عبارات مترجمة ضمن المكونات

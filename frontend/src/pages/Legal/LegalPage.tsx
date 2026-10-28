@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { getToken } from '../../auth/session'
 import { TopBar } from '../../components/layout/TopBar'
 import { Page } from '../../components/ui/Page'
 import { useTranslation } from '../../i18n'
@@ -22,6 +23,8 @@ function ContactLink() {
 export function LegalPage({ document }: LegalPageProps) {
   const { lang, t } = useTranslation()
   const content = legalDocuments[lang]?.[document] ?? legalDocuments.en[document]
+
+  const isLoggedIn = Boolean(getToken())
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
@@ -69,9 +72,14 @@ export function LegalPage({ document }: LegalPageProps) {
             {content.studentNote}
             <ContactLink />.
           </p>
-          <nav aria-label={t.legalNavAria} className="mt-8 flex flex-wrap gap-5 text-sm font-medium text-action-primary-hover">
-            <Link to="/login" className="hover:underline">{t.legalBackToLogin}</Link>
-            <Link to={document === 'terms' ? '/privacy' : '/terms'} className="hover:underline">
+          <nav aria-label={t.legalNavAria} className="mt-8 flex flex-wrap items-center gap-5 text-sm font-medium">
+            {isLoggedIn && (
+              <Link to="/dashboard" className="rounded-lg bg-action-primary px-3.5 py-1.5 font-semibold text-white shadow-xs hover:bg-action-primary-hover">
+                {t.legalBackToDashboard}
+              </Link>
+            )}
+            <Link to="/login" className="text-action-primary-hover hover:underline">{t.legalBackToLogin}</Link>
+            <Link to={document === 'terms' ? '/privacy' : '/terms'} className="text-action-primary-hover hover:underline">
               {document === 'terms' ? t.legalPrivacyTitle : t.legalTermsTitle}
             </Link>
           </nav>

@@ -433,6 +433,7 @@ export const fr: Translations = {
   legalLastUpdated: 'Dernière mise à jour : {date}',
   legalContactUs: 'Contact :',
   legalBackToLogin: 'Retour à la connexion',
+  legalBackToDashboard: 'Retour au tableau de bord',
   legalSwitchToTerms: 'Conditions d’utilisation',
   legalSwitchToPrivacy: 'Politique de confidentialité',
   // Phrases localisées intégrées
