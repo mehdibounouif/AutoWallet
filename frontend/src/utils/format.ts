@@ -5,14 +5,29 @@ export const money = new Intl.NumberFormat('en-US', {
 
 export function formatCompactMoney(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0.00'
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 })}B`
+  if (value >= 1e15) {
+    return value.toExponential(2)
   }
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 })}M`
+  if (value >= 1e12) {
+    return `${(value / 1e12).toLocaleString('en-US', { maximumFractionDigits: 2 })}T`
+  }
+  if (value >= 1e9) {
+    return `${(value / 1e9).toLocaleString('en-US', { maximumFractionDigits: 2 })}B`
+  }
+  if (value >= 1e6) {
+    return `${(value / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 })}M`
   }
   if (value >= 100_000) {
     return `${(value / 1_000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`
+  }
+  return money.format(value)
+}
+
+/** Formats an amount cleanly for display, using compact notation if astronomically large */
+export function formatAmountSafe(value: number): string {
+  if (!Number.isFinite(value)) return '0.00'
+  if (Math.abs(value) >= 1e12) {
+    return formatCompactMoney(Math.abs(value))
   }
   return money.format(value)
 }

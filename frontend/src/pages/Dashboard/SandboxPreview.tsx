@@ -2,7 +2,7 @@ import { FlaskConical } from 'lucide-react'
 import type { PreviewResult } from './dashboardSplit'
 import { DashboardSplitRibbon } from './DashboardSplitRibbon'
 import { PaymentReceipt } from './PaymentReceipt'
-import { money } from '../../utils/format'
+import { formatAmountSafe, money } from '../../utils/format'
 import { useTranslation } from '../../i18n'
 import { EmptyState } from '../../components/ui/EmptyState'
 
@@ -22,8 +22,8 @@ export function SandboxPreview({ amount, reference, updating, result }: SandboxP
     <section className="mt-9 max-w-[900px]" aria-busy={updating}>
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-ink break-words">
-            {valid ? t.whatAmountWouldDo.replace('{amount}', money.format(amount)) : t.yourPaymentPreview}
+          <h2 className="text-xl font-extrabold tracking-tight text-ink break-words" title={`${money.format(amount)} MAD`}>
+            {valid ? t.whatAmountWouldDo.replace('{amount}', formatAmountSafe(amount)) : t.yourPaymentPreview}
           </h2>
           <p className="mt-2 text-sm text-muted">{t.usingSavedRulesDesc}</p>
         </div>

@@ -2,7 +2,7 @@ import type { DashboardData, DashboardRule, WalletType } from '../dashboardApi'
 import type { SplitAmounts } from '../dashboardSplit'
 import { previewPayment } from '../dashboardSplit'
 import { envelopeMeta } from '../envelopeDisplay'
-import { money } from '../../../utils/format'
+import { formatAmountSafe } from '../../../utils/format'
 
 export const SAMPLE_AMOUNT = 10_000
 export type RulePreviewNotes = Partial<Record<'rent' | 'tax' | 'savings' | 'free', string>>
@@ -23,7 +23,7 @@ export function buildRulePreview(data: DashboardData): { allocations: SplitAmoun
     if (!rule) {
       subtexts[type] = 'No active rule'
     } else if (step?.reason !== null && rule.condition_field === `${type}_balance` && rule.condition_value !== null) {
-      subtexts[type] = `${envelopeMeta[type].name} is at ${money.format(balance)}`
+      subtexts[type] = `${envelopeMeta[type].name} is at ${formatAmountSafe(balance)}`
     } else if (step?.reason !== null) {
       subtexts[type] = 'Condition not met'
     } else if (rule.rule_type === 'lock_fixed') {
@@ -31,7 +31,7 @@ export function buildRulePreview(data: DashboardData): { allocations: SplitAmoun
     } else if (rule.percentage === 100) {
       subtexts[type] = '100% of remainder'
     } else if (rule.percentage !== null) {
-      subtexts[type] = `${rule.percentage}% of ${money.format(step ? step.remaining + step.allocated : SAMPLE_AMOUNT)}`
+      subtexts[type] = `${rule.percentage}% of ${formatAmountSafe(step ? step.remaining + step.allocated : SAMPLE_AMOUNT)}`
     }
   }
   return { allocations: preview.allocations, subtexts }
@@ -41,7 +41,7 @@ export function previewExplanation(data: DashboardData, allocations: SplitAmount
   const rentRule = data.rules.find((rule) => rule.is_active && rule.target_wallet === 'rent' && rule.condition_value !== null)
   const rentBalance = data.wallets.find((wallet) => wallet.wallet_type === 'rent')?.balance ?? 0
   if (rentRule && rentRule.condition_value !== null && rentBalance >= rentRule.condition_value && allocations.rent === 0) {
-    return `Rent is already at ${money.format(rentBalance)}, so rule 1 is skipped and the full ${money.format(SAMPLE_AMOUNT)} flows to Tax, Savings, and Free to spend.`
+    return `Rent is already at ${formatAmountSafe(rentBalance)}, so rule 1 is skipped and the full ${formatAmountSafe(SAMPLE_AMOUNT)} flows to Tax, Savings, and Free to spend.`
   }
-  return `Based on your current envelope balances, ${money.format(SAMPLE_AMOUNT)} MAD splits across your active rules in priority order.`
+  return `Based on your current envelope balances, ${formatAmountSafe(SAMPLE_AMOUNT)} MAD splits across your active rules in priority order.`
 }

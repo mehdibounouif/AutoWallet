@@ -20,6 +20,7 @@ export function RuleValueInput({ id, label, value, onChange, unit }: RuleValueIn
         inputMode="decimal"
         min="0"
         max={unit === '%' ? '100' : undefined}
+        maxLength={unit === '%' ? 5 : 15}
         step="0.01"
         value={value}
         onChange={(event) => onChange(event.target.value)}

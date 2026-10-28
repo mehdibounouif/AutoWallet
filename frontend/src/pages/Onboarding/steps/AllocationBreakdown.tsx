@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import type { Translations } from '../../../i18n'
-import { money } from '../../../utils/format'
+import { formatAmountSafe, money } from '../../../utils/format'
 import { cn } from '../../../utils/cn'
 import type { Allocation } from './step5Model'
 
@@ -15,7 +15,7 @@ export function AllocationBreakdown({ amount, allocations, total, t }: {
     <>
       <div className="min-[1200px]:hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-4 text-sm">
-          <span className="font-semibold">{t.firstPaymentLabel}: {money.format(amount)} MAD</span>
+          <span className="font-semibold">{t.firstPaymentLabel}: {formatAmountSafe(amount)} MAD</span>
           <span className="text-muted">{t.leftoverToMainLabel}: 0.00</span>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -34,8 +34,8 @@ export function AllocationBreakdown({ amount, allocations, total, t }: {
                 </span>
                 <span className="truncate text-sm font-semibold text-ink">{item.name}</span>
               </div>
-              <div className="text-base font-bold text-ink">{money.format(item.amount)} MAD</div>
-              <div className="text-2xs text-muted">{money.format(item.remaining)} {t.leftText}</div>
+              <div className="text-base font-bold text-ink" title={`${money.format(item.amount)} MAD`}>{formatAmountSafe(item.amount)} MAD</div>
+              <div className="text-2xs text-muted" title={`${money.format(item.remaining)} ${t.leftText}`}>{formatAmountSafe(item.remaining)} {t.leftText}</div>
             </div>
           ))}
         </div>
@@ -44,8 +44,8 @@ export function AllocationBreakdown({ amount, allocations, total, t }: {
       <div className="mx-auto mt-8 w-full max-w-[720px] min-[1200px]:mt-12">
         <div className="flex items-center justify-between border-b border-line px-1 py-3">
           <span className="text-sm font-semibold text-ink">{t.firstPaymentLabel}</span>
-          <span className="text-base font-bold text-ink">
-            {money.format(amount)} <span className="text-xs text-muted">MAD</span>
+          <span className="text-base font-bold text-ink" title={`${money.format(amount)} MAD`}>
+            {formatAmountSafe(amount)} <span className="text-xs text-muted">MAD</span>
           </span>
         </div>
         <div className="divide-y divide-line text-xs sm:text-sm">
@@ -61,8 +61,8 @@ export function AllocationBreakdown({ amount, allocations, total, t }: {
                 {item.amount > 0 && <Check className="size-3.5 stroke-[2.5]" aria-hidden="true" />}
                 {item.amount > 0 ? t.ranStatusBadge : t.skippedStatusBadge}
               </span>
-              <span className="ms-auto font-semibold text-ink tabular-nums break-words">{money.format(item.amount)}</span>
-              <span className="ms-auto text-muted tabular-nums break-words">{money.format(item.remaining)} {t.leftText}</span>
+              <span className="ms-auto font-semibold text-ink tabular-nums break-words" title={`${money.format(item.amount)} MAD`}>{formatAmountSafe(item.amount)}</span>
+              <span className="ms-auto text-muted tabular-nums break-words" title={`${money.format(item.remaining)} ${t.leftText}`}>{formatAmountSafe(item.remaining)} {t.leftText}</span>
             </div>
           ))}
           <div className="flex items-center justify-between px-1 py-3.5 text-xs text-muted sm:text-sm">
@@ -73,8 +73,8 @@ export function AllocationBreakdown({ amount, allocations, total, t }: {
             <div className="border-t-2 border-line" />
             <div className="flex items-center justify-between px-1 py-2.5 text-sm font-bold text-ink">
               <span>{t.totalLabel}</span>
-              <span className="inline-flex items-center gap-4">
-                {money.format(total)} <Check className="size-3.5 text-success" aria-hidden="true" /> {t.checksOutBadge}
+              <span className="inline-flex items-center gap-4" title={`${money.format(total)} MAD`}>
+                {formatAmountSafe(total)} <Check className="size-3.5 text-success" aria-hidden="true" /> {t.checksOutBadge}
               </span>
             </div>
           </div>

@@ -1,9 +1,9 @@
 import type { ComponentType } from 'react'
 import { House, Landmark, PiggyBank, ShoppingBag, Wallet } from 'lucide-react'
 import type { DashboardRule, WalletType } from './dashboardApi'
-import { money } from '../../utils/format'
+import { formatAmountSafe } from '../../utils/format'
 import { translations } from '../../i18n'
-export { money } from '../../utils/format'
+export { formatAmountSafe, money } from '../../utils/format'
 
 export const envelopeOrder: WalletType[] = ['rent', 'tax', 'savings', 'main']
 export const walletOrder: WalletType[] = ['rent', 'tax', 'savings', 'free', 'main']
@@ -44,7 +44,7 @@ export function ruleDescription(rule: DashboardRule) {
   const target = envelopeMeta[rule.target_wallet].name
   const allocation = rule.rule_type === 'lock_fixed'
     ? translations.ruleLockInto
-      .replace('{amount}', money.format(rule.fixed_amount ?? 0))
+      .replace('{amount}', formatAmountSafe(rule.fixed_amount ?? 0))
       .replace('{target}', target)
     : translations.rulePercentInto
       .replace('{percent}', String(rule.percentage ?? 0))
@@ -58,7 +58,7 @@ export function ruleDescription(rule: DashboardRule) {
       .replace('{allocation}', allocation)
       .replace('{wallet}', envelopeMeta[conditionWallet].name)
       .replace('{comparison}', comparison)
-      .replace('{amount}', money.format(rule.condition_value))
+      .replace('{amount}', formatAmountSafe(rule.condition_value))
     : translations.ruleConditionSaved.replace('{allocation}', allocation)
 }
 
@@ -77,16 +77,16 @@ export function envelopeDescription(type: WalletType, rules: DashboardRule[]): s
   if (rule.rule_type === 'lock_fixed' && rule.fixed_amount !== null) {
     return rule.condition_field === `${type}_balance` && rule.condition_value !== null
       ? translations.ruleFixedBelow
-        .replace('{amount}', money.format(rule.fixed_amount))
-        .replace('{cap}', money.format(rule.condition_value))
-      : translations.ruleFixedFirst.replace('{amount}', money.format(rule.fixed_amount))
+        .replace('{amount}', formatAmountSafe(rule.fixed_amount))
+        .replace('{cap}', formatAmountSafe(rule.condition_value))
+      : translations.ruleFixedFirst.replace('{amount}', formatAmountSafe(rule.fixed_amount))
   }
 
   if (rule.rule_type === 'percentage_remainder' && rule.percentage !== null) {
     if (rule.condition_field === `${type}_balance` && rule.condition_value !== null) {
       return translations.rulePercentUntil
         .replace('{percent}', String(rule.percentage))
-        .replace('{cap}', money.format(rule.condition_value))
+        .replace('{cap}', formatAmountSafe(rule.condition_value))
     }
     const template = rule.percentage === 100 ? translations.ruleEverythingLeft : translations.rulePercentLeft
     return template

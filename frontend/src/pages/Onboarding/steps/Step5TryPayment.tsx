@@ -1,6 +1,6 @@
 import { CheckCircle2, FlaskConical } from 'lucide-react'
 import type { Translations } from '../../../i18n'
-import { money, parseAmount } from '../../../utils/format'
+import { formatAmountSafe, parseAmount } from '../../../utils/format'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
@@ -54,6 +54,7 @@ export function Step5TryPayment({
             onChange={(event) => setSimulatedAmount(event.target.value)}
             disabled={isSimulating}
             aria-invalid={Boolean(simulatedAmount) && !validAmount}
+            maxLength={20}
             className="h-11 border-line-strong text-base font-semibold focus:ring-[3px] focus:ring-action-primary/15"
           />
         </Field>
@@ -79,7 +80,7 @@ export function Step5TryPayment({
             className="mx-auto max-w-[640px]"
             icon={<CheckCircle2 className="size-5" />}
           >
-            {t.splitSuccessAlert.replace('{amount}', money.format(amount))}
+            {t.splitSuccessAlert.replace('{amount}', formatAmountSafe(amount))}
           </Alert>
 
           <Card className="animate-fade-in px-5 pt-11 pb-12 sm:px-8">

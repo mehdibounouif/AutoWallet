@@ -1,7 +1,7 @@
 import { Check, House, Landmark, PiggyBank, ShoppingBag } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { SplitAmounts } from './dashboardSplit'
-import { formatCompactMoney, money } from '../../utils/format'
+import { formatAmountSafe, formatCompactMoney, money } from '../../utils/format'
 import { cn } from '../../utils/cn'
 
 type BranchType = 'rent' | 'tax' | 'savings' | 'free'
@@ -56,22 +56,22 @@ export function DashboardSplitRibbon({
       className={cn(
         'grid w-full items-start gap-4 max-md:block',
         compact
-          ? 'grid-cols-[minmax(80px,auto)_minmax(0,1fr)_minmax(80px,auto)] gap-2'
+          ? 'grid-cols-[80px_minmax(0,1fr)_80px] gap-2'
           : large
-            ? 'grid-cols-[minmax(120px,auto)_minmax(0,1fr)_minmax(140px,auto)] gap-3.5'
-            : 'grid-cols-[minmax(110px,auto)_minmax(0,1fr)_minmax(140px,auto)] gap-3',
+            ? 'grid-cols-[120px_minmax(0,1fr)_140px] gap-3.5'
+            : 'grid-cols-[116px_minmax(0,1fr)_135px] gap-3',
       )}
     >
       <div className="pt-[42px] text-end max-md:hidden min-w-0">
         <strong
           className={cn(
-            'block font-bold text-ink tabular-nums break-words',
-            large ? (amount >= 1_000_000 ? 'text-lg' : 'text-2xl') : (amount >= 1_000_000 ? 'text-xs' : 'text-[15px]'),
+            'block truncate font-bold text-ink tabular-nums',
+            large ? (amount >= 1_000_000 ? 'text-lg' : 'text-2xl') : 'text-[15px]',
             compact && 'text-2xs',
           )}
           title={`${money.format(amount)} MAD`}
         >
-          {money.format(amount)} <small className="text-2xs font-bold tracking-normal text-muted">MAD</small>
+          {formatAmountSafe(amount)} <small className="text-2xs font-bold tracking-normal text-muted">MAD</small>
         </strong>
         <span className={cn('mt-0.5 block truncate text-2xs text-subtle', compact && 'text-3xs')}>
           {preview ? previewLabel : reference}
@@ -173,16 +173,16 @@ export function DashboardSplitRibbon({
       <div className={cn('pt-10 text-xs text-muted max-md:hidden min-w-0', compact && 'pt-10 text-2xs')}>
         <span>Leftover → Main</span>
         <strong
-          className={cn('mt-0.5 block truncate font-bold text-ink tabular-nums', compact && 'text-2xs', allocations.main >= 1_000_000 ? 'text-xs' : 'text-[15px]')}
+          className={cn('mt-0.5 block truncate font-bold text-ink tabular-nums', compact && 'text-2xs', 'text-[15px]')}
           title={`${money.format(allocations.main)} MAD`}
         >
-          {money.format(allocations.main)}
+          {formatAmountSafe(allocations.main)}
         </strong>
         <b
-          className={cn('mt-2.5 flex flex-wrap items-center gap-1 text-xs font-semibold text-ink break-words', compact && 'text-2xs')}
+          className={cn('mt-2.5 flex items-center gap-1 text-xs font-semibold text-ink truncate', compact && 'text-2xs')}
           title={`= ${money.format(amount)} MAD`}
         >
-          <span>= {money.format(amount)}</span>
+          <span className="truncate">= {formatAmountSafe(amount)}</span>
           <Check className="size-4 shrink-0 text-success" aria-hidden="true" />
         </b>
       </div>

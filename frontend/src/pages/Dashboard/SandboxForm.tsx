@@ -53,6 +53,7 @@ export function SandboxForm({ amount, reference, invalid, onAmountChange, onRefe
               onChange={(event) => onAmountChange(event.target.value)}
               aria-invalid={invalid}
               className="font-semibold"
+              maxLength={20}
             />
           </Field>
           <Field

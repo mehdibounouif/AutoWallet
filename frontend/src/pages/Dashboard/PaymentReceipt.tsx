@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import type { PreviewStep, SplitAmounts } from './dashboardSplit'
-import { envelopeMeta, money, ruleDescription, walletOrder } from './envelopeDisplay'
+import { envelopeMeta, formatAmountSafe, money, ruleDescription, walletOrder } from './envelopeDisplay'
 import { useTranslation } from '../../i18n'
 import { Card } from '../../components/ui/Card'
 
@@ -19,8 +19,8 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Paymen
       <h2 className="text-base font-extrabold text-ink">{t.totalLabel}</h2>
       <div className="mt-7 flex flex-wrap items-baseline justify-between gap-3.5 border-b border-line pb-3.5 text-sm">
         <strong className="min-w-0 font-bold text-ink break-words">{reference}</strong>
-        <strong className="font-bold text-ink tabular-nums break-words">
-          {money.format(amount)} <small className="text-2xs font-semibold text-muted">MAD</small>
+        <strong className="font-bold text-ink tabular-nums" title={`${money.format(amount)} MAD`}>
+          {formatAmountSafe(amount)} <small className="text-2xs font-semibold text-muted">MAD</small>
         </strong>
       </div>
 
@@ -41,8 +41,12 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Paymen
                   {reason ? t.skippedStatusBadge : <><Check className="size-3.5" aria-hidden="true" />{t.ranStatusBadge}</>}
                 </span>
               </div>
-              <strong className="text-end font-semibold text-ink tabular-nums break-words">{money.format(allocated)}</strong>
-              <span className="text-end text-2xs text-muted tabular-nums break-words">{money.format(remaining)} {t.leftText}</span>
+              <strong className="text-end font-semibold text-ink tabular-nums" title={`${money.format(allocated)} MAD`}>
+                {formatAmountSafe(allocated)}
+              </strong>
+              <span className="text-end text-2xs text-muted tabular-nums whitespace-nowrap" title={`${money.format(remaining)} ${t.leftText}`}>
+                {formatAmountSafe(remaining)} {t.leftText}
+              </span>
             </div>
           ))
         : walletOrder
@@ -56,14 +60,18 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Paymen
                     <strong className="font-bold text-ink">{name}</strong>
                     <p className="mt-1 text-2xs text-muted">Recorded allocation</p>
                   </div>
-                  <strong className="text-end font-semibold text-ink tabular-nums">{money.format(allocations[type])}</strong>
+                  <strong className="text-end font-semibold text-ink tabular-nums" title={`${money.format(allocations[type])} MAD`}>
+                    {formatAmountSafe(allocations[type])}
+                  </strong>
                 </div>
               )
             })}
 
       <div className="flex justify-between gap-3 pt-4 pb-4 text-xs text-muted">
         <span>{t.leftoverToMainLabel}</span>
-        <strong className="font-semibold text-ink tabular-nums">{money.format(allocations.main)}</strong>
+        <strong className="font-semibold text-ink tabular-nums" title={`${money.format(allocations.main)} MAD`}>
+          {formatAmountSafe(allocations.main)}
+        </strong>
       </div>
       <div className="flex justify-between gap-3 border-t-[3px] border-double border-line pt-4 text-xs font-semibold">
         <span className="flex flex-wrap items-center gap-3.5">
@@ -72,8 +80,8 @@ export function PaymentReceipt({ amount, allocations, reference, steps }: Paymen
             <Check className="size-3.5" aria-hidden="true" />{t.checksOutBadge}
           </span>
         </span>
-        <strong className="font-bold text-ink tabular-nums break-words">
-          {money.format(amount)} <small className="text-2xs font-semibold text-muted">MAD</small>
+        <strong className="font-bold text-ink tabular-nums" title={`${money.format(amount)} MAD`}>
+          {formatAmountSafe(amount)} <small className="text-2xs font-semibold text-muted">MAD</small>
         </strong>
       </div>
       {!steps && (
