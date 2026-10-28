@@ -434,6 +434,7 @@ export const ar: Translations = {
   legalContactUs: 'الاتصال:',
   legalBackToLogin: 'العودة لتسجيل الدخول',
   legalBackToDashboard: 'العودة إلى لوحة التحكم',
+  legalGoBack: 'الرجوع للخلف',
   legalSwitchToTerms: 'شروط الخدمة',
   legalSwitchToPrivacy: 'سياسة الخصوصية',
   // عبارات مترجمة ضمن المكونات

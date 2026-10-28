@@ -432,6 +432,7 @@ export const en = {
   legalContactUs: 'Contact:',
   legalBackToLogin: 'Back to login',
   legalBackToDashboard: 'Back to dashboard',
+  legalGoBack: 'Go back',
   legalSwitchToTerms: 'Terms of Service',
   legalSwitchToPrivacy: 'Privacy Policy',
   // Localized inline phrases

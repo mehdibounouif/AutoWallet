@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { getToken } from '../../auth/session'
 import { TopBar } from '../../components/layout/TopBar'
 import { Page } from '../../components/ui/Page'
@@ -23,13 +24,30 @@ function ContactLink() {
 export function LegalPage({ document }: LegalPageProps) {
   const { lang, t } = useTranslation()
   const content = legalDocuments[lang]?.[document] ?? legalDocuments.en[document]
+  const navigate = useNavigate()
 
-  const isLoggedIn = Boolean(getToken())
+  const handleGoBack = () => {
+    if (window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {
+      navigate(-1)
+    } else if (window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate(getToken() ? '/dashboard' : '/login')
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <TopBar />
       <Page as="main" width="reading" className="flex-1 px-4 py-8 sm:py-12">
+        <button
+          type="button"
+          onClick={handleGoBack}
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-ink cursor-pointer"
+        >
+          <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden="true" />
+          <span>{t.legalGoBack}</span>
+        </button>
         <article className="rounded-2xl border border-line bg-surface p-6 shadow-sm sm:p-10">
           <p className="text-xs font-semibold tracking-wider text-action-primary uppercase">AutoWallet</p>
           <h1 className="mt-2 text-3xl font-bold text-ink">{content.title}</h1>
@@ -73,14 +91,19 @@ export function LegalPage({ document }: LegalPageProps) {
             <ContactLink />.
           </p>
           <nav aria-label={t.legalNavAria} className="mt-8 flex flex-wrap items-center gap-5 text-sm font-medium">
-            {isLoggedIn && (
-              <Link to="/dashboard" className="rounded-lg bg-action-primary px-3.5 py-1.5 font-semibold text-white shadow-xs hover:bg-action-primary-hover">
-                {t.legalBackToDashboard}
-              </Link>
-            )}
-            <Link to="/login" className="text-action-primary-hover hover:underline">{t.legalBackToLogin}</Link>
+            <button
+              type="button"
+              onClick={handleGoBack}
+              className="inline-flex items-center gap-2 rounded-lg bg-action-primary px-4 py-2 font-semibold text-white shadow-xs transition-colors hover:bg-action-primary-hover cursor-pointer"
+            >
+              <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden="true" />
+              <span>{t.legalGoBack}</span>
+            </button>
             <Link to={document === 'terms' ? '/privacy' : '/terms'} className="text-action-primary-hover hover:underline">
               {document === 'terms' ? t.legalPrivacyTitle : t.legalTermsTitle}
+            </Link>
+            <Link to="/login" className="sr-only">
+              {t.legalBackToLogin}
             </Link>
           </nav>
         </article>

@@ -434,6 +434,7 @@ export const fr: Translations = {
   legalContactUs: 'Contact :',
   legalBackToLogin: 'Retour à la connexion',
   legalBackToDashboard: 'Retour au tableau de bord',
+  legalGoBack: 'Retour',
   legalSwitchToTerms: 'Conditions d’utilisation',
   legalSwitchToPrivacy: 'Politique de confidentialité',
   // Phrases localisées intégrées
