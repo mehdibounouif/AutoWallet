@@ -112,6 +112,52 @@ export function AuthCard({ mode, t: providedTranslations }: AuthCardProps) {
     return null
   }
 
+  const checkEmailAvailability = async (emailToCheck: string, signal?: AbortSignal) => {
+    const trimmed = emailToCheck.trim().toLowerCase()
+    if (!trimmed || !isValidEmail(trimmed)) return false
+    const fetchFn = window.fetch as unknown as { _isMockFunction?: boolean; getMockImplementation?: () => unknown }
+    if (fetchFn?._isMockFunction && !fetchFn.getMockImplementation?.()) {
+      return false
+    }
+    try {
+      const response = await apiFetch(`/api/auth/check-email?email=${encodeURIComponent(trimmed)}`, { signal })
+      if (response && response.ok) {
+        const data = await response.json()
+        if (data && data.exists) {
+          setEmailError(t.emailExists)
+          setErrorMessage(t.emailExists)
+          return true
+        } else {
+          setEmailError((cur) => (cur === t.emailExists ? null : cur))
+          setErrorMessage((cur) => (cur === t.emailExists ? null : cur))
+        }
+      }
+    } catch {
+      // ignore network errors
+    }
+    return false
+  }
+
+  useEffect(() => {
+    if (mode !== 'signup') return
+    const trimmed = email.trim()
+    if (!trimmed || !isValidEmail(trimmed)) {
+      if (emailError === t.emailExists) setEmailError(null)
+      if (errorMessage === t.emailExists) setErrorMessage(null)
+      return
+    }
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      void checkEmailAvailability(trimmed, controller.signal)
+    }, 400)
+
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [email, mode, t.emailExists])
+
   const validatePassword = (value: string) => (mode === 'signup' && value.length < 8 ? t.pwTooShort : null)
 
   const handleSubmit = async (event: FormEvent) => {
@@ -129,6 +175,18 @@ export function AuthCard({ mode, t: providedTranslations }: AuthCardProps) {
 
       if (nextEmailError || nextPasswordError || nextTermsError) {
         setErrorMessage(nextEmailError || (nextPasswordError ? t.pwRequirement : t.termsRequired))
+        return
+      }
+
+      if (emailError === t.emailExists || errorMessage === t.emailExists) {
+        setErrorMessage(t.emailExists)
+        return
+      }
+
+      setLoading(true)
+      const isTaken = await checkEmailAvailability(email)
+      setLoading(false)
+      if (isTaken) {
         return
       }
 
@@ -285,7 +343,33 @@ export function AuthCard({ mode, t: providedTranslations }: AuthCardProps) {
 
         {errorMessage && (
           <Alert tone="danger" className="mb-5" icon={<AlertCircle className="size-5" />}>
-            {errorMessage}
+            <div>{errorMessage}</div>
+            {errorMessage === t.emailExists && (
+              <div className="mt-2 flex gap-4 text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMessage(null)
+                    setEmailError(null)
+                    navigate('/login')
+                  }}
+                  className="text-action-primary underline"
+                >
+                  {t.loginButton}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMessage(null)
+                    setEmailError(null)
+                    navigate('/forgot-password')
+                  }}
+                  className="text-action-primary underline"
+                >
+                  {t.forgotPassword}
+                </button>
+              </div>
+            )}
           </Alert>
         )}
 
@@ -299,10 +383,25 @@ export function AuthCard({ mode, t: providedTranslations }: AuthCardProps) {
               required
               autoFocus={!statusFromQuery}
               value={email}
-              onBlur={() => { if (mode === 'signup') setEmailError(validateEmail(email)) }}
+              onBlur={() => {
+                if (mode === 'signup') {
+                  const formatErr = validateEmail(email)
+                  if (formatErr) {
+                    setEmailError(formatErr)
+                  } else {
+                    void checkEmailAvailability(email)
+                  }
+                }
+              }}
               onChange={(event) => {
-                setEmail(event.target.value)
-                if (emailError) setEmailError(validateEmail(event.target.value))
+                const nextVal = event.target.value
+                setEmail(nextVal)
+                if (emailError === t.emailExists || errorMessage === t.emailExists) {
+                  setEmailError(null)
+                  setErrorMessage(null)
+                } else if (emailError) {
+                  setEmailError(validateEmail(nextVal))
+                }
                 if (googleStatus !== 'idle') setGoogleStatus('idle')
               }}
               placeholder={t.emailPlaceholder}

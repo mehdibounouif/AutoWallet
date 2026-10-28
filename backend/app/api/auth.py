@@ -50,6 +50,18 @@ from redis.exceptions import RedisError
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+@router.get("/check-email")
+def check_email(
+    email: str,
+    db: Session = Depends(get_db),
+):
+    normalized = str(email).strip().lower()
+    if not normalized:
+        return {"exists": False}
+    user = db.query(User).filter(User.email == normalized).first()
+    return {"exists": user is not None}
+
+
 @router.post(
     "/register",
     response_model=UserOut,
