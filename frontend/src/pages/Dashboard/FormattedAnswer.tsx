@@ -49,7 +49,7 @@ function withBold(text: string): ReactNode[] {
 
 export function FormattedAnswer({ text }: { text: string }) {
   return (
-    <div className="assistant-formatted-answer space-y-2">
+    <div className="space-y-2">
       {toBlocks(text).map((block, index) => {
         if (block.kind === 'bullets') {
           return (

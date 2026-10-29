@@ -33,6 +33,19 @@ shell:
 	@if [ -z "$(s)" ]; then echo "Usage: make shell s=<service>"; exit 1; fi
 	docker compose -f $(COMPOSE_FILE) exec $(s) sh
 
+test: test-backend test-gateway test-frontend
+
+test-backend:	@echo "Running backend tests..."
+	cd backend && ([ -f .env ] || cp .env.example .env) && ./venv/bin/pytest tests -q
+
+test-gateway:
+	@echo "Running api-gateway tests..."
+	cd api-gateway && ([ -d node_modules ] || npm ci) && npm test
+
+test-frontend: 
+	@echo "Running frontend tests..."
+	cd frontend && ([ -d node_modules ] || npm ci) && npm test
+
 front-end:
 	@echo "Rebuilding the frontend..."
 	docker compose -f $(COMPOSE_FILE) up -d --build frontend
@@ -51,4 +64,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all up stop down ps images logs shell front-end back-end clean fclean re
+.PHONY: all up stop down ps images logs shell front-end back-end test test-backend test-gateway test-frontend clean fclean re

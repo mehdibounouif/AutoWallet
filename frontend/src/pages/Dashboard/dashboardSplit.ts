@@ -20,7 +20,9 @@ export interface PreviewStep {
   reason: string | null
 }
 
-export function previewPayment(amount: number, rules: DashboardRule[], wallets: DashboardWallet[]) {
+export type PreviewResult = { allocations: SplitAmounts; steps: PreviewStep[] }
+
+export function previewPayment(amount: number, rules: DashboardRule[], wallets: DashboardWallet[]): PreviewResult {
   const allocations = Object.fromEntries(walletTypes.map((type) => [type, 0])) as SplitAmounts
   const steps: PreviewStep[] = []
   if (!Number.isFinite(amount) || amount <= 0) return { allocations, steps }

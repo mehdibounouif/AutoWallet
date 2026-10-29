@@ -7,7 +7,3 @@ coverage
 Dockerfile
 .dockerignore
 *.md
-
-# Local design sources are not needed to build the app.
-design/
-autoWallet.zip

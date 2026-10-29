@@ -26,68 +26,80 @@ Rules run in priority order against a shrinking pool of money. A rule can either
 
 ### Prerequisites
 
-- Python 3.11+
-- Docker (for Redis, and later for full containerized deployment)
+- Docker + Docker Compose — the recommended way to run the whole stack
+- Python 3.14 for host-only runs and for the tests (matches CI and the backend image)
+- Node 22 for the frontend and api-gateway tooling
 - `pip` and `venv`
 
-### 1. Clone and enter the backend
+### Option A — the full stack (recommended)
 
-```bash
-git clone <repo-url>
-cd AutoWallet/backend
-```
-
-### 2. Set up the virtual environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate       # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### 3. Configure environment variables
-
-Copy the example file and fill in real values:
+The repo-root `.env` is the only file `docker compose` reads:
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` requires:
+Fill in the real values (never commit `.env`):
 
-```
-DATABASE_URL=sqlite:///./flowpay.db
-SECRET_KEY=your-secret-key-here
-REDIS_URL=redis://localhost:6379/0
-```
+- `SECRET_KEY` and `POSTGRES_PASSWORD`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — optional. With placeholders, Google
+  sign-in stays disabled. If you enable it, the redirect URI must be registered in
+  Google Cloud Console exactly as `https://localhost/api/auth/oauth/google/callback`.
 
-### 4. Start Redis
+Start everything:
 
 ```bash
+docker compose up -d --build
+```
+
+That runs: Caddy edge (`https://localhost`), frontend, backend, api-gateway,
+PostgreSQL, Redis, the bank simulator, and Mailpit. Open `https://localhost`
+(accept Caddy's local CA warning once — or import its root certificate into your browser's trust store) and Mailpit's inbox at
+`http://localhost:8025`.
+
+Convenience targets: `make start`, `make stop`, `make logs`, `make ps`,
+`make front-end`, `make back-end`, `make clean` (removes containers, volumes and
+this project's images).
+
+### Option B — backend on the host (for debugging)
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+
+cp .env.example .env        # backend/.env from the template — dummy values only
 docker run -d --name autowallet-redis -p 6379:6379 redis:7
-```
-
-Confirm it's running:
-
-```bash
-docker exec -it autowallet-redis redis-cli ping   # should print PONG
-```
-
-### 5. Run database migrations
-
-```bash
 alembic upgrade head
-```
-
-### 6. Start the backend
-
-```bash
 uvicorn app.main:app --reload
 ```
 
-The API is now running at `http://127.0.0.1:8000`. Interactive API docs (Swagger UI) are available at `http://127.0.0.1:8000/docs` — you can register a user, log in, and test every endpoint directly from the browser.
+The API is then at `http://127.0.0.1:8000` with Swagger UI at `/docs`. The real
+secrets live only in the repo-root `.env`; `backend/.env` exists so the app can
+boot on the host and contains placeholders, not credentials.
 
+### Environment files — who reads what
 
+| File | Read by | Contains |
+|---|---|---|
+| `.env` (repo root) | `docker compose` (variable interpolation) | stack secrets and the values compose substitutes; gitignored |
+| `backend/.env` | the backend only when run from `backend/` (host runs, tests) | dummy values; auto-created from `backend/.env.example` by `make test-backend`; gitignored |
+| `.env.example` (repo root) | humans | placeholders for the stack |
+| `backend/.env.example` | humans, CI and the backend test suite | placeholder boot recipe |
+
+### Tests
+
+```bash
+make test             # backend + api-gateway + frontend
+make test-backend     # pytest (creates backend/.env from the template if absent)
+make test-gateway     # vitest in api-gateway/
+make test-frontend    # vitest in frontend/
+```
+
+The backend suite needs no running services: PostgreSQL is an in-memory SQLite,
+Redis is fakeredis, and SMTP is faked. CI runs the same suites — see
+`.github/workflows/ci.yml`.
 
 ## Resources
 

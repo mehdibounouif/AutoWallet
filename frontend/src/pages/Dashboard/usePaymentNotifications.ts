@@ -29,7 +29,7 @@ function parseIds(snapshot: string | null): string[] {
 
 // The service has no notification API yet. Synchronize browser read state
 // across mounted views and tabs; keep a memory fallback if storage is blocked.
-export function usePaymentNotifications(userId: string, payments: DashboardTransaction[], historyComplete = false) {
+export function usePaymentNotifications(userId: string, payments: DashboardTransaction[]) {
   const snapshot = useSyncExternalStore(subscribe, () => readSnapshot(userId), () => null)
   const ids = useMemo(() => parseIds(snapshot), [snapshot])
   const readSet = useMemo(() => new Set(ids), [ids])
@@ -37,12 +37,7 @@ export function usePaymentNotifications(userId: string, payments: DashboardTrans
   const markRead = (nextIds: string[]) => {
     if (!userId) return
     // Re-read when acting so another tab's latest changes are included.
-    const currentIds = new Set(payments.map(payment => payment.id))
-    const previous = parseIds(readSnapshot(userId))
-    // Only prune against a successful complete history. Partial/failed reads must
-    // not erase read status and make older notifications appear unread again.
-    const retained = historyComplete ? previous.filter(id => currentIds.has(id)) : previous
-    const next = JSON.stringify([...new Set([...retained, ...nextIds.filter(id => currentIds.has(id))])])
+    const next = JSON.stringify([...new Set([...parseIds(readSnapshot(userId)), ...nextIds])])
     try {
       localStorage.setItem(storageKey(userId), next)
       volatileReads.delete(userId)

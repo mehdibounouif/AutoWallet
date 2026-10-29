@@ -1,93 +1,190 @@
 import { useState } from 'react'
-import { ArrowLeft, ArrowRight, Bell, Check, ChevronRight, Copy, KeyRound, LockKeyhole, LogOut, Monitor, Moon, Palette, Shield, Sun, UserRound } from 'lucide-react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import type { DashboardUser } from '../Dashboard/dashboardApi'
-import { SecuritySettings } from './SecuritySettings'
+import { useLocation } from 'react-router-dom'
+import { ArrowLeft, Bell, ChevronRight, Globe, KeyRound, LogOut, Shield, User } from 'lucide-react'
+import type { DashboardAccount } from '../Dashboard/dashboardApi'
 import { PrivacySettings } from './PrivacySettings'
-import { unknownSecurity } from '../../api/settingsApi'
-import { clearAccessToken } from '../../auth/session'
-import { savePaymentAlerts, saveTheme, usePaymentAlerts, useThemePreference } from './settingsPreferences'
-import type { ThemePreference } from './settingsPreferences'
-import './settings.css'
+import { SecuritySettings } from './SecuritySettings'
+import { AccountSettings } from './AccountSettings'
+import { DeveloperSettings } from './DeveloperSettings'
+import { NotificationSettings } from './NotificationSettings'
+import { getTwoFactorStatus, setTwoFactorStatus } from '../../auth/recoveryCodes'
+import { Button } from '../../components/ui/Button'
+import { Page } from '../../components/ui/Page'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { useTranslation } from '../../i18n'
+import { cn } from '../../utils/cn'
 
-const sections = [
-  { path: 'profile', label: 'Profile', icon: UserRound },
-  { path: 'security', label: 'Security', icon: Shield },
-  { path: 'sessions', label: 'Sessions', icon: Monitor },
-  { path: 'privacy', label: 'Privacy and data', icon: LockKeyhole },
-  { path: 'notifications', label: 'Notifications', icon: Bell },
-  { path: 'appearance', label: 'Appearance', icon: Palette },
-  { path: 'api-keys', label: 'API keys', icon: KeyRound },
-] as const
+export type SettingsSection = 'account' | 'security' | 'privacy' | 'notifications' | 'developer'
 
-function AccountIdentity({ user, role }: { user: DashboardUser; role?: string | null }) {
-  const initials = user.full_name.trim().split(/\s+/).slice(0, 2).map(name => name[0]).join('').toUpperCase()
-  return <div className="settings-identity"><span className="settings-avatar">{initials || 'AW'}</span><div><div className="settings-identity-title"><strong>{user.full_name}</strong>{role && <span className="workspace-tag"><UserRound size={12} />{role === 'admin' ? 'Admin' : 'User'}</span>}</div><span>{user.email}</span></div></div>
+interface SettingsViewProps {
+  account: DashboardAccount
+  online: boolean
+  onLinkAccount: (bankAccountId: string) => Promise<void>
+  onRefresh: () => Promise<void>
+  onSignOut: () => void
+  onSessionEnded: () => void
+  onDeleted: () => void
 }
 
-export function SettingsView({ user, online, onSignOut, onSessionEnded }: { user: DashboardUser; online: boolean; onSignOut: () => void; onSessionEnded: () => void }) {
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'AW'
+}
+
+export function SettingsView({
+  account,
+  online,
+  onLinkAccount,
+  onRefresh,
+  onSignOut,
+  onSessionEnded,
+  onDeleted,
+}: SettingsViewProps) {
+  const { t } = useTranslation()
   const location = useLocation()
-  const navigate = useNavigate()
-  const segment = location.pathname.match(/^\/app\/settings\/([^/]+)$/)?.[1]
-  const section = sections.find(item => item.path === segment)
-  const isIndex = !segment
-  const [security, setSecurity] = useState(unknownSecurity)
-  const [notice, setNotice] = useState<string | null>(null)
-  const theme = useThemePreference()
-  const paymentsEnabled = usePaymentAlerts(user.id)
-  const deleted = () => {
-    try {
-      clearAccessToken()
-      localStorage.removeItem(`autowallet_payment_alerts:${user.id}`)
-      localStorage.removeItem(`autowallet_notification_reads:${user.id}`)
-    } finally { navigate('/login', { replace: true, state: { accountDeleted: true } }) }
+  const initialSection = (location.state as { section?: SettingsSection } | null)?.section || 'account'
+  const [section, setSection] = useState<SettingsSection>(initialSection)
+  const [mobileIndex, setMobileIndex] = useState(initialSection === 'account')
+  const [twoFactorOverride, setTwoFactorOverride] = useState<boolean | null>(() => getTwoFactorStatus(account.email))
+  const [signsInWith, setSignsInWith] = useState<string | null>(account.has_password === false ? 'google' : 'password')
+  const [role, setRole] = useState<string | null>(account.role ?? null)
+
+  const twoFactorHint = twoFactorOverride ?? account.is_2fa_enabled ?? getTwoFactorStatus(account.email) ?? null
+  const setTwoFactorHint = (value: boolean | null) => {
+    setTwoFactorOverride(value)
+    if (value !== null) setTwoFactorStatus(account.email, value)
   }
-  const profile = <section className="workspace-card settings-card settings-profile"><h2>Profile</h2><p>How you appear in AutoWallet and where we reach you.</p><AccountIdentity user={user} role={security.role} /><div className="settings-form"><label>Full name<input className="dashboard-input" value={user.full_name} readOnly autoComplete="name" aria-describedby="profile-unavailable" /></label><label>Email<input className="dashboard-input" type="email" value={user.email} readOnly autoComplete="email" aria-describedby="profile-unavailable" /><span className="workspace-note">Used for account emails.</span></label><div><Link className="workspace-text-button" to={`/verify-email?email=${encodeURIComponent(user.email)}`}>Verify email or request another link<ArrowRight size={14} /></Link><p className="workspace-note">Use this if you haven’t verified your email. Verification status is not available here yet.</p></div><label>Linked account<input className="dashboard-input settings-readonly" value={user.bank_account_id ? `•••• ${user.bank_account_id.slice(-4)}` : 'Not linked'} readOnly /><span className="workspace-note">Payments into this account are split using your saved rules.</span></label><button className="dashboard-primary-button" disabled>Save changes</button></div><p id="profile-unavailable" className="settings-availability">Your profile is read-only until the account service supports profile updates.</p></section>
 
-  return <div className={`workspace-page settings-page ${isIndex ? 'settings-page--index' : 'settings-page--section'}`}>
-    <header className="workspace-heading settings-heading"><div><h1>Settings</h1><p>Your profile, security, data and preferences.</p></div></header>
-    <div className="settings-mobile-index"><Link className="workspace-card settings-account-link" to="/app/settings/profile"><AccountIdentity user={user} /><ChevronRight size={18} /></Link></div>
-    <div className="settings-layout"><nav className="settings-section-nav" aria-label="Settings sections">{sections.map(({ path, label, icon: Icon }) => <NavLink key={path} to={`/app/settings/${path}`} onClick={() => setNotice(null)} className={({ isActive }) => `settings-section-link ${isActive || isIndex && path === 'profile' ? 'settings-section-link--active' : ''}`}><Icon size={18} /><span>{label}</span><ChevronRight className="settings-section-chevron" size={16} /></NavLink>)}</nav>
-      <div id="settings-content" className="settings-content">
-        {segment && <><Link className="workspace-back settings-mobile-back" to="/app/settings"><ArrowLeft size={16} />Settings</Link><h1 className="settings-mobile-title">{section?.label ?? 'Section not found'}</h1></>}
-        {!isIndex && !section ? <section className="workspace-card workspace-empty"><h2>Settings section not found</h2><Link className="dashboard-primary-button" to="/app/settings">Back to Settings</Link></section> : isIndex || segment === 'profile' ? profile : segment === 'security' ? <SecuritySettings email={user.email} info={security} onEnabled={enabled => setSecurity(info => ({ ...info, twoFactorEnabled: enabled }))} onSessionEnded={onSessionEnded} online={online} /> : segment === 'sessions' ? <SessionsSettings onSignOut={onSignOut} /> : segment === 'privacy' ? <PrivacySettings email={user.email} online={online} onSecurityInfo={setSecurity} onSessionEnded={onSessionEnded} onDeleted={deleted} /> : segment === 'notifications' ? <NotificationSettings paymentsEnabled={paymentsEnabled} onToggle={enabled => { const saved = savePaymentAlerts(user.id, enabled); setNotice(saved ? 'Saved on this browser.' : 'Changed for this visit. Browser storage is unavailable.') }} /> : segment === 'appearance' ? <AppearanceSettings theme={theme} onChange={value => { const saved = saveTheme(value); setNotice(saved ? 'Theme saved on this browser.' : 'Theme changed for this visit. Browser storage is unavailable.') }} /> : <ApiKeysSettings />}
-        {notice && <p className="settings-save-status" role="status"><Check size={14} />{notice}</p>}
-      </div>
-    </div>
-    <button className="settings-mobile-signout settings-outline-button" onClick={onSignOut}><LogOut size={17} />Log out</button>
-  </div>
-}
-
-function SessionsSettings({ onSignOut }: { onSignOut: () => void }) {
-  let expires = ''
-  try {
-    const payload = localStorage.getItem('autowallet_token')?.split('.')[1]
-    if (payload) {
-      const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
-      if (typeof claims.exp === 'number' && Number.isFinite(new Date(claims.exp * 1000).getTime())) expires = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(claims.exp * 1000))
-    }
-  } catch { /* The account service remains responsible for validating the token. */ }
-  return <section className="workspace-card settings-card"><h2>Where you’re logged in</h2><p>Manage your sign-in on this browser.</p><div className="settings-session"><span className="settings-session-icon"><Monitor size={20} /></span><div><strong>This browser</strong><p>Active now{expires ? ` · Token expires ${expires}` : ''}</p></div><span className="workspace-tag">This device</span></div><div className="settings-actions"><button className="settings-outline-button" onClick={onSignOut}><LogOut size={16} />Log out of this browser</button><button className="settings-danger-outline" disabled>Log out everywhere else</button></div><p className="settings-availability">The account service does not list other sessions or support revoking them yet. Logging out removes the sign-in token from this browser.</p></section>
-}
-
-function NotificationSettings({ paymentsEnabled, onToggle }: { paymentsEnabled: boolean; onToggle: (enabled: boolean) => void }) {
-  const rows = [
-    { name: 'Payments', description: 'When a payment appears after your dashboard refreshes.', app: paymentsEnabled, email: false, adjustable: true },
-    { name: 'Rule changes', description: 'Rule change notifications are not available yet.', app: false, email: false },
-    { name: 'Data export', description: 'The account service attempts an email confirmation when you request an export.', app: false, email: true },
-    { name: 'Security', description: 'Required account emails are managed by the account service.', app: false, email: true },
+  const sections: { id: SettingsSection; label: string; icon: typeof User }[] = [
+    { id: 'account', label: t.tabAccount, icon: User },
+    { id: 'security', label: t.tabSecurity, icon: Shield },
+    { id: 'privacy', label: t.tabPrivacy, icon: Globe },
+    { id: 'notifications', label: t.tabNotifications, icon: Bell },
+    { id: 'developer', label: t.tabDeveloper, icon: KeyRound },
   ]
-  return <section className="workspace-card settings-card"><h2>What we tell you about</h2><p>Choose whether payment updates appear in this browser. This preference saves as you change it.</p><div className="settings-notification-rows">{rows.map(row => <div key={row.name} className="settings-notification-row"><div><h3>{row.name}</h3><p>{row.description}</p></div><div className="settings-notification-switches"><label><input type="checkbox" role="switch" checked={row.app} disabled={!row.adjustable} onChange={event => onToggle(event.target.checked)} aria-label={`${row.name}, In the app`} /><span className="settings-switch-track" aria-hidden="true" />In the app</label><label><input type="checkbox" role="switch" checked={row.email} disabled readOnly aria-label={`${row.name}, Email`} /><span className="settings-switch-track" aria-hidden="true" />Email</label></div></div>)}</div><p className="settings-availability">Other channels are read-only until notification preferences are supported by the service. Turning off payment alerts does not hide payments from Activity.</p></section>
-}
+  const activeSection = sections.find((item) => item.id === section) ?? sections[0]
 
-function AppearanceSettings({ theme, onChange }: { theme: ThemePreference; onChange: (value: ThemePreference) => void }) {
-  return <><section className="workspace-card settings-card"><h2>Display language</h2><p>AutoWallet is available in English.</p><div className="settings-language"><Check size={16} /><div><strong>English</strong><p>8,500.00 MAD · Sep 23, 2026</p></div></div></section><section className="workspace-card settings-card"><h2>Theme</h2><p>System follows the light or dark setting on your device. Your choice is saved in this browser.</p><fieldset className="settings-theme-options"><legend className="sr-only">Theme</legend>{([{ value: 'light', label: 'Light', icon: Sun }, { value: 'dark', label: 'Dark', icon: Moon }, { value: 'system', label: 'System', icon: Monitor }] as const).map(({ value, label, icon: Icon }) => <label key={value}><input type="radio" name="theme" value={value} checked={theme === value} onChange={() => onChange(value)} /><span><Icon size={15} />{label}</span></label>)}</fieldset></section></>
-}
+  const openSection = (next: SettingsSection) => {
+    setSection(next)
+    setMobileIndex(false)
+  }
 
-function ApiKeysSettings() {
-  const [copied, setCopied] = useState(false)
-  const [copyError, setCopyError] = useState(false)
-  const [referenceOpen, setReferenceOpen] = useState(false)
-  const example = 'curl "$AUTOWALLET_URL/api/wallets/" -H "Authorization: Bearer $AUTOWALLET_TOKEN"'
-  return <><section className="workspace-card settings-card"><h2>API keys</h2><p>Use a key to reach your AutoWallet data from your own scripts. Treat it like a password.</p><div className="settings-empty-keys"><KeyRound size={22} /><div><strong>Personal API keys aren’t available yet</strong><p>The account service does not support creating, listing or revoking keys.</p></div></div><button className="dashboard-primary-button" disabled><KeyRound size={16} />Create key</button></section><section className="workspace-card settings-card"><h2>Try it</h2><p>Read your envelopes with cURL. This example uses a sign-in token, not a personal API key. Set AUTOWALLET_URL and AUTOWALLET_TOKEN in your own terminal.</p><div className="settings-code-block"><header><span>cURL</span><button onClick={() => { if (!navigator.clipboard) { setCopyError(true); return }; void navigator.clipboard.writeText(example).then(() => { setCopied(true); setCopyError(false) }).catch(() => setCopyError(true)) }}><span>{copied ? <Check size={15} /> : <Copy size={15} />}</span>{copied ? 'Copied' : 'Copy'}</button></header><pre><code>{example}</code></pre></div>{copyError && <p className="workspace-field-error" role="alert">Could not copy. Select the example and copy it manually.</p>}<button className="workspace-text-button" aria-expanded={referenceOpen} onClick={() => setReferenceOpen(value => !value)}>{referenceOpen ? 'Hide endpoint reference' : 'View endpoint reference'}<ArrowRight size={14} /></button>{referenceOpen && <div className="settings-api-reference"><h3>GET /api/wallets/</h3><p>Returns your linked account’s envelopes. Requires a valid Bearer token.</p><dl className="settings-data-list"><div><dt>id</dt><dd>string · Envelope ID</dd></div><div><dt>wallet_type</dt><dd>main, rent, tax, savings or free</dd></div><div><dt>balance</dt><dd>number · Amount in MAD</dd></div></dl></div>}</section></>
+  return (
+    <Page>
+      <PageHeader
+        title={t.settingsHeading}
+        description={t.settingsSubheading}
+        className={cn('settings-heading', !mobileIndex && 'max-md:hidden')}
+      />
+
+      <div className={cn('mb-5 md:hidden', !mobileIndex && 'hidden')}>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-2.5 rounded-card border border-line bg-surface p-4 text-start"
+          onClick={() => openSection('account')}
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="grid size-[42px] shrink-0 place-items-center rounded-full bg-layer text-[15px] font-semibold text-muted">
+              {initials(account.full_name)}
+            </span>
+            <span className="min-w-0">
+              <strong className="block truncate text-[13px] font-bold text-ink">{account.full_name}</strong>
+              <span className="mt-0.5 block truncate text-3xs text-subtle">{account.email}</span>
+            </span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-subtle" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-[220px_minmax(0,1fr)] items-start gap-8 max-[1200px]:grid-cols-[185px_minmax(0,1fr)] max-[1200px]:gap-5.5 max-md:block">
+        <nav
+          aria-label="Settings sections"
+          className={cn(
+            'sticky top-[90px] grid gap-1 self-start',
+            'max-md:static max-md:rounded-card max-md:border max-md:border-line max-md:bg-surface max-md:p-2',
+            !mobileIndex && 'max-md:hidden',
+          )}
+        >
+          {sections.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => openSection(id)}
+              aria-current={section === id ? 'page' : undefined}
+              className={cn(
+                'flex min-h-11 items-center gap-3 rounded-[9px] px-3 py-2.5 text-[13px] font-semibold text-muted hover:bg-layer',
+                section === id && 'bg-selected text-accent',
+                'max-md:min-h-12',
+              )}
+            >
+              <Icon className="size-4 shrink-0" aria-hidden="true" />
+              <span>{label}</span>
+              <ChevronRight className="ms-auto hidden size-3.5 text-subtle max-md:block" aria-hidden="true" />
+            </button>
+          ))}
+        </nav>
+
+        <div className={cn('grid min-w-0 gap-6 max-md:gap-4.5', mobileIndex && 'max-md:hidden')}>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 justify-self-start text-xs font-semibold text-body md:hidden"
+            onClick={() => setMobileIndex(true)}
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            Settings
+          </button>
+          <h2 className="hidden text-[23px] font-bold text-ink max-md:block">{activeSection.label}</h2>
+
+          {section === 'account' && (
+            <AccountSettings account={account} online={online} role={role} onLinkAccount={onLinkAccount} />
+          )}
+
+          {section === 'security' && (
+            <SecuritySettings
+              email={account.email}
+              online={online}
+              twoFactorHint={twoFactorHint}
+              signsInWith={signsInWith}
+              onSessionEnded={onSessionEnded}
+              onTwoFactorChanged={(isEnabled) => {
+                setTwoFactorHint(isEnabled)
+                void onRefresh()
+              }}
+            />
+          )}
+
+          {section === 'privacy' && (
+            <PrivacySettings
+              email={account.email}
+              online={online}
+              onSecurityInfo={(info) => {
+                if (typeof info.two_factor_enabled === 'boolean') {
+                  setTwoFactorHint(info.two_factor_enabled)
+                  setTwoFactorStatus(account.email, info.two_factor_enabled)
+                }
+                if (info.signs_in_with) setSignsInWith(info.signs_in_with)
+                if (info.role) setRole(info.role)
+              }}
+              onSessionEnded={onSessionEnded}
+              onDeleted={onDeleted}
+            />
+          )}
+
+          {section === 'notifications' && <NotificationSettings accountId={account.id} />}
+
+          {section === 'developer' && <DeveloperSettings online={online} onSessionEnded={onSessionEnded} />}
+        </div>
+      </div>
+
+      <div className={cn('mt-5 md:hidden', !mobileIndex && 'hidden')}>
+        <Button
+          variant="danger-outline"
+          onClick={onSignOut}
+          className="min-h-[46px] w-full"
+          icon={<LogOut className="size-4" aria-hidden="true" />}
+        >
+          Log out
+        </Button>
+      </div>
+    </Page>
+  )
 }

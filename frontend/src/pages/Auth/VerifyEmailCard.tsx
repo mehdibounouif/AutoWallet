@@ -1,21 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, Loader2, Mail } from 'lucide-react'
-import { LegalFooter } from '../../components/common/LegalFooter'
 import { apiFetch } from '../../api/request'
 import { apiErrorDetail } from '../../api/errors'
 import { readSignupDraft } from '../../auth/signupDraft'
 import { isValidEmail } from '../../auth/validation'
 import { useCountdown } from '../../hooks/useCountdown'
 import { useRequestSignal } from '../../hooks/useRequestSignal'
-import { translations } from '../../i18n'
+import { useTranslation } from '../../i18n'
+import { Alert } from '../../components/ui/Alert'
+import { Button } from '../../components/ui/Button'
+import { Field, Input } from '../../components/ui/Field'
+import { FormCard } from '../../components/ui/FormCard'
+import { AuthShell } from '../../components/layout/AuthShell'
 
 export function VerifyEmailCard() {
   const [params] = useSearchParams()
-  return <EmailVerification key={params.get('token') || 'request-link'} token={params.get('token')} initialEmail={params.get('email') || readSignupDraft().email || ''} />
+  return (
+    <EmailVerification
+      key={params.get('token') || 'request-link'}
+      token={params.get('token')}
+      initialEmail={params.get('email') || readSignupDraft().email || ''}
+    />
+  )
 }
 
 function EmailVerification({ token, initialEmail }: { token: string | null; initialEmail: string }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [email, setEmail] = useState(initialEmail)
   const [verification, setVerification] = useState<'idle' | 'checking' | 'success' | 'error'>(token ? 'checking' : 'idle')
@@ -33,8 +44,10 @@ function EmailVerification({ token, initialEmail }: { token: string | null; init
     // A token is consumed once. Reuse the promise during StrictMode's effect
     // replay, and let an already-submitted verification finish on navigation.
     verificationRequest.current ??= apiFetch('/api/auth/email/verify', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
-    }).then(async response => {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }).then(async (response) => {
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         throw new Error(apiErrorDetail(payload, 'Could not verify this link. Request a new link below.').message)
@@ -55,11 +68,15 @@ function EmailVerification({ token, initialEmail }: { token: string | null; init
     if (pending.current || countdown > 0 || !isValidEmail(email)) return
     pending.current = true
     const signal = requestSignal()
-    setSending(true); setError(null); setNotice(null)
+    setSending(true)
+    setError(null)
+    setNotice(null)
     try {
       const response = await apiFetch('/api/auth/email/resend', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }), signal,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+        signal,
       })
       if (signal.aborted) return
       if (!response.ok) {
@@ -74,22 +91,68 @@ function EmailVerification({ token, initialEmail }: { token: string | null; init
       startCountdown(60)
     } catch (reason) {
       if (!signal.aborted) setError(reason instanceof Error ? reason.message : 'Email service is unavailable. Please try again.')
-    } finally { pending.current = false; if (!signal.aborted) setSending(false) }
+    } finally {
+      pending.current = false
+      if (!signal.aborted) setSending(false)
+    }
   }
 
-  return <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-5 z-10">
-    <div className="w-full max-w-[440px] bg-white rounded-2xl border border-[#DDE3EA] p-6 sm:p-9 shadow-sm space-y-5">
-      <div className="w-12 h-12 rounded-full bg-[#ECEEFA] flex items-center justify-center text-[#5A64B4]">{verification === 'success' ? <CheckCircle2 /> : <Mail />}</div>
-      <h1 className="text-2xl font-semibold text-[#1A2330]">{verification === 'success' ? 'Email verified' : 'Verify your email'}</h1>
-      {verification === 'checking' ? <p role="status" className="flex items-center gap-2 text-sm"><Loader2 className="animate-spin" size={16} />Verifying your email…</p> : verification === 'success' ? <p role="status" className="text-sm text-[#1F7A3A]">Your email address is verified. You can continue to your account.</p> : <p className="text-sm text-[#5E6B7E]">{token ? 'This verification could not be completed. You can request another link.' : translations.verifyEmailSubtitle.replace('{email}', email || 'your inbox')}</p>}
-      {error && <p role="alert" className="text-sm text-[#B42325]">{error}</p>}
-      {notice && <p role="status" className="text-sm text-[#1F7A3A]">{notice}</p>}
-      {verification !== 'success' && <form onSubmit={event => { event.preventDefault(); void resend() }} className="space-y-3">
-        <label className="block text-sm text-[#3B495D]">Email address<input type="email" autoComplete="email" required value={email} disabled={sending || verification === 'checking'} onChange={event => setEmail(event.target.value)} className="mt-1 w-full h-11 px-3 rounded-[10px] border border-[#DDE3EA]" /></label>
-        <button disabled={sending || verification === 'checking' || countdown > 0 || !isValidEmail(email)} className="w-full min-h-11 px-3 rounded-[10px] border border-[#DDE3EA] text-sm disabled:opacity-50">{sending ? 'Requesting…' : countdown > 0 ? `Request another link in ${countdown}s` : 'Send verification link'}</button>
-      </form>}
-      <button onClick={() => navigate('/dashboard', { replace: true })} disabled={verification === 'checking'} className="w-full min-h-11 px-3 rounded-[10px] bg-[#5A64B4] text-white text-sm disabled:opacity-50">Continue to account</button>
-    </div>
-    <LegalFooter t={translations} />
-  </main>
+  return (
+    <AuthShell>
+      <FormCard className="space-y-5">
+        <span className="grid size-12 place-items-center rounded-full bg-action-primary-subtle text-action-primary">
+          {verification === 'success' ? <CheckCircle2 className="size-6" aria-hidden="true" /> : <Mail className="size-6" aria-hidden="true" />}
+        </span>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">
+          {verification === 'success' ? 'Email verified' : 'Verify your email'}
+        </h1>
+
+        {verification === 'checking' ? (
+          <p role="status" className="flex items-center gap-2 text-sm text-muted">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />Verifying your email…
+          </p>
+        ) : verification === 'success' ? (
+          <p role="status" className="text-sm text-success">Your email address is verified. You can continue to your account.</p>
+        ) : (
+          <p className="text-sm leading-relaxed text-muted">
+            {token
+              ? 'This verification could not be completed. You can request another link.'
+              : t.verifyEmailSubtitle.replace('{email}', email || 'your inbox')}
+          </p>
+        )}
+
+        {error && <Alert tone="danger" role="alert">{error}</Alert>}
+        {notice && <Alert tone="success" role="status">{notice}</Alert>}
+
+        {verification !== 'success' && (
+          <form onSubmit={(event) => { event.preventDefault(); void resend() }} className="space-y-3">
+            <Field label="Email address" htmlFor="verify-email">
+              <Input
+                id="verify-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                disabled={sending || verification === 'checking'}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </Field>
+            <Button
+              type="submit"
+              variant="outline"
+              size="lg"
+              className="w-full"
+              disabled={sending || verification === 'checking' || countdown > 0 || !isValidEmail(email)}
+            >
+              {sending ? 'Requesting…' : countdown > 0 ? `Request another link in ${countdown}s` : 'Send verification link'}
+            </Button>
+          </form>
+        )}
+
+        <Button size="lg" className="w-full" onClick={() => navigate('/dashboard', { replace: true })} disabled={verification === 'checking'}>
+          Continue to account
+        </Button>
+      </FormCard>
+    </AuthShell>
+  )
 }

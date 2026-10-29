@@ -1,95 +1,161 @@
 @import "tailwindcss";
 
-.skip-link {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 200;
-  transform: translateY(-150%);
-  padding: 10px 16px;
-  border-radius: 8px;
-  background: #fff;
-  color: #354153;
-  box-shadow: 0 0 0 2px #5a64b4;
-}
-.skip-link:focus { transform: translateY(0); }
-
 @theme {
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
-  /* Semantic Colors from Figma Handoff #180:9 */
-  --color-action-primary: #5A64B4;
-  --color-action-primary-hover: #4A53A0;
-  --color-action-primary-pressed: #3F4789;
-  --color-action-primary-subtle: #ECEEFA;
+  /* Action colors — one primary action language for the whole app. */
+  --color-action-primary: #5a64b4;
+  --color-action-primary-hover: #4a53a0;
+  --color-action-primary-pressed: #3f4789;
+  --color-action-primary-subtle: #eceefa;
+  --color-action-danger: #c62f31;
+  --color-action-danger-hover: #ae2528;
+  --color-action-danger-subtle: #fff5f5;
 
-  --color-action-danger: #C62F31;
-  --color-action-danger-hover: #B02527;
-  --color-action-danger-subtle: #FFF5F5;
+  /* Brand */
+  --color-brand-primary: #8a95d2;
+  --color-brand-primary-hover: #7a85c2;
+  --color-brand-secondary: #a2d0ef;
+  --color-brand-navy: #3b495d;
+  --color-brand-ink: #1a2330;
+  --color-brand-muted: #5e6b7e;
+  --color-brand-surface: #f3f6fa;
 
-  /* Brand Colors */
-  --color-brand-primary: #8A95D2;
-  --color-brand-primary-hover: #7A85C2;
-  --color-brand-secondary: #A2D0EF;
-  --color-brand-navy: #3B495D;
-  --color-brand-ink: #1A2330;
-  --color-brand-muted: #5E6B7E;
-  --color-brand-surface: #F3F6FA;
+  /* Semantic surfaces and text */
+  --color-canvas: #f3f6fa;
+  --color-surface: #ffffff;
+  --color-layer: #edf0f5;
+  --color-layer-strong: #e8edf3;
+  --color-selected: #eaecf9;
+  --color-ink: #1a2330;
+  --color-body: #263246;
+  --color-muted: #66758d;
+  --color-subtle: #8795a8;
+  --color-faint: #a8b3c1;
+  --color-line: #dde3ea;
+  --color-line-strong: #9eacc0;
+  --color-accent: #5963b6;
 
-  /* Borders */
-  --color-border-subtle: #DDE3EA;
-  --color-border-control: #7A879B;
+  /* Feedback */
+  --color-success: #1f7a3a;
+  --color-success-ink: #218445;
+  --color-success-soft: #e4f4e9;
+  --color-warning: #eda100;
+  --color-warning-ink: #9c6a13;
+  --color-warning-soft: #fdf3dc;
+  --color-danger-ink: #b42325;
+  --color-danger-soft: #fff5f5;
+  --color-info: #2a78d6;
+  --color-info-ink: #2164b1;
+  --color-info-soft: #eaf2fc;
 
-  /* Status */
-  --color-status-success: #1F7A3A;
-  --color-status-warning: #EDA100;
-  --color-status-danger: #C62F31;
-  --color-status-info: #2A78D6;
+  /* Envelope palette (shared by charts, cards and the split ribbon) */
+  --color-rent-solid: #2a78d6;
+  --color-rent-ink: #1c5cab;
+  --color-rent-tint: #eaf2fc;
+  --color-tax-solid: #eb6834;
+  --color-tax-ink: #a63f16;
+  --color-tax-tint: #fdeee8;
+  --color-savings-solid: #1baf7a;
+  --color-savings-ink: #0b6e4b;
+  --color-savings-tint: #e3f5ee;
+  --color-free-solid: #eda100;
+  --color-free-ink: #7a5200;
+  --color-free-tint: #fdf3dc;
+  --color-main-solid: #8a95d2;
+  --color-main-ink: #526176;
+  --color-main-tint: #e9edf2;
 
-  /* Envelopes */
-  --color-rent-solid: #2A78D6;
-  --color-rent-ink: #1C5CAB;
-  --color-rent-tint: #EAF2FC;
+  /* Shape and depth */
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --shadow-card: 0 1px 2px 0 rgb(26 35 48 / 0.04);
+  --shadow-popover: 0 14px 30px rgb(36 51 77 / 0.11);
+  --shadow-modal: 0 20px 60px rgb(23 36 58 / 0.25);
 
-  --color-tax-solid: #EB6834;
-  --color-tax-ink: #A63F16;
-  --color-tax-tint: #FDEEE8;
+  /* Small type steps used by dense tables and captions */
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: 1.4;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.45;
 
-  --color-savings-solid: #1BAF7A;
-  --color-savings-ink: #0B6E4B;
-  --color-savings-tint: #E3F5EE;
-
-  --color-free-solid: #EDA100;
-  --color-free-ink: #7A5200;
-  --color-free-tint: #FDF3DC;
-
-  --color-main-solid: #C3C2B7;
-  --color-main-ink: #D5D4CC;
-  --color-main-tint: #EDF0F4;
+  --animate-fade-in: fade-in 200ms ease-out;
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite alternate;
 }
 
-html {
-  scrollbar-gutter: stable;
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-body {
-  font-family: var(--font-sans);
-  background-color: var(--color-brand-surface);
-  color: var(--color-brand-ink);
-  margin: 0;
-  padding: 0;
-  -webkit-font-smoothing: antialiased;
-  overflow-wrap: break-word;
+@keyframes shimmer {
+  to { opacity: 0.55; }
 }
 
-button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid var(--color-action-primary); outline-offset: 3px; }
+@layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
 
-@media (max-width: 767px) {
-  input:not([type="checkbox"]):not([type="range"]):not([maxlength="1"]), select, textarea { font-size: 16px; }
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-wrap: break-word;
+  }
+
+  button:not(:disabled),
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-action-primary);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="range"]):not([maxlength="1"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+/* Right-to-left layout: logical utilities handle alignment; these rules cover
+   third-party content and directional icons. */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+[dir="rtl"] .lucide-chevron-right,
+[dir="rtl"] .lucide-arrow-right,
+[dir="rtl"] .lucide-chevron-left,
+[dir="rtl"] .lucide-arrow-left,
+[dir="rtl"] .lucide-panel-left {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] input:not([type="checkbox"]):not([type="radio"]):not([dir="ltr"]),
+[dir="rtl"] textarea:not([dir="ltr"]),
+[dir="rtl"] select:not([dir="ltr"]) {
+  text-align: right;
 }

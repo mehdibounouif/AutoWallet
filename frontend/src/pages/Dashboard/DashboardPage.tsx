@@ -1,201 +1,308 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { AlertCircle, ArrowDownLeft, Bell, Check, ChevronDown, ChevronRight, Link2, LogOut, Plus, Search, Settings, X } from 'lucide-react'
-import { DashboardMobileNavigation, DashboardSidebar } from './DashboardNavigation'
-import type { DashboardView as View, PageView } from './DashboardNavigation'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
+import type { DashboardTransaction, RuleDraft, WalletType } from './dashboardApi'
+import { DashboardApiError, linkBankAccount, spendFromEnvelope, updateRule } from './dashboardApi'
 import { useDashboardData } from './useDashboardData'
-import type { DashboardResource, DashboardTransaction, WalletType } from './dashboardApi'
-import { apiFetch } from '../../api/request'
-import { apiErrorDetail } from '../../api/errors'
-import { loginPath, safeReturnPath } from '../../auth/returnPath'
-import { clearAccessToken, getSessionEndReason, useAccessToken } from '../../auth/session'
-import { useRequestSignal } from '../../hooks/useRequestSignal'
-import { isValidBankAccountId } from '../../auth/validation'
-import { useDismissibleLayer } from '../../hooks/useDismissibleLayer'
-import { HomeView, LoadingHome } from './HomeView'
-import { EnvelopesSkeleton, EnvelopesView } from './EnvelopesView'
-import { EnvelopeDetailView } from './EnvelopeDetailView'
-import { RulesView } from './RulesView'
-import { ActivitySkeleton, ActivityView } from './ActivityView'
-import { PaymentDetailView } from './PaymentDetailView'
-import { SandboxView } from './SandboxView'
-import { RecordPaymentDialog } from './RecordPaymentDialog'
-import { NotificationsView } from './NotificationsView'
-import { usePaymentNotifications } from './usePaymentNotifications'
+import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 import { usePaymentLiveUpdates } from './usePaymentLiveUpdates'
-import { usePaymentAlerts } from '../Settings/settingsPreferences'
-import { envelopeMeta, money } from './envelopeDisplay'
-import './dashboard.css'
-import './workspace.css'
-import './dashboardTheme.css'
+import { usePaymentNotifications } from './usePaymentNotifications'
+import { usePaymentAlerts } from '../Settings/settingsAlerts'
+import { viewFromPath } from '../../components/layout/navigation'
+import type { DashboardView } from '../../components/layout/navigation'
+import { navigationItems, notificationsItem } from '../../components/layout/navigation'
+import { AppShell } from '../../components/layout/AppShell'
+import { DashboardHeaderTools } from './DashboardHeaderTools'
+import { LinkBankAccountPrompt } from './LinkBankAccountPrompt'
+import { HomeView } from './HomeView'
+import { LoadingHome } from './home/LoadingHome'
+import { ActivitySkeleton, ActivityView } from './ActivityView'
+import { AnalyticsView } from './AnalyticsView'
+import { AssistantView } from './AssistantView'
+import { EnvelopeDetailView } from './EnvelopeDetailView'
+import { EnvelopesView } from './EnvelopesView'
+import { EnvelopesSkeleton } from './envelopes/EnvelopesSkeleton'
+import { NotificationsView } from './NotificationsView'
+import { PaymentDetailView } from './PaymentDetailView'
+import { RulesView } from './RulesView'
+import { SandboxView } from './SandboxView'
+import { SettingsView } from '../Settings/SettingsView'
+import { envelopeMeta, money, walletOrder } from './envelopeDisplay'
+import { newestPaymentsFirst } from './paymentUtils'
+import { clearTwoFactorCredentials } from '../../auth/pendingCredentials'
+import { clearRecoveryCodes } from '../../auth/recoveryCodes'
+import { clearSignupDraft } from '../../auth/signupDraft'
+import { clearToken, getToken } from '../../auth/session'
+import { safeReturnPath } from '../../auth/returnPath'
+import { Button } from '../../components/ui/Button'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { useTranslation } from '../../i18n'
 
-const AnalyticsView = lazy(() => import('./AnalyticsView').then(module => ({ default: module.AnalyticsView })))
-const AssistantView = lazy(() => import('./AssistantView').then(module => ({ default: module.AssistantView })))
-
-const SettingsView = lazy(() => import('../Settings/SettingsView').then(module => ({ default: module.SettingsView })))
-
-const viewResources: Record<View, DashboardResource[]> = {
-  home: ['wallets', 'transactions', 'rules'],
-  envelopes: ['wallets', 'transactions', 'rules'],
-  'envelope-detail': ['wallets', 'transactions', 'rules'],
-  rules: ['wallets', 'rules'],
-  activity: ['transactions'],
-  'payment-detail': ['transactions'],
-  analytics: ['wallets', 'transactions', 'rules'],
-  assistant: ['wallets', 'transactions', 'rules'],
-  sandbox: ['wallets', 'rules'],
-  notifications: ['transactions'],
-  settings: [],
+function isWalletType(value: string | undefined): value is WalletType {
+  return Boolean(value && walletOrder.includes(value as WalletType))
 }
+
 export function DashboardPage() {
-  const token = useAccessToken()
-  const location = useLocation()
-  const returnTo = safeReturnPath(`${location.pathname}${location.search}${location.hash}`)
-  if (!token) return <Navigate to={getSessionEndReason() === 'expired' ? `/session-ended?reason=expired&redirect=${encodeURIComponent(returnTo)}` : loginPath(returnTo)} replace />
-  // Replacing a session unmounts all old account data, requests and live streams.
-  return <SignedInDashboard key={token} />
-}
-
-function SignedInDashboard() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const searchRef = useRef<HTMLInputElement | null>(null)
-  const mobileSearchRef = useRef<HTMLInputElement | null>(null)
-  const detailSegment = location.pathname.match(/^\/app\/envelopes\/([^/]+)$/)?.[1]
-  const detailType = detailSegment && Object.hasOwn(envelopeMeta, detailSegment) ? detailSegment as WalletType : null
-  const paymentSegment = location.pathname.match(/^\/app\/activity\/([^/]+)$/)?.[1]
-  const view: View = location.pathname === '/app/settings' || location.pathname.startsWith('/app/settings/') ? 'settings' : detailSegment ? 'envelope-detail' : paymentSegment ? 'payment-detail' : (['envelopes', 'rules', 'activity', 'analytics', 'assistant', 'sandbox', 'notifications'] as const).find(page => location.pathname === `/app/${page}`) ?? 'home'
-  const settingsOnly = view === 'settings'
-  const returnTo = safeReturnPath(`${location.pathname}${location.search}${location.hash}`)
-  const returnToRef = useRef(returnTo)
-  useEffect(() => { returnToRef.current = returnTo }, [returnTo])
-  const requestSignal = useRequestSignal()
-  const fromPath = typeof location.state?.from === 'string' ? location.state.from : '/dashboard'
-  const activeView = view === 'notifications' ? fromPath.startsWith('/app/activity') ? 'activity' : fromPath.startsWith('/app/envelopes') ? 'envelopes' : fromPath === '/app/rules' ? 'rules' : fromPath === '/app/assistant' ? 'assistant' : fromPath === '/app/analytics' ? 'analytics' : fromPath === '/app/sandbox' ? 'sandbox' : fromPath.startsWith('/app/settings') ? 'settings' : 'home' : view
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const [notificationOpen, setNotificationOpen] = useState(false)
-  const mobileNavRef = useRef<HTMLElement>(null)
-  const notificationRef = useDismissibleLayer(notificationOpen, () => setNotificationOpen(false))
-  const profileRef = useDismissibleLayer(profileOpen, () => setProfileOpen(false))
-  const moreRef = useDismissibleLayer(moreOpen, () => setMoreOpen(false), mobileNavRef)
-  const [search, setSearch] = useState('')
-  const [recordOpen, setRecordOpen] = useState(false)
+  const { walletType: walletTypeParam, paymentId: paymentIdParam } = useParams<{ walletType?: string; paymentId?: string }>()
+  const selectedEnvelope = isWalletType(walletTypeParam) ? walletTypeParam : null
+  const activeView = viewFromPath(location.pathname)
+  const online = useOnlineStatus()
   const [toast, setToast] = useState<string | null>(null)
-  const [newPayment, setNewPayment] = useState<DashboardTransaction | null>(null)
-  const [bankAccountId, setBankAccountId] = useState('')
-  const [linking, setLinking] = useState(false)
-  const [linkError, setLinkError] = useState<string | null>(null)
-  const [online, setOnline] = useState(() => navigator.onLine)
 
-  const signOut = useCallback(() => { clearAccessToken(); navigate('/login', { replace: true }) }, [navigate])
-  const endSession = useCallback(() => {
-    clearAccessToken('expired')
-    navigate(`/session-ended?reason=expired&redirect=${encodeURIComponent(returnToRef.current)}`, { replace: true })
-  }, [navigate])
-  const resources = notificationOpen && !viewResources[view].includes('transactions')
-    ? [...viewResources[view], 'transactions' as const] : viewResources[view]
-  const onNewPayment = useCallback((payment: DashboardTransaction) => {
-    setToast(null)
-    setNewPayment(payment)
-  }, [setToast, setNewPayment])
-  const { data, account, loading, loaded, ready, error, status, load: loadDashboard } = useDashboardData(resources, endSession, onNewPayment)
-  const serviceStatus = online ? status : 'unavailable'
+  const returnTo = () => safeReturnPath(`${location.pathname}${location.search}`)
 
-  useEffect(() => { let active = true; queueMicrotask(() => { if (active) void loadDashboard(false) }); return () => { active = false } }, [loadDashboard, location.pathname])
+  const handleUnauthorized = () => {
+    clearToken()
+    navigate(`/session-ended?redirect=${encodeURIComponent(returnTo())}`, { replace: true })
+  }
+
+  const handleMissingToken = () => {
+    navigate(`/login?redirect=${encodeURIComponent(returnTo())}`, { replace: true })
+  }
+
+  const { data, loading, refreshing, error, loadDashboard } = useDashboardData({
+    onUnauthorized: handleUnauthorized,
+    onMissingToken: handleMissingToken,
+  })
+
+  const payments = newestPaymentsFirst(data?.transactions ?? [])
+  const userId = data?.account.id ?? ''
+  const alertsEnabled = usePaymentAlerts(userId)
+  const { unread, readIds, markRead } = usePaymentNotifications(userId, payments)
+  const unreadCount = alertsEnabled ? unread : 0
+
+  const liveUpdatesEnabled = Boolean(data?.account.bank_account_id) && !import.meta.env.VITEST
+  const liveStatus = usePaymentLiveUpdates({
+    userId,
+    enabled: liveUpdatesEnabled,
+    onRefresh: () => loadDashboard(false),
+    onSessionEnded: handleUnauthorized,
+  })
+
   useEffect(() => {
-    const update = () => {
-      setOnline(navigator.onLine)
-      if (navigator.onLine) void loadDashboard()
-    }
-    const refreshOnReturn = () => {
-      if (document.visibilityState === 'visible' && navigator.onLine) void loadDashboard()
-    }
-    const shortcut = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); if (window.innerWidth <= 767) { navigate('/app/activity'); window.requestAnimationFrame(() => mobileSearchRef.current?.focus()) } else searchRef.current?.focus() } }
-    window.addEventListener('online', update); window.addEventListener('offline', update); window.addEventListener('keydown', shortcut)
-    document.addEventListener('visibilitychange', refreshOnReturn)
-    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); window.removeEventListener('keydown', shortcut); document.removeEventListener('visibilitychange', refreshOnReturn) }
-  }, [loadDashboard, navigate])
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 5000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
-  const handleLink = async (event: FormEvent) => {
-    event.preventDefault()
-    const id = bankAccountId.trim()
-    if (linking) return
-    if (!isValidBankAccountId(id)) { setLinkError('Enter a bank account ID using 3 to 50 digits.'); return }
-    const token = localStorage.getItem('autowallet_token')
-    if (!token) { endSession(); return }
-    const signal = requestSignal()
-    setLinking(true); setLinkError(null)
-    try {
-      const response = await apiFetch('/api/auth/link-bank-account', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ bank_account_id: id }), signal })
-      if (response.status === 401) { endSession(); return }
-      if (!response.ok) { const payload = await response.json().catch(() => ({})); setLinkError(apiErrorDetail(payload, 'Could not link this account. Please try again.').message); return }
-      setBankAccountId(''); await loadDashboard()
-    } catch { if (!signal.aborted) setLinkError('The account link could not be confirmed. Refresh to check its status before trying again.') } finally { if (!signal.aborted) setLinking(false) }
+  const openView = (view: DashboardView) => {
+    const item = [...navigationItems, notificationsItem].find((entry) => entry.id === view)
+    if (!item) return
+    navigate(item.path)
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
-  const chooseView = (next: PageView) => {
-    const path = next === 'home' ? '/dashboard' : `/app/${next}`
-    if (location.pathname !== path) navigate(path)
-    setMoreOpen(false)
-    setNotificationOpen(false)
-    setProfileOpen(false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-  const openPayment = (payment: DashboardTransaction) => {
-    navigate(`/app/activity/${encodeURIComponent(payment.id)}`)
-    setNotificationOpen(false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-  const askAssistant = (question: string) => {
-    navigate('/app/assistant', { state: { question } })
-    window.scrollTo({ top: 0 })
-  }
   const openEnvelope = (type: WalletType) => {
     navigate(`/app/envelopes/${type}`)
-    setMoreOpen(false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
-  const user = account
-  const liveStatus = usePaymentLiveUpdates({
-    userId: user?.id ?? '',
-    enabled: online && !settingsOnly && Boolean(user?.bank_account_id),
-    onRefresh: loadDashboard,
-    onSessionEnded: endSession,
-  })
-  const serviceLabel = serviceStatus === 'unavailable' ? 'Service unavailable' : serviceStatus === 'checking' ? 'Checking service'
-    : !settingsOnly && liveStatus === 'connected' ? 'Live updates on'
-      : !settingsOnly && liveStatus === 'reconnecting' ? 'Reconnecting updates'
-        : !settingsOnly && liveStatus === 'unavailable' ? 'Live updates unavailable' : 'Service connected'
-  const serviceShortLabel = serviceStatus === 'unavailable' ? 'Unavailable' : serviceStatus === 'checking' ? 'Checking'
-    : !settingsOnly && liveStatus === 'connected' ? 'Live' : !settingsOnly && liveStatus === 'reconnecting' ? 'Retrying'
-      : !settingsOnly && liveStatus === 'unavailable' ? 'Paused' : 'Connected'
-  const initials = user?.full_name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('') || 'AW'
-  const payments = data?.transactions ?? []
-  const paymentAlertsEnabled = usePaymentAlerts(user?.id ?? '')
-  const notificationPayments = paymentAlertsEnabled ? payments : []
-  const inbox = usePaymentNotifications(user?.id ?? '', notificationPayments, paymentAlertsEnabled && loaded.includes('transactions') && !data?.resourceErrors?.transactions)
-  const recordAvailable = online && serviceStatus === 'connected' && Boolean(user?.bank_account_id)
-  const missingResources = viewResources[view].filter(resource => data?.resourceErrors?.[resource])
-  const selectedPayment = payments.find(payment => encodeURIComponent(payment.id) === paymentSegment)
-  const title = view === 'home' ? 'Home' : view === 'payment-detail' ? 'Activity' : view === 'envelope-detail' ? 'Envelopes' : view.charAt(0).toUpperCase() + view.slice(1)
-  const footer = <footer className="dashboard-footer"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><span>AutoWallet</span></footer>
-  const errorNotice = error && <div role="alert" className="mb-5 flex items-center justify-between gap-3 rounded-lg bg-[#FFF0EF] px-4 py-3 text-sm text-[#A33B3B]"><span>{error}</span><button type="button" onClick={() => void loadDashboard()} className="font-semibold underline">Retry</button></div>
 
-  return <div className={`dashboard-shell ${sidebarCollapsed ? 'dashboard-shell--collapsed' : ''} ${view === 'notifications' ? 'dashboard-shell--notifications' : ''} ${view === 'settings' ? 'dashboard-shell--settings' : ''}`}>
-    <DashboardSidebar active={activeView} collapsed={sidebarCollapsed} onNavigate={chooseView} onCollapse={() => setSidebarCollapsed(value => !value)} />
-    <div className="dashboard-main-wrap"><header className="dashboard-header"><button type="button" onClick={() => chooseView('home')} className="dashboard-mobile-logo" aria-label="AutoWallet Home"><img src="/AW.svg" alt="" /><span>AutoWallet</span></button><div className="dashboard-header-title">{view === 'envelope-detail' && detailType ? <span className="dashboard-header-breadcrumb"><button type="button" onClick={() => chooseView('envelopes')}>Envelopes</button><ChevronRight className="h-4 w-4" aria-hidden="true" /><strong>{envelopeMeta[detailType].name}</strong></span> : view === 'payment-detail' ? <span className="dashboard-header-breadcrumb"><button onClick={() => chooseView('activity')}>Activity</button><ChevronRight className="h-4 w-4" /><strong>{selectedPayment?.reference ?? 'Payment'}</strong></span> : <strong>{title}</strong>}</div><div className="dashboard-header-tools"><span role="status" aria-label={serviceLabel} title={serviceLabel} className={`dashboard-live ${serviceStatus === 'unavailable' ? 'dashboard-live--offline' : serviceStatus === 'checking' || (!settingsOnly && (liveStatus === 'reconnecting' || liveStatus === 'unavailable')) ? 'dashboard-live--checking' : ''}`}><span className="h-1.5 w-1.5 rounded-full bg-current" /><span className="dashboard-status-full">{serviceLabel}</span><span className="dashboard-status-short">{serviceShortLabel}</span></span><label className="dashboard-search"><Search className="h-4 w-4" aria-hidden="true" /><input ref={searchRef} value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value) chooseView('activity') }} placeholder="Search by reference" aria-label="Search by reference" /><kbd>⌘K</kbd></label><button type="button" onClick={() => { chooseView('activity'); window.requestAnimationFrame(() => mobileSearchRef.current?.focus()) }} className="dashboard-mobile-tool" aria-label="Search payments"><Search className="h-5 w-5" /></button><div className="relative" ref={notificationRef}><button type="button" aria-expanded={notificationOpen || view === 'notifications'} onClick={() => { if (window.innerWidth <= 767) navigate('/app/notifications', { state: { from: location.pathname } }); else setNotificationOpen(value => !value) }} className="dashboard-icon-button notification-bell" aria-label={`Notifications${inbox.unread ? `, ${inbox.unread} unread` : ''}`}><Bell className="h-5 w-5" />{inbox.unread > 0 && <span className="notification-count">{inbox.unread > 9 ? '9+' : inbox.unread}</span>}</button>{notificationOpen && <div className="notifications-popover">{!loaded.includes('transactions') && loading ? <p role="status">Loading payment notifications…</p> : !loaded.includes('transactions') || data?.resourceErrors?.transactions || error && !data ? <div><p role="alert">Payment notifications are unavailable.</p><button type="button" className="workspace-text-button" onClick={() => void loadDashboard()}>Retry notifications</button></div> : <NotificationsView enabled={paymentAlertsEnabled} onSettings={() => { navigate('/app/settings/notifications'); setNotificationOpen(false) }} compact payments={notificationPayments} readIds={inbox.readIds} unread={inbox.unread} onRead={inbox.markRead} onSelect={openPayment} onBack={() => chooseView('notifications')} />}</div>}</div><div className="relative" ref={profileRef}><button type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((value) => !value)} className="dashboard-profile" aria-label="Account menu"><span>{initials}</span><ChevronDown className="h-4 w-4" /></button>{profileOpen && <div className="dashboard-popover right-0"><strong className="block truncate">{user?.full_name || 'AutoWallet'}</strong><p className="truncate">{user?.email}</p><button type="button" onClick={() => chooseView('settings')} className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#5963B6]"><Settings className="h-4 w-4" />Settings</button><button type="button" onClick={signOut} className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#5963B6]"><LogOut className="h-4 w-4" />Sign out</button></div>}</div></div></header>
-      {!online && <div role="status" className="dashboard-offline"><AlertCircle className="h-4 w-4" />You're offline. We'll refresh when you're back.</div>}
-      <main id="main-content" tabIndex={-1} className={`dashboard-main ${view === 'assistant' ? 'dashboard-main--assistant' : ''}`}>{(loading && !(settingsOnly ? user : data) || !settingsOnly && !ready && !error) ? ((view === 'envelopes' || view === 'envelope-detail') ? <EnvelopesSkeleton /> : view === 'activity' ? <ActivitySkeleton /> : <LoadingHome />) : settingsOnly && user ? <>{errorNotice}<Suspense fallback={<LoadingHome />}><SettingsView key={user.id} user={user} online={online} onSignOut={signOut} onSessionEnded={endSession} /></Suspense>{footer}</> : !data ? <section className="mx-auto mt-16 max-w-md rounded-xl bg-white p-8 text-center shadow-sm"><AlertCircle className="mx-auto h-9 w-9 text-[#C44D4D]" /><h1 className="mt-4 text-xl font-bold">{settingsOnly ? 'Settings unavailable' : 'Dashboard unavailable'}</h1><p role="alert" className="mt-2 text-sm text-[color:var(--aw-muted)]">{error}</p><button type="button" onClick={() => void loadDashboard()} className="dashboard-primary-button mt-5">Try again</button></section> : <>{errorNotice}{!user?.bank_account_id ? <section className="mx-auto mt-10 max-w-xl rounded-xl bg-white p-7 shadow-sm"><Link2 className="h-9 w-9 text-[#5A64B4]" /><h1 className="mt-5 text-2xl font-bold">Link your bank account ID</h1><p className="mt-2 text-sm leading-6 text-[color:var(--aw-muted)]">Add the account ID that receives your payments to see envelopes, transactions, and rules here. This records the ID with your profile; it does not connect to your bank or move money.</p><form onSubmit={(event) => void handleLink(event)} noValidate className="mt-5 flex flex-wrap items-end gap-3"><label className="min-w-[200px] flex-1 text-sm font-semibold">Bank account ID<input value={bankAccountId} onChange={(event) => { setBankAccountId(event.target.value); setLinkError(null) }} inputMode="numeric" pattern="[0-9]*" minLength={3} maxLength={50} required className="dashboard-input mt-2" aria-invalid={Boolean(linkError)} aria-describedby={linkError ? 'link-account-error' : undefined} placeholder="Enter your account ID" /></label><button type="submit" disabled={linking} className="dashboard-primary-button h-11">{linking ? 'Linking…' : 'Link account'}</button></form>{linkError && <p id="link-account-error" role="alert" className="mt-3 text-sm text-[#B53235]">{linkError}</p>}</section> : missingResources.length ? <section className="workspace-empty"><AlertCircle /><h1>{title} unavailable</h1><p>Could not load {missingResources.join(', ')} needed for this page.</p><button type="button" className="dashboard-primary-button" onClick={() => void loadDashboard()}>Try again</button></section> : <>
-        {view === 'home' ? <HomeView data={data} recordAvailable={recordAvailable} onNavigate={chooseView} onRecord={() => setRecordOpen(true)} onSelectPayment={openPayment} /> : view === 'envelopes' ? <EnvelopesView data={data} onOpen={openEnvelope} /> : view === 'envelope-detail' ? (detailType ? <EnvelopeDetailView type={detailType} data={data} onBack={() => chooseView('envelopes')} onViewRules={() => chooseView('rules')} onSelectPayment={openPayment} onAsk={askAssistant} /> : <section className="dashboard-subview"><h1>Envelope not found</h1><button type="button" onClick={() => chooseView('envelopes')} className="dashboard-primary-button mt-4">Back to Envelopes</button></section>) : view === 'rules' ? <RulesView data={data} onSaved={loadDashboard} onSessionEnded={endSession} /> : view === 'activity' ? <ActivityView payments={data.transactions} search={search} onSearchChange={setSearch} onSelect={openPayment} onRecord={() => setRecordOpen(true)} recordDisabled={!recordAvailable} searchInputRef={mobileSearchRef} /> : view === 'payment-detail' ? <PaymentDetailView paymentId={selectedPayment?.id ?? ''} data={data} onBack={() => chooseView('activity')} onRefresh={() => void loadDashboard()} /> : view === 'sandbox' ? <SandboxView data={data} /> : view === 'notifications' ? <NotificationsView enabled={paymentAlertsEnabled} onSettings={() => navigate('/app/settings/notifications')} payments={notificationPayments} readIds={inbox.readIds} unread={inbox.unread} onRead={inbox.markRead} onSelect={openPayment} onBack={() => { const from = location.state?.from; navigate(typeof from === 'string' && from !== '/app/notifications' && (from === '/dashboard' || from.startsWith('/app/')) ? from : '/dashboard') }} /> : <Suspense fallback={<LoadingHome />}>{view === 'analytics' ? <AnalyticsView key={data.user.id} data={data} onRecord={() => setRecordOpen(true)} recordDisabled={!recordAvailable} onAsk={askAssistant} onRules={() => chooseView('rules')} onRefresh={loadDashboard} onSessionEnded={endSession} /> : <AssistantView key={user?.id} data={data} online={online} onSessionEnded={endSession} />}</Suspense>}
-        {footer}
-      </>}</> }</main>
-    </div>
-    {(view === 'home' || view === 'activity') && <button type="button" onClick={() => setRecordOpen(true)} disabled={!online || serviceStatus !== 'connected' || !user?.bank_account_id} className="dashboard-mobile-record"><Plus className="h-4 w-4" />Record payment</button>}<DashboardMobileNavigation active={activeView} onNavigate={chooseView} open={moreOpen} onToggle={() => setMoreOpen(value => !value)} onSignOut={signOut} navRef={mobileNavRef} menuRef={moreRef} />
-    {newPayment && paymentAlertsEnabled && <div role="status" className="dashboard-toast dashboard-toast--payment"><ArrowDownLeft className="h-4 w-4 shrink-0 text-[#5963B6]" aria-hidden="true" /><div><strong>+{money.format(newPayment.amount)} MAD from {newPayment.reference}</strong><p>Your envelope balances have been refreshed.</p><button type="button" onClick={() => { openPayment(newPayment); setNewPayment(null) }}>{newPayment.allocations ? 'View split' : 'View payment'}</button></div><button type="button" onClick={() => setNewPayment(null)} aria-label="Dismiss payment notification"><X className="h-4 w-4" /></button></div>}
-    {toast && <div role="status" className="dashboard-toast"><Check className="h-4 w-4 text-[#19854A]" /><span>{toast}</span><button type="button" onClick={() => setToast(null)} aria-label="Dismiss notification"><X className="h-4 w-4" /></button></div>}
-    {recordOpen && <RecordPaymentDialog onClose={() => setRecordOpen(false)} available={recordAvailable} onSessionEnded={endSession} onRecorded={reference => { setRecordOpen(false); setToast(`Payment ${reference} recorded.`); void loadDashboard() }} />}
-  </div>
+  const openPayment = (payment: DashboardTransaction) => {
+    navigate(`/app/activity/${encodeURIComponent(payment.id)}`)
+  }
+
+  const signOut = () => {
+    clearToken()
+    clearSignupDraft()
+    clearTwoFactorCredentials()
+    clearRecoveryCodes()
+    navigate('/login', { replace: true })
+  }
+
+  const withToken = async (action: (token: string) => Promise<void>) => {
+    const token = getToken()
+    if (!token) {
+      handleUnauthorized()
+      return
+    }
+    try {
+      await action(token)
+    } catch (reason) {
+      if (reason instanceof DashboardApiError && reason.status === 401) {
+        handleUnauthorized()
+        return
+      }
+      throw reason
+    }
+  }
+
+  const handleLinkBankAccount = (bankAccountId: string) =>
+    withToken(async (token) => {
+      await linkBankAccount(token, bankAccountId)
+      await loadDashboard(true)
+      setToast('Your bank account ID is linked.')
+    })
+
+  const handleUpdateRule = (ruleId: string, updates: Partial<RuleDraft>) =>
+    withToken(async (token) => {
+      await updateRule(token, ruleId, updates)
+      await loadDashboard(false)
+    })
+
+  const handleSpendMoney = (payload: { wallet_type: WalletType; amount: number; reference?: string }) =>
+    withToken(async (token) => {
+      await spendFromEnvelope(token, payload)
+      await loadDashboard(false)
+      setToast(`Recorded ${money.format(payload.amount)} MAD spending from ${envelopeMeta[payload.wallet_type].name}.`)
+    })
+
+  const linkAccountFromSettings = (bankAccountId: string) =>
+    withToken(async (token) => {
+      await linkBankAccount(token, bankAccountId)
+      await loadDashboard(false)
+    })
+
+  const selectedPayment = paymentIdParam
+    ? payments.find((payment) => payment.id === paymentIdParam) ?? null
+    : null
+  const activeNavItem = [...navigationItems, notificationsItem].find((item) => item.id === activeView)
+
+  const headerStart = activeView === 'envelopes' && selectedEnvelope ? (
+    <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label="Breadcrumb">
+      <button type="button" onClick={() => openView('envelopes')} className="font-semibold text-accent hover:underline">
+        {t.navEnvelopes}
+      </button>
+      <ChevronRight className="size-4 text-muted" aria-hidden="true" />
+      <strong className="truncate text-body">{envelopeMeta[selectedEnvelope].name}</strong>
+    </nav>
+  ) : activeView === 'activity' && paymentIdParam ? (
+    <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label="Breadcrumb">
+      <button type="button" onClick={() => openView('activity')} className="font-semibold text-accent hover:underline">
+        {t.navActivity}
+      </button>
+      <ChevronRight className="size-4 text-muted" aria-hidden="true" />
+      <strong className="truncate text-body">{selectedPayment?.reference ?? paymentIdParam}</strong>
+    </nav>
+  ) : (
+    <strong className="hidden text-[17px] font-extrabold text-ink md:block">
+      {activeNavItem ? t[activeNavItem.labelKey] : t.navNotifications}
+    </strong>
+  )
+
+  const actionDisabled = !online || loading || !data?.account.bank_account_id
+
+  const renderView = () => {
+    if (loading) {
+      if (activeView === 'envelopes' && !selectedEnvelope) return <EnvelopesSkeleton />
+      if (activeView === 'activity' && !paymentIdParam) return <ActivitySkeleton />
+      return <LoadingHome />
+    }
+
+    if (error) {
+      return (
+        <EmptyState
+          title="Couldn't load your dashboard"
+          description={error}
+          action={<Button onClick={() => void loadDashboard(true)}>Try again</Button>}
+        />
+      )
+    }
+
+    if (!data) return null
+    if (!data.account.bank_account_id) {
+      return <LinkBankAccountPrompt email={data.account.email} online={online} onLink={handleLinkBankAccount} />
+    }
+
+    switch (activeView) {
+      case 'home':
+        return <HomeView data={data} onNavigate={openView} onSelectPayment={openPayment} />
+      case 'envelopes':
+        return selectedEnvelope ? (
+          <EnvelopeDetailView
+            type={selectedEnvelope}
+            data={data}
+            onBack={() => openView('envelopes')}
+            onOpenRules={() => openView('rules')}
+            onOpenPayment={openPayment}
+            actionDisabled={actionDisabled}
+            onSpendMoney={handleSpendMoney}
+            onAskAssistant={(question) => navigate('/app/assistant', { state: { question } })}
+          />
+        ) : (
+          <EnvelopesView wallets={data.wallets} rules={data.rules} onSelect={openEnvelope} busy={refreshing || !online} />
+        )
+      case 'rules':
+        return <RulesView data={data} busy={refreshing || !online} onUpdateRule={handleUpdateRule} />
+      case 'activity':
+        return paymentIdParam ? (
+          <PaymentDetailView paymentId={paymentIdParam} data={data} onBack={() => openView('activity')} onRefresh={() => void loadDashboard(false)} />
+        ) : (
+          <ActivityView payments={payments} onSelect={openPayment} />
+        )
+      case 'analytics':
+        return (
+          <AnalyticsView
+            data={data}
+            onAsk={(question) => navigate('/app/assistant', { state: { question } })}
+            onRules={() => openView('rules')}
+            onRefresh={() => loadDashboard(false)}
+            onSessionEnded={handleUnauthorized}
+          />
+        )
+      case 'assistant':
+        return <AssistantView data={data} online={online} onSessionEnded={handleUnauthorized} />
+      case 'sandbox':
+        return <SandboxView data={data} />
+      case 'settings':
+        return (
+          <SettingsView
+            account={data.account}
+            online={online}
+            onLinkAccount={linkAccountFromSettings}
+            onRefresh={() => loadDashboard(false)}
+            onSignOut={signOut}
+            onSessionEnded={handleUnauthorized}
+            onDeleted={signOut}
+          />
+        )
+      case 'notifications':
+        return (
+          <NotificationsView
+            payments={payments}
+            readIds={readIds}
+            unread={unreadCount}
+            onRead={markRead}
+            onSelect={openPayment}
+            onBack={() => openView('home')}
+            onSettings={() => openView('settings')}
+            enabled={alertsEnabled}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <AppShell
+      view={activeView}
+      onNavigate={openView}
+      headerStart={headerStart}
+      headerTools={
+        <DashboardHeaderTools
+          account={data?.account ?? null}
+          online={online}
+          liveStatus={liveStatus}
+          refreshing={refreshing}
+          unreadCount={unreadCount}
+          payments={payments}
+          readIds={readIds}
+          alertsEnabled={alertsEnabled}
+          onRefresh={() => void loadDashboard(false)}
+          onRead={markRead}
+          onSelectPayment={openPayment}
+          onOpenNotifications={() => openView('notifications')}
+          onOpenSettings={() => openView('settings')}
+          onSignOut={signOut}
+        />
+      }
+      online={online}
+      toast={toast}
+      onDismissToast={() => setToast(null)}
+    >
+      {renderView()}
+    </AppShell>
+  )
 }

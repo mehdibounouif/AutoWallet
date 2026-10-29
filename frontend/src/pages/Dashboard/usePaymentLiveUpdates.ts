@@ -1,7 +1,8 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import { PaymentLiveError, streamPaymentUpdates } from '../../api/paymentLiveApi'
+import { getToken } from '../../auth/session'
 
-type LiveStatus = 'connecting' | 'connected' | 'reconnecting' | 'unavailable' | 'paused'
+export type LiveStatus = 'connecting' | 'connected' | 'reconnecting' | 'unavailable' | 'paused'
 
 export function usePaymentLiveUpdates({ userId, enabled, onRefresh, onSessionEnded }: {
   userId: string; enabled: boolean; onRefresh: () => Promise<void>; onSessionEnded: () => void
@@ -44,7 +45,7 @@ export function usePaymentLiveUpdates({ userId, enabled, onRefresh, onSessionEnd
       if (!active) return
       if (!navigator.onLine || document.visibilityState === 'hidden') { stop(); status('paused'); return }
       stop()
-      const token = localStorage.getItem('autowallet_token')
+      const token = getToken()
       if (!token) { sessionEnded(); return }
       const next = new AbortController()
       controller = next
