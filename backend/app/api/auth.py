@@ -107,7 +107,7 @@ def register(
         send_verification_email(user)
 
     except (EmailError, RedisError):
-        raise
+        print(f"Could not initiate verification email for user {user.id}")
     return user
 
 
