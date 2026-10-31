@@ -23,7 +23,6 @@ from app.services.provisioning import (
 )
 
 router = APIRouter(prefix="/api/auth/oauth/google", tags=["oauth"])
-logger = logging.getLogger(__name__)
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -89,7 +88,6 @@ def google_login():
             "1",
         )
     except Exception:
-        logger.exception("Could not store OAuth state")
         raise HTTPException(
             status_code=503,
             detail="Authentication service unavailable",
@@ -136,9 +134,6 @@ def google_callback(
         raise HTTPException(
             status_code=400,
             detail="Invalid OAuth session",
-            headers={
-                "Cache-Control": "no-store",
-            },
         )
 
     # Check both values together, and consume the state once.
@@ -147,7 +142,6 @@ def google_callback(
             _state_key(state, nonce)
         )
     except Exception:
-        logger.exception("OAuth state validation failed")
         raise HTTPException(
             status_code=503,
             detail="Authentication service unavailable",
@@ -185,10 +179,9 @@ def google_callback(
             timeout=10.0,
         )
     except httpx.RequestError:
-        logger.exception("Google token endpoint unavailable")
-        raise _google_request_error()
+        raise _google_request_error() # network-level failure (DNS, connection refused, timeout)
 
-    if token_response.status_code != 200:
+    if token_response.status_code != 200: # google dinied the request             
         raise HTTPException(
             status_code=401,
             detail="Google rejected the authorization code",
@@ -207,7 +200,7 @@ def google_callback(
             detail="Google did not return a valid access token",
         )
 
-    # Retrieve identity from Google's userinfo endpoint.
+    # Retrieve identity from Google's userinfo endpoint using the access token.
     try:
         userinfo_response = httpx.get(
             GOOGLE_USERINFO_URL,
@@ -216,11 +209,10 @@ def google_callback(
             },
             timeout=10.0,
         )
-    except httpx.RequestError:
-        logger.exception("Google userinfo endpoint unavailable")
+    except httpx.RequestError: # didn't reach the google server
         raise _google_request_error()
 
-    if userinfo_response.status_code != 200:
+    if userinfo_response.status_code != 200: # reach the google's server but denied
         raise HTTPException(
             status_code=401,
             detail="Could not verify Google identity",
@@ -246,7 +238,6 @@ def google_callback(
             detail="Google identity information is incomplete",
         )
 
-    # Finding #18: require verified email.
     if profile.get("email_verified") is not True:
         raise HTTPException(
             status_code=401,
@@ -300,18 +291,14 @@ def google_callback(
             db.commit()
             db.refresh(user)
 
-        except IntegrityError:
+        except IntegrityError: # two requests for the same brand-new Google account arriving at the same instant 
             db.rollback()
-            logger.warning(
-                "Concurrent Google account creation conflict"
-            )
             raise HTTPException(
                 status_code=409,
                 detail="Account creation conflict. Please retry.",
             )
-        except Exception:
+        except Exception: # disk full, schema mismatch, etc.
             db.rollback()
-            logger.exception("Google user provisioning failed")
             raise HTTPException(
                 status_code=500,
                 detail="Could not create account",
@@ -322,12 +309,11 @@ def google_callback(
 
     try:
         redis_client.setex(
-            _exchange_key(exchange_code),
+            _exchange_key(exchange_code), # Hash exchange codes
             OAUTH_EXCHANGE_TTL_SECONDS,
             str(user.id),
         )
     except Exception:
-        logger.exception("Could not store OAuth exchange code")
         raise HTTPException(
             status_code=503,
             detail="Authentication service unavailable",
@@ -348,8 +334,6 @@ def google_callback(
     )
 
     _clear_oauth_cookie(response)
-    response.headers["Cache-Control"] = "no-store"
-    response.headers["Referrer-Policy"] = "no-referrer"
 
     return response
 
@@ -370,7 +354,6 @@ def exchange_google_code(
             _exchange_key(payload.code)
         )
     except Exception:
-        logger.exception("OAuth exchange failed")
         raise HTTPException(
             status_code=503,
             detail="Authentication service unavailable",

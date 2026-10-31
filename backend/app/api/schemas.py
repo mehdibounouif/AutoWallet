@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr, Field
 class UserRegister(BaseModel):
     full_name: str = Field(min_length=2, max_length=100)
     email: EmailStr
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8,max_length=72,)
     bank_account_id: str = Field(min_length=3, max_length=50)
 
 # request from the login
@@ -32,7 +32,11 @@ class Token(BaseModel):
 # create transaction
 class TransactionCreate(BaseModel):
     reference: str = Field(min_length=1, max_length=100)
-    amount: float = Field(gt=0)
+    amount: float = Field(
+        gt=0,
+        le=1_000_000,
+        allow_inf_nan=False,
+    )
 
 # respond for trasaction creation
 class TransactionOut(BaseModel):
@@ -119,3 +123,12 @@ class DisableTwoFactorRequest(BaseModel):
     password: str
     totp_code: str | None = None
     recovery_code: str | None = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=72)
