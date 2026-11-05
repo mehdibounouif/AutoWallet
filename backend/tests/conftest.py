@@ -78,6 +78,9 @@ def fake_redis(monkeypatch):
     monkeypatch.setattr("app.ai.rate_limit.redis_client", fake)
     monkeypatch.setattr("app.gdpr.router.redis_client", fake)
     monkeypatch.setattr("app.core.two_factor_rate_limit.redis_client", fake)
+    monkeypatch.setattr("app.api.auth.redis_client", fake)
+    monkeypatch.setattr("app.services.email_verification.redis_client", fake)
+    monkeypatch.setattr("app.services.password_reset.redis_client", fake)
     yield fake
 
 
