@@ -76,39 +76,28 @@ def test_a_transaction_amount_must_be_a_finite_number(client: TestClient):
 # Finding S2 — the password-reset contract is missing on the backend
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding S2 (owner: MEHDI): the frontend's password recovery "
-           "posts to /api/auth/password/forgot "
-           "(ForgotPasswordCard.tsx:33) and /api/auth/password/reset "
-           "(ResetPasswordCard.tsx:41) — neither endpoint exists in the "
-           "backend, and the config keys frontend_password_reset_url / "
-           "password_reset_ttl_seconds are dead. A user who forgets the "
-           "password is locked out permanently. Fix: implement both "
-           "endpoints (generic 200/202 on forgot; token-bound reset).",
-)
 def test_the_password_reset_contract_exists(client: TestClient):
-    """SCENARIO:   the frontend's forgot-password flow, exactly as the two
-                cards send it.
-    EXPECTED:   both endpoints exist and route — any real answer (200/202
-                for forgot; 400/401/422 for a garbage reset token) counts,
-                only 404/405 means the contract is missing."""
+    """SCENARIO:   the recovery flow, using the contract the backend defines:
+                forgot takes {email}; reset takes {token, new_password}.
+    EXPECTED:   forgot answers generically (200/202); a garbage reset token
+                is rejected as invalid (400) — after the request has passed
+                schema validation. 404/405 means the endpoint is missing."""
     forgot = client.post(
         "/api/auth/password/forgot",
         json={"email": "nobody@autowallet.dev"},
     )
-    assert forgot.status_code not in (404, 405), (
-        "finding S2: /api/auth/password/forgot does not exist "
-        f"({forgot.status_code}) — the frontend's recovery flow is dead"
+    assert forgot.status_code in (200, 202), (
+        "finding S2: /api/auth/password/forgot must answer generically "
+        f"(got {forgot.status_code})"
     )
 
     reset = client.post(
         "/api/auth/password/reset",
-        json={"password": "NewSecret1337!", "token": "not-a-real-token"},
+        json={"new_password": "NewSecret1337!", "token": "not-a-real-token"},
     )
-    assert reset.status_code not in (404, 405), (
-        "finding S2: /api/auth/password/reset does not exist "
-        f"({reset.status_code}) — the frontend's recovery flow is dead"
+    assert reset.status_code == 400, (
+        "finding S2: /api/auth/password/reset must reject a garbage token "
+        f"with 400 (got {reset.status_code})"
     )
 
 
@@ -116,15 +105,6 @@ def test_the_password_reset_contract_exists(client: TestClient):
 # Finding S3 — passwords longer than 72 bytes are silently truncated
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="finding S3 (owner: MEHDI): bcrypt truncates passwords at 72 "
-           "bytes (verified: passlib 1.7.4 + bcrypt 4.0.1) and "
-           "UserRegister.password has no upper bound — two DIFFERENT "
-           "passwords sharing their first 72 bytes are the same credential. "
-           "Fix: cap the password length (`Field(max_length=72)`) so the "
-           "truncation can never create a collision.",
-)
 def test_long_passwords_do_not_collide_via_truncation(client: TestClient):
     """SCENARIO:   a user registers with a 100-character password; later, a
                 login arrives with the FIRST 72 bytes identical and a
