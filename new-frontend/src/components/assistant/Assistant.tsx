@@ -4,7 +4,7 @@ import ChatInput  from "./ChatInput";
 import Conversation from "./Conversation"
 
 type Message = {
-  id: number;
+  id: string;
   role: "user" | "assistant";
   content: string;
 };
@@ -32,7 +32,7 @@ export default function Assistant() {
 
   function handleSend(message: string) {
     const userMessage: Message = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       role: "user",
       content: message,
     }
@@ -42,7 +42,7 @@ export default function Assistant() {
     const aiResponse = generateAIResponse(message);
 
     const aiMessage: Message = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       role: "assistant",
       content: aiResponse,
     }

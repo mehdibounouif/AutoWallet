@@ -48,7 +48,12 @@ export default function Sidebar() {
     const [active, setActive] = useState<string>('Assistant');
 
     return (
-        <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-gray-200 bg-white">
+        // recall 
+        <aside className="
+            sticky top-0 flex h-screen w-16 shrink-0 flex-col
+            border-r border-gray-200 bg-white
+            lg:w-64
+        ">
             {/* Header */}
             <div className="flex items-center gap-2 px-4 py-5">
                 <img
@@ -56,7 +61,9 @@ export default function Sidebar() {
                     alt="AutoWallet Logo"
                     className="h-7 w-auto shrink-0"
                 />
-                <span className="text-lg font-bold text-gray-900">AutoWallet</span>
+                <span className="hidden text-lg font-bold text-gray-900 lg:inline">
+                    AutoWallet
+                </span>
             </div>
 
             {/* Navigation */}
@@ -68,54 +75,69 @@ export default function Sidebar() {
                         <NavLink
                             key={item.path}
                             to={item.path}
+                            // {/* nav */}
                             className={({ isActive }) =>
-                                `flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${isActive
+                                `flex h-10 w-10 items-center justify-center rounded-lg transition-colors
+                                lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5
+                                ${isActive
                                     ? 'bg-green-900 text-white'
                                     : 'text-gray-700 hover:bg-gray-100'
                                 }`
                             }
                         >
                             <Icon size={20} className="shrink-0" />
-                            <span>{item.label}</span>
+                            <span className="hidden lg:inline">{item.label}</span>
                         </NavLink>
                     );
                 })}
             </nav>
 
             {/* Footer */}
-            <div className='border border-gray-300 p-4'>
-                <div className='flex items-center justify-between'>
-                    <span className="flex items-center gap-2 text-xs text-gray-600">
+            {/* recall */}
+            <div className="border border-gray-300 p-2 lg:p-4">
+
+                <div className="flex flex-col items-center gap-4 lg:flex-row lg:justify-between">
+
+                    {/* Live indicator */}
+                    <span className="flex items-center justify-center">
                         <span className="relative flex h-4 w-4 items-center justify-center">
                             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-40" />
                             <Radio size={14} className="relative text-green-600" />
                         </span>
-                        Live
+                        <span className="hidden lg:inline lg:ml-2 text-xs text-gray-600">
+                            Live
+                        </span>
                     </span>
-                    <button className='flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-300 rounded-lg ring-2 ring-gray-300'>
+
+                    {/* Language */}
+                    <button className="hidden lg:flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700">
                         <Globe size={16} />
                         EN
                     </button>
+
                 </div>
 
-                <div className='mt-4 flex items-center justify-between gap-2'>
-                    <div>
-                        <p className='truncate text-sm font-semibold text-gray-900'>
+                {/* User information and logout */}
+                <div className="mt-4 flex items-center justify-center lg:justify-between">
+
+                    <div className="hidden lg:block">
+                        <p className="truncate text-sm font-semibold text-gray-900">
                             {user.name}
                         </p>
                         <p className="truncate text-xs text-gray-500">
                             {user.email}
                         </p>
                     </div>
+
                     <button
                         onClick={() => console.log("user logout")}
                         title="Log out"
-                        className="cursor-pointer rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100"
+                        className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
                     >
                         <LogOut size={18} />
                     </button>
-                </div>
 
+                </div>
             </div>
         </aside>
     );
